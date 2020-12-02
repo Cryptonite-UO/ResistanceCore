@@ -729,10 +729,9 @@ bool CPointBase::r_LoadVal( lpctstr ptcKey, lpctstr pszArgs )
 {
 	ADDTOCALLSTACK("CPointBase::r_LoadVal");
 	int index = FindTableSorted( ptcKey, sm_szLoadKeys, CountOf(sm_szLoadKeys)-1 );
-	if ( index <= 0 )
-	{
+	if ( index < 0 )
 		return false;
-	}
+
 	int iVal = Exp_GetVal(pszArgs);
 	switch (index)
 	{
@@ -845,15 +844,25 @@ int CPointBase::Read( tchar * pszVal )
                     ptTest.m_map = 0;
 				}
 			}
+			FALLTHROUGH;
 		case 3: // m_z
-			if ( IsDigit(ppVal[2][0]) || ppVal[2][0] == '-' )
-                ptTest.m_z = (char)(Str_ToI(ppVal[2]));
+			if (IsDigit(ppVal[2][0]) || ppVal[2][0] == '-')
+			{
+				ptTest.m_z = (char)(Str_ToI(ppVal[2]));
+			}
+			FALLTHROUGH;
 		case 2:
 			if (IsDigit(ppVal[1][0]))
-                ptTest.m_y = (short)(Str_ToI(ppVal[1]));
+			{
+				ptTest.m_y = (short)(Str_ToI(ppVal[1]));
+			}
+			FALLTHROUGH;
 		case 1:
 			if (IsDigit(ppVal[0][0]))
-                ptTest.m_x = (short)(Str_ToI(ppVal[0]));
+			{
+				ptTest.m_x = (short)(Str_ToI(ppVal[0]));
+			}
+			FALLTHROUGH;
 		case 0:
 			break;
 	}

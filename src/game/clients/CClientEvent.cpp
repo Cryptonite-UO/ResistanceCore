@@ -215,7 +215,7 @@ void CClient::Event_Item_Pickup(CUID uid, word amount) // Client grabs an item
 
 	EXC_SET_BLOCK("FastLoot");
 	//	fastloot (,emptycontainer) protection
-	const int64 iCurTime = GetPreciseSysTimeMilli();
+	const int64 iCurTime = CSTime::GetPreciseSysTimeMilli();
 	if ( m_tNextPickup > iCurTime)
 	{
 		EXC_SET_BLOCK("FastLoot - addItemDragCancel(0)");
@@ -724,7 +724,7 @@ bool CClient::Event_CheckWalkBuffer()
 		return true;
 
 	// Client only allows 4 steps of walk ahead.
-	const int64 iCurTime = GetPreciseSysTimeMilli();
+	const int64 iCurTime = CSTime::GetPreciseSysTimeMilli();
     int64 iTimeDiff = (int64)llabs(iCurTime - m_timeWalkStep);	// use absolute value to prevent overflows
     int64 iTimeMin = m_pChar->IsStatFlag(STATF_ONHORSE|STATF_HOVERING) ? 700 : 1400; // minimum time to move 8 steps in milliseconds
 
@@ -1186,7 +1186,7 @@ void CClient::Event_VendorBuy(CChar* pVendor, const VendorItem* items, uint uiIt
 
 		if (( IsTrigUsed(TRIGGER_BUY) ) || ( IsTrigUsed(TRIGGER_ITEMBUY) ))
 		{
-			CScriptTriggerArgs Args( amount, items[i].m_vcAmount * items[i].m_price, pVendor );
+			CScriptTriggerArgs Args( amount, int64(items[i].m_vcAmount) * items[i].m_price, pVendor );
 			Args.m_VarsLocal.SetNum( "TOTALCOST", costtotal);
 			if ( pItem->OnTrigger( ITRIG_Buy, this->GetChar(), &Args ) == TRIGRET_RET_TRUE )
 				continue;
@@ -1380,12 +1380,24 @@ void CClient::Event_VendorSell(CChar* pVendor, const VendorItem* items, uint uiI
 		word amount = items[i].m_vcAmount;
 
 		// Now how much did i say i wanted to sell ?
+		dword dwPrice = 0;
 		if ( pItem->GetAmount() < amount )	// Selling more than i have ?
 		{
 			amount = pItem->GetAmount();
 		}
 
-		dword dwPrice = pItemSell->GetVendorPrice(iConvertFactor) * amount;
+		// If OVERRIDE.VALUE is define on the script and this NPC buy this item at a specific price, we use this price in priority
+		// Else, we calculate the value of the item in the player's backpack
+		if (pItemSell->GetKey("OVERRIDE.VALUE", true))
+		{
+			//Get the price on NPC template
+			dwPrice = pItemSell->GetVendorPrice(iConvertFactor,1) * amount; //Check the value of item on NPC template or itemdef
+		}
+		else
+		{
+			//Get the price/Value of the real item in the backpack
+			dwPrice = pItem->GetVendorPrice(iConvertFactor,1) * amount; //Check the value of the item on the player
+		}
 
 		if (( IsTrigUsed(TRIGGER_SELL) ) || ( IsTrigUsed(TRIGGER_ITEMSELL) ))
 		{
@@ -1827,7 +1839,7 @@ void CClient::Event_Talk_Common(lpctstr pszText)	// PC speech
 			pCharAlt = pChar;
 			iAltDist = 1;
 		}
-		else if ( pChar->IsClient() && (iAltDist >= 2) )	// PC's have higher priority
+		else if ( pChar->IsClientActive() && (iAltDist >= 2) )	// PC's have higher priority
 		{
 			pCharAlt = pChar;
 			iAltDist = 2;	// high priority
@@ -2477,7 +2489,7 @@ void CClient::Event_AOSPopupMenuRequest( dword uid ) //construct packet after a 
 			else
 			{
 				word iEnabled = pChar->IsStatFlag(STATF_DEAD) ? POPUPFLAG_LOCKED : POPUPFLAG_COLOR;
-				if ((pChar->IsOwnedBy(m_pChar, false)) && (pChar->m_pNPC->m_Brain != NPCBRAIN_BERSERK))
+				if ( (pChar->IsOwnedBy(m_pChar, false)) && ((pChar->m_pNPC->m_Brain != NPCBRAIN_BERSERK)) || (m_pChar->IsPriv(PRIV_GM)))
 				{
 					CREID_TYPE id = pChar->GetID();
 
@@ -2696,7 +2708,7 @@ void CClient::Event_AOSPopupMenuSelect(dword uid, word EntryTag)	//do something 
 	switch ( EntryTag )
 	{
 		case POPUP_PAPERDOLL:
-			m_pChar->GetClient()->addCharPaperdoll(pChar);
+			m_pChar->GetClientActive()->addCharPaperdoll(pChar);
 			break;
 
 		case POPUP_BACKPACK:
@@ -2704,7 +2716,7 @@ void CClient::Event_AOSPopupMenuSelect(dword uid, word EntryTag)	//do something 
 			break;
 
 		case POPUP_PARTY_ADD:
-			m_pChar->GetClient()->OnTarg_Party_Add(pChar);
+			m_pChar->GetClientActive()->OnTarg_Party_Add(pChar);
 			break;
 
 		case POPUP_PARTY_REMOVE:

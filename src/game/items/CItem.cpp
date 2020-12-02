@@ -134,6 +134,7 @@ CItem::CItem( ITEMID_TYPE id, CItemBase * pItemDef ) : CTimedObject(PROFILE_ITEM
 	m_containedGridIndex = 0;
 	m_dwDispIndex = ITEMID_NOTHING;
 
+
 	m_itNormal.m_more1 = 0;
 	m_itNormal.m_more2 = 0;
 	m_itNormal.m_morep.ZeroPoint();
@@ -170,9 +171,9 @@ void CItem::DeleteCleanup(bool fForce)
 	if (IsType(IT_CORPSE) && m_uidLink)
 	{
 		CChar* pChar = m_uidLink.CharFind();
-		if (pChar && pChar->GetClient())
+		if (pChar && pChar->GetClientActive())
 		{
-			pChar->GetClient()->addMapWaypoint(this, MAPWAYPOINT_Remove);
+			pChar->GetClientActive()->addMapWaypoint(this, MAPWAYPOINT_Remove);
 		}
 	}
 
@@ -839,7 +840,10 @@ int CItem::FixWeirdness()
     {
         if (IsType(IT_WATER) || Can(CAN_I_WATER))
         {
-            SetAttr(ATTR_MOVE_NEVER);
+		if ( ! IsAttr(ATTR_MOVE_ALWAYS))	// If item is explicitely set to always movable, it will not lock it.
+		{
+	            SetAttr(ATTR_MOVE_NEVER);
+		}
         }
     }
 
@@ -932,7 +936,7 @@ int CItem::FixWeirdness()
     {
         case IT_EQ_TRADE_WINDOW:
             // Should not exist except equipped. Commented the check on the layer because, right now, placing it on LAYER_SPECIAL is the only way to create script-side a trade window.
-            if (!IsItemEquipped() || /*GetEquipLayer() != LAYER_NONE ||*/ !pChar || !pChar->m_pPlayer || !pChar->IsClient())
+            if (!IsItemEquipped() || /*GetEquipLayer() != LAYER_NONE ||*/ !pChar || !pChar->m_pPlayer || !pChar->IsClientActive())
             {
                 if (IsItemEquipped())
                 {
@@ -955,7 +959,7 @@ int CItem::FixWeirdness()
 
         case IT_EQ_CLIENT_LINGER:
             // Should not exist except equipped.
-            if (!IsItemEquipped() || GetEquipLayer() != LAYER_FLAG_ClientLinger || !pChar || !pChar->m_pPlayer)
+            if (!IsItemEquipped() || (GetEquipLayer() != LAYER_FLAG_ClientLinger) || !pChar || !pChar->m_pPlayer)
             {
                 iResultCode = 0x2221;
                 return iResultCode;	// get rid of it.
@@ -976,7 +980,7 @@ int CItem::FixWeirdness()
 
         case IT_EQ_HORSE:
             // These should only exist eqipped.
-            if (!IsItemEquipped() || GetEquipLayer() != LAYER_HORSE)
+            if (!IsItemEquipped() || (GetEquipLayer() != LAYER_HORSE))
             {
                 iResultCode = 0x2226;
                 return iResultCode;	// get rid of it.
@@ -1897,6 +1901,20 @@ bool CItem::SetName( lpctstr pszName )
 	return SetNamePool( pszName );
 }
 
+HUE_TYPE CItem::GetHue() const  //Override of CObjBase::GetHue()
+{
+	if (g_Cfg.m_iColorInvisItem) //If setting ask a specific color
+	{
+		if (IsAttr(ATTR_INVIS))
+		{
+			if (!IsType(IT_SPAWN_CHAR) && !IsType(IT_SPAWN_ITEM))  //Spawn point always keep their m_wHue (HUE_RED_DARK)
+				return(g_Cfg.m_iColorInvisItem);
+		}
+	}
+	
+	return(CObjBase::m_wHue);
+}
+
 int CItem::GetWeight(word amount) const
 {
 	int iWeight = m_weight * (amount ? amount : GetAmount());
@@ -2143,10 +2161,10 @@ void CItem::SetAmountUpdate(word amount )
     }
 }
 
-bool CItem::CanSendAmount() const
+bool CItem::CanSendAmount() const noexcept
 {
     // return false -> don't send to the client the real amount for this item (send 1 instead)
-    ITEMID_TYPE id = GetDispID();
+    const ITEMID_TYPE id = GetDispID();
     if (id == ITEMID_WorldGem) // it can be a natural resource worldgem bit (used for lumberjacking, mining...)
         return false;
     return true;
@@ -3096,16 +3114,19 @@ bool CItem::r_LoadVal( CScript & s ) // Load an item Script
 					switch ( iArgs )
 					{
 						default:
+							FALLTHROUGH;
 						case 2:
 							pt.m_y = (short)(atoi(ppVal[1]));
+							FALLTHROUGH;
 						case 1:
 							pt.m_x = (short)(atoi(ppVal[0]));
+							FALLTHROUGH;
 						case 0:
 							break;
 					}
 				}
 				CObjBase * pContainer = GetContainer();
-				if (( IsItem() ) && ( IsItemInContainer() ) && ( pContainer->IsValidUID() ) && ( pContainer->IsContainer() ) && ( pContainer->IsItem() ))
+				if ( IsItem() && IsItemInContainer() && pContainer->IsValidUID() && pContainer->IsContainer() && pContainer->IsItem() )
 				{
 					CItemContainer * pCont = dynamic_cast <CItemContainer *> ( pContainer );
 					pCont->ContentAdd( this, pt );
@@ -3225,13 +3246,17 @@ bool CItem::r_LoadVal( CScript & s ) // Load an item Script
 						case 4:	// m_map
 							if ( IsDigit(ppVal[3][0]))
 								pt.m_map = (uchar)(atoi(ppVal[3]));
+							FALLTHROUGH;
 						case 3: // m_z
 							if ( IsDigit(ppVal[2][0]) || ppVal[2][0] == '-' )
 								pt.m_z = (char)(atoi(ppVal[2]));
+							FALLTHROUGH;
 						case 2:
 							pt.m_y = (short)(atoi(ppVal[1]));
+							FALLTHROUGH;
 						case 1:
 							pt.m_x = (short)(atoi(ppVal[0]));
+							FALLTHROUGH;
 						case 0:
 							break;
 					}
@@ -5364,9 +5389,14 @@ bool CItem::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 	{
 		switch ( OnTrigger(ITRIG_SPELLEFFECT, pCharSrc, &Args) )
 		{
-			case TRIGRET_RET_TRUE:		return false;
-			case TRIGRET_RET_FALSE:		if ( pSpellDef && pSpellDef->IsSpellType(SPELLFLAG_SCRIPTED) ) return true;
-			default:					break;
+			case TRIGRET_RET_TRUE:
+				return false;
+			case TRIGRET_RET_FALSE:
+				if ( pSpellDef && pSpellDef->IsSpellType(SPELLFLAG_SCRIPTED) )
+					return true;
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -5374,9 +5404,14 @@ bool CItem::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 	{
 		switch (Spell_OnTrigger(spell, SPTRIG_EFFECT, pCharSrc, &Args))
 		{
-			case TRIGRET_RET_TRUE:		return false;
-			case TRIGRET_RET_FALSE:		if ( pSpellDef && pSpellDef->IsSpellType(SPELLFLAG_SCRIPTED) ) return true;
-			default:					break;
+			case TRIGRET_RET_TRUE:
+				return false;
+			case TRIGRET_RET_FALSE:
+				if ( pSpellDef && pSpellDef->IsSpellType(SPELLFLAG_SCRIPTED) )
+					return true;
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -5906,7 +5941,7 @@ bool CItem::OnTick()
 				const CChar * pSrc = m_uidLink.CharFind();
 				if ( pSrc && pSrc->m_pPlayer )
 				{
-                    const CClient* pClient = pSrc->GetClient();
+                    const CClient* pClient = pSrc->GetClientActive();
                     if (pClient)
                     {
                         pClient->addMapWaypoint(this, MAPWAYPOINT_Remove);	// remove corpse map waypoint on enhanced clients

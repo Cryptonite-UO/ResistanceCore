@@ -198,6 +198,7 @@ CServerConfig::CServerConfig()
 	m_fPayFromPackOnly	= false;	// pay vendors from packs only
 
 	m_iOverSkillMultiply	= 2;
+	m_iCanSeeSamePLevel		= 0;
 	m_fSuppressCapitals		= false;
 
 	m_iAdvancedLos		= 0;
@@ -268,6 +269,7 @@ CServerConfig::CServerConfig()
 	m_iColorNotoInvulGameMaster = 0x0b;		// purple
 	m_iColorNotoDefault			= 0x3b2;	// grey (if not any other)
 
+	m_iColorInvisItem   = 1000;
 	m_iColorInvis		= 0;
 	m_iColorInvisSpell	= 0;
 	m_iColorHidden		= 0;
@@ -428,6 +430,7 @@ enum RC_TYPE
 	RC_BANKMAXITEMS,
 	RC_BANKMAXWEIGHT,
 	RC_BUILD,
+	RC_CANSEESAMEPLEVEL,		// m_iCanSeeSamePLevel
 	RC_CANUNDRESSPETS,			// m_fCanUndressPets
 	RC_CHARTAGS,				// m_fCharTags
 	RC_CLIENTLINGER,
@@ -438,6 +441,7 @@ enum RC_TYPE
 	RC_CLIENTS,
 	RC_COLORHIDDEN,
 	RC_COLORINVIS,
+	RC_COLORINVISITEM,
 	RC_COLORINVISSPELL,
 	RC_COLORNOTOCRIMINAL,		// m_iColorNotoCriminal
 	RC_COLORNOTODEFAULT,		// m_iColorNotoDefault
@@ -677,6 +681,7 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY+1] =
 	{ "BANKMAXITEMS",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iBankIMax),			0 }},
 	{ "BANKMAXWEIGHT",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iBankWMax),			0 }},
 	{ "BUILD",					{ ELEM_VOID,	0,											    0 }},
+	{ "CANSEESAMEPLEVEL",		{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iCanSeeSamePLevel),	0 }},
 	{ "CANUNDRESSPETS",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fCanUndressPets),		0 }},
 	{ "CHARTAGS",				{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fCharTags),			0 }},
 	{ "CLIENTLINGER",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iClientLingerTime),	0 }},
@@ -687,6 +692,7 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY+1] =
 	{ "CLIENTS",				{ ELEM_VOID,	0,											    0 }},	// duplicate
 	{ "COLORHIDDEN",			{ ELEM_VOID,	static_cast<uint>OFFSETOF(CServerConfig,m_iColorHidden),			0 }},
 	{ "COLORINVIS",				{ ELEM_VOID,	static_cast<uint>OFFSETOF(CServerConfig,m_iColorInvis),			0 }},
+	{ "COLORINVISITEM",			{ ELEM_VOID,	static_cast<uint>OFFSETOF(CServerConfig,m_iColorInvisItem),		0 }},
 	{ "COLORINVISSPELL",		{ ELEM_VOID,	static_cast<uint>OFFSETOF(CServerConfig,m_iColorInvisSpell),		0 }},
 	{ "COLORNOTOCRIMINAL",		{ ELEM_WORD,	static_cast<uint>OFFSETOF(CServerConfig,m_iColorNotoCriminal),	0 }},
 	{ "COLORNOTODEFAULT",		{ ELEM_WORD,	static_cast<uint>OFFSETOF(CServerConfig,m_iColorNotoDefault),	0 }},
@@ -1073,6 +1079,9 @@ bool CServerConfig::r_LoadVal( CScript &s )
 		case RC_COLORINVIS:
 			m_iColorInvis = (HUE_TYPE)(s.GetArgVal());
 			break;
+		case RC_COLORINVISITEM:
+			m_iColorInvisItem = (HUE_TYPE)(s.GetArgVal());
+			break;
 		case RC_COLORINVISSPELL:
 			m_iColorInvisSpell = (HUE_TYPE)(s.GetArgVal());
 			break;
@@ -1092,12 +1101,14 @@ bool CServerConfig::r_LoadVal( CScript &s )
             }
             m_iCombatFlags = uiVal;
         }
+		break;
         case RC_CONTAINERMAXITEMS:
         {
-            uint uiVal = s.GetArgUVal();
+            const uint uiVal = s.GetArgUVal();
             if ((uiVal > 0) && (uiVal < MAX_ITEMS_CONT))
                 m_iContainerMaxItems = uiVal;
         }
+		break;
 		case RC_CORPSENPCDECAY:
 			m_iDecay_CorpseNPC = s.GetArgLLVal()*60*MSECS_PER_SEC;
 			break;
@@ -1489,8 +1500,12 @@ bool CServerConfig::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * 
 				{
 					default:
 					case 4:
-						if ( IsDigit(ppVal[3][0]) )
+						if (IsDigit(ppVal[3][0]))
+						{
 							pt.m_map = (byte)(atoi(ppVal[3]));
+						}
+						FALLTHROUGH;
+
 					case 3:
 						if ( IsDigit(ppVal[2][0]) || (( iArgs == 4 ) && ( ppVal[2][0] == '-' )) )
 						{
@@ -1498,10 +1513,16 @@ bool CServerConfig::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * 
 							if ( iArgs == 3 )
 								pt.m_map = (byte)(atoi(ppVal[2]));
 						}
+						FALLTHROUGH;
+
 					case 2:
 						pt.m_y = (short)(atoi(ppVal[1]));
+						FALLTHROUGH;
+
 					case 1:
 						pt.m_x = (short)(atoi(ppVal[0]));
+						FALLTHROUGH;
+
 					case 0:
 						break;
 				}
@@ -1822,6 +1843,9 @@ bool CServerConfig::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * 
 			break;
 		case RC_COLORINVIS:
 			sVal.FormatHex( m_iColorInvis );
+			break;
+		case RC_COLORINVISITEM:
+			sVal.FormatHex( m_iColorInvisItem );
 			break;
 		case RC_COLORINVISSPELL:
 			sVal.FormatHex( m_iColorInvisSpell );
@@ -2717,11 +2741,11 @@ uint CServerConfig::GetPacketFlag( bool bCharlist, RESDISPLAY_VERSION res, uchar
 bool CServerConfig::LoadResourceSection( CScript * pScript )
 {
 	ADDTOCALLSTACK("CServerConfig::LoadResourceSection");
-	// Index or read any resource blocks we know how to handle.
+	// Index or read any resource sections we know how to handle.
 
 	ASSERT(pScript);
 	CScriptFileContext FileContext( pScript );	// set this as the context.
-    CSString sSection = pScript->GetSection();
+    const CSString sSection = pScript->GetSection();
     lpctstr pszSection = sSection.GetBuffer();
 
 	CVarDefContNum * pVarNum = nullptr;

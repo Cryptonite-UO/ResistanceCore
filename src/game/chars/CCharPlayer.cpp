@@ -238,7 +238,7 @@ bool CCharPlayer::r_WriteVal( CChar * pChar, lpctstr ptcKey, CSString & sVal )
 			return true;
 		case CPC_LIGHT:
 			sVal.FormatHex(m_LocalLight);
-			break;
+			return true;
 		case CPC_PFLAG:
 			sVal.FormatVal(m_pflag);
 			return true;
@@ -361,7 +361,7 @@ bool CCharPlayer::r_LoadVal( CChar * pChar, CScript &s )
 				ePriv = (HOUSE_PRIV)piCmd[1];
 			}
 			GetMultiStorage()->AddHouse(CUID((dword)piCmd[0]), ePriv);
-			break;
+			return true;
 		}
 		case CPC_DELHOUSE:
 		{
@@ -374,7 +374,7 @@ bool CCharPlayer::r_LoadVal( CChar * pChar, CScript &s )
 			{
 				GetMultiStorage()->DelHouse(CUID(dwUID));
 			}
-			break;
+			return true;
 		}
 		case CPC_ADDSHIP:
 		{
@@ -390,7 +390,7 @@ bool CCharPlayer::r_LoadVal( CChar * pChar, CScript &s )
 				ePriv = (HOUSE_PRIV)piCmd[1];
 			}
 			GetMultiStorage()->AddShip(CUID((dword)piCmd[0]), ePriv);
-			break;
+			return true;
 		}
 		case CPC_DELSHIP:
 		{
@@ -403,21 +403,21 @@ bool CCharPlayer::r_LoadVal( CChar * pChar, CScript &s )
 			{
 				GetMultiStorage()->DelShip(CUID(dwUID));
 			}
-			break;
+			return true;
 		}
 
 		case CPC_MAXHOUSES:
 			_iMaxHouses = s.GetArgU8Val();
-			break;
+			return true;
 		case CPC_MAXSHIPS:
-			_iMaxShips = s.GetArgU8Val();;
-			break;
+			_iMaxShips = s.GetArgU8Val();
+			return true;
 
 		case CPC_LIGHT:
 			m_LocalLight = s.GetArgBVal();
-			if (pChar->IsClient())
-				pChar->GetClient()->addLight();
-			break;
+			if (pChar->IsClientActive())
+				pChar->GetClientActive()->addLight();
+			return true;
 
         case CPC_SPEECHCOLOR:
             m_SpeechHue = (HUE_TYPE)s.GetArgWVal();
@@ -436,8 +436,8 @@ bool CCharPlayer::r_LoadVal( CChar * pChar, CScript &s )
 			return true;
 		case CPC_KRTOOLBARSTATUS:
 			m_bKrToolbarEnabled = ( s.GetArgVal() != 0 );
-			if ( pChar->IsClient() )
-				pChar->GetClient()->addKRToolbar( m_bKrToolbarEnabled );
+			if ( pChar->IsClientActive() )
+				pChar->GetClientActive()->addKRToolbar( m_bKrToolbarEnabled );
 			return true;
 		case CPC_LASTUSED:
 			m_timeLastUsed = s.GetArgLLVal() * MSECS_PER_SEC;
@@ -463,8 +463,8 @@ bool CCharPlayer::r_LoadVal( CChar * pChar, CScript &s )
 				if ( (bState < SKILLLOCK_UP) || (bState > SKILLLOCK_LOCK) )
 					return false;
 				Skill_SetLock(skill, (SKILLLOCK_TYPE)bState);
-				if ( pChar->IsClient() )
-					pChar->GetClient()->addSkillWindow(skill);
+				if ( pChar->IsClientActive() )
+					pChar->GetClientActive()->addSkillWindow(skill);
 			} return true;
 		case CPC_SPEEDMODE:
 			{
@@ -480,8 +480,8 @@ bool CCharPlayer::r_LoadVal( CChar * pChar, CScript &s )
 				if ( (bState < SKILLLOCK_UP) || (bState > SKILLLOCK_LOCK) )
 					return false;
 				Stat_SetLock(stat, (SKILLLOCK_TYPE)bState );
-				if ( pChar->IsClient() )
-					pChar->GetClient()->addStatusWindow(pChar);
+				if ( pChar->IsClientActive() )
+					pChar->GetClientActive()->addStatusWindow(pChar);
 			} return true;
 
 		default:
@@ -632,7 +632,7 @@ bool CChar::Player_OnVerb( CScript &s, CTextConsole * pSrc )
 	switch ( cpVerb )
 	{
 		case CPV_KICK: // "KICK" = kick and block the account
-			return (IsClient() && GetClient()->addKick(pSrc));
+			return (IsClientActive() && GetClientActive()->addKick(pSrc));
 
 		case CPV_PASSWORD:	// "PASSWORD"
 		{

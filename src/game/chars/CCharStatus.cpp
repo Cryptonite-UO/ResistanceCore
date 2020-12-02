@@ -1058,6 +1058,7 @@ bool CChar::CanSeeInContainer( const CItemContainer *pContItem ) const
 }
 
 bool CChar::CanSee( const CObjBaseTemplate *pObj ) const
+//true = client can see the invisble target
 {
 	ADDTOCALLSTACK("CChar::CanSee");
 	// Can I see this object (char or item)?
@@ -1078,7 +1079,7 @@ bool CChar::CanSee( const CObjBaseTemplate *pObj ) const
         const CItemMulti* pMultiRegion = static_cast<const CItemMulti*>(pRegionHouse->GetResourceID().ItemFindFromResource());
         // If it's a public house
         {
-            const bool fShowPublicHouseContent = IsClient() ? GetClient()->_fShowPublicHouseContent : false;
+            const bool fShowPublicHouseContent = IsClientActive() ? GetClientActive()->_fShowPublicHouseContent : false;
             if (!fShowPublicHouseContent)
                 return false;
         }
@@ -1127,9 +1128,9 @@ bool CChar::CanSee( const CObjBaseTemplate *pObj ) const
                 }
 
 				// A client cannot see the contents of someone else's container, unless they have opened it first
-				if (!fSkip && IsClient() && pObjCont->IsItem() && pObjCont->GetTopLevelObj() != this)
+				if (!fSkip && IsClientActive() && pObjCont->IsItem() && pObjCont->GetTopLevelObj() != this)
 				{
-					const CClient *pClient = GetClient();
+					const CClient *pClient = GetClientActive();
 					if (pClient && (pClient->m_openedContainers.find(pObjCont->GetUID().GetPrivateUID()) == pClient->m_openedContainers.end()))
 					{
 					/*
@@ -1174,7 +1175,7 @@ bool CChar::CanSee( const CObjBaseTemplate *pObj ) const
 		else if ( pChar->IsStatFlag(STATF_INVISIBLE|STATF_INSUBSTANTIAL|STATF_HIDDEN) )
 		{
 			// Characters can be invisible, but not to GM's (true sight ?)
-			// equal level can see each other if they are staff members or they return 1 in @SeeHidden
+			// equal plevel can see each other if they are staff members or they return 1 in @SeeHidden
 			if ( pChar->GetPrivLevel() <= PLEVEL_Player )
 			{
 				if ( IsTrigUsed( TRIGGER_SEEHIDDEN ) )
@@ -1187,8 +1188,40 @@ bool CChar::CanSee( const CObjBaseTemplate *pObj ) const
 					return ( Args.m_iN1 != 1 );
 				}
 			}
-			if ( plevelMe <= plevelChar )
+			//Here we analyse how GM can see other player/GM when they are hide.
+			if (plevelMe < 2) //only Plevel over 2 have the possibility to see other
+			{
 				return false;
+			}
+			else
+			{
+				switch (g_Cfg.m_iCanSeeSamePLevel) //Evaluate the .ini setting
+				{
+				case 0: //GM see all
+					if (plevelMe < plevelChar)
+					{
+						return false;
+					}
+					break;
+				case 1: //Gm dont see same plevel
+					if (plevelMe <= plevelChar)
+					{
+						return false;
+					}
+					break;
+				case 2: //Plevel x and more see all
+				case 3:
+				case 4:
+				case 5:
+				case 6:
+				case 7:
+					if (plevelMe < g_Cfg.m_iCanSeeSamePLevel)
+					{
+						return false;
+					}
+					break;
+				}
+			}
 		}
 
 		if ( IsStatFlag(STATF_DEAD) && !CanSeeAsDead(pChar) )

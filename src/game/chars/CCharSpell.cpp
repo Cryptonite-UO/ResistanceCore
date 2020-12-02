@@ -216,7 +216,7 @@ bool CChar::Spell_Teleport( CPointMap ptNew, bool fTakePets, bool fCheckAntiMagi
 
 	MoveToChar(ptNew, true, true); 	// move character
 
-	CClient *pClient = GetClient();
+	CClient *pClient = GetClientActive();
 	CClient *pClientIgnore = nullptr;
 	if ( pClient && (ptNew.m_map != ptOld.m_map) )
 	{
@@ -494,9 +494,9 @@ bool CChar::Spell_Resurrection(CItemCorpse * pCorpse, CChar * pCharSrc, bool fNo
 	CSpellDef *pSpellDef = g_Cfg.GetSpellDef(SPELL_Resurrection);
 	Effect(EFFECT_OBJ, pSpellDef->m_idEffect, this, 10, 16);
 	Sound(pSpellDef->m_sound);
-    if (IsClient())
+    if (IsClientActive())
     {
-        CClient *pClient = GetClient();
+        CClient *pClient = GetClientActive();
         pClient->addSeason(GetTopSector()->GetSeason());
     }
 	return true;
@@ -527,7 +527,7 @@ void CChar::Spell_Effect_Remove(CItem * pSpell)
 	if ( !spell || !pSpellDef )
 		return;
 
-	CClient *pClient = GetClient();
+	CClient *pClient = GetClientActive();
 	CChar *pCaster = pSpell->m_uidLink.CharFind();
 	ushort uiStatEffect = (ushort)(pSpell->m_itSpell.m_spelllevel);
 
@@ -733,8 +733,8 @@ void CChar::Spell_Effect_Remove(CItem * pSpell)
 			if (pClient)
 				pClient->removeBuff(BI_BLOODOATHCURSE);
 			CChar * pSrc = pSpell->m_uidLink.CharFind();
-			if (pSrc && pSrc->IsClient())
-				pSrc->GetClient()->removeBuff(BI_BLOODOATHCASTER);
+			if (pSrc && pSrc->IsClientActive())
+				pSrc->GetClientActive()->removeBuff(BI_BLOODOATHCASTER);
 			return;
 		}
 		case LAYER_SPELL_Corpse_Skin:
@@ -932,7 +932,7 @@ void CChar::Spell_Effect_Add( CItem * pSpell )
 	if ( !spell || !pSpellDef )
 		return;
 
-	CClient *pClient = GetClient();
+	CClient *pClient = GetClientActive();
 	CChar *pCaster = pSpell->m_uidLink.CharFind();
 	word& wStatEffectRef = pSpell->m_itSpell.m_spelllevel;
     int64 iTimerEffectSigned = pSpell->GetTimerSAdjusted();
@@ -1258,7 +1258,7 @@ void CChar::Spell_Effect_Add( CItem * pSpell )
 					pClient->removeBuff(BI_BLOODOATHCURSE);
 					pClient->addBuff(BI_BLOODOATHCURSE, 1075659, 1075660, wTimerEffect, pNumBuff, 2);
 				}
-				CClient *pCasterClient = pCaster->GetClient();
+				CClient *pCasterClient = pCaster->GetClientActive();
 				if (pCasterClient)
 				{
 					Str_CopyLimitNull(NumBuff[0], GetName(), uiBuffElemSize);
@@ -1593,8 +1593,8 @@ void CChar::Spell_Effect_Add( CItem * pSpell )
 		case SPELL_Protection:
 		case SPELL_Arch_Prot:
 			{
-				ushort uiPhysicalResist = 0;
-				ushort uiMagicResist = 0;
+				int iPhysicalResist = 0;
+				int iMagicResist = 0;
 				if ( IsSetCombatFlags(COMBAT_ELEMENTAL_ENGINE) )
 				{
 					ushort uiCasterEvalInt = pCaster->Skill_GetBase(SKILL_EVALINT), uiCasterMeditation = pCaster->Skill_GetBase(SKILL_MEDITATION);
@@ -1602,14 +1602,15 @@ void CChar::Spell_Effect_Add( CItem * pSpell )
 					ushort uiMyMagicResistance = Skill_GetBase(SKILL_MAGICRESISTANCE), uiMyInscription = Skill_GetBase(SKILL_INSCRIPTION);
                     wStatEffectRef = (uiCasterEvalInt + uiCasterMeditation + uiCasterInscription) / 40;
                     wStatEffectRef = minimum(75, wStatEffectRef);
-					uiPhysicalResist = 15 - (uiCasterInscription / 200);
-					uiMagicResist = minimum(uiMyMagicResistance, 350 - (uiMyInscription / 20));
+					
+					iPhysicalResist = 15 - (uiCasterInscription / 200);
+					iMagicResist = minimum(uiMyMagicResistance, 350 - (uiMyInscription / 20));
 
-					pSpell->m_itSpell.m_PolyStr = (short)(maximum(-INT16_MAX, minimum(INT16_MAX,uiPhysicalResist)));
-					pSpell->m_itSpell.m_PolyDex = (short)(maximum(-INT16_MAX, minimum(INT16_MAX,uiMagicResist)));
+					pSpell->m_itSpell.m_PolyStr = (short)(maximum(-INT16_MAX, minimum(INT16_MAX, iPhysicalResist)));
+					pSpell->m_itSpell.m_PolyDex = (short)(maximum(-INT16_MAX, minimum(INT16_MAX, iMagicResist)));
                     _CheckLimitEffectSkill(pSpell->m_itSpell.m_PolyDex, this, SKILL_MAGICRESISTANCE);
 
-                    ModPropNum(COMP_PROPS_CHAR, PROPCH_RESPHYSICAL, -uiPhysicalResist, true);
+                    ModPropNum(COMP_PROPS_CHAR, PROPCH_RESPHYSICAL, -iPhysicalResist, true);
                     ModPropNum(COMP_PROPS_CHAR, PROPCH_FASTERCASTING, -2, true);
 					Skill_AddBase(SKILL_MAGICRESISTANCE, - pSpell->m_itSpell.m_PolyDex);
 				}
@@ -1630,8 +1631,8 @@ void CChar::Spell_Effect_Add( CItem * pSpell )
 					pClient->removeBuff(BuffIcon);
 					if ( IsSetCombatFlags(COMBAT_ELEMENTAL_ENGINE) )
 					{
-						Str_FromI(-uiPhysicalResist, NumBuff[0], sizeof(NumBuff[0]), 10);
-						Str_FromI(-uiMagicResist/10, NumBuff[1], sizeof(NumBuff[0]), 10);
+						Str_FromI(-iPhysicalResist, NumBuff[0], sizeof(NumBuff[0]), 10);
+						Str_FromI(-iMagicResist/10, NumBuff[1], sizeof(NumBuff[0]), 10);
 						pClient->addBuff(BuffIcon, BuffCliloc, 1075815, wTimerEffect, pNumBuff, 2);
 					}
 					else
@@ -1715,7 +1716,7 @@ bool CChar::Spell_Equip_OnTick( CItem * pItem )
 			if (iCharges <= 0 || iLevel <= 0)
 				return false;
 
-			if (IsClient())
+			if (IsClientActive())
 			{
 				static const SOUND_TYPE sm_sounds[] = { 0x243, 0x244 };
 				m_pClient->addSound(sm_sounds[Calc_GetRandVal(CountOf(sm_sounds))]);
@@ -1783,7 +1784,7 @@ bool CChar::Spell_Equip_OnTick( CItem * pItem )
 					g_Cfg.GetDefaultMsg(DEFMSG_SPELL_OSIPOISON_LETHAL1)
 
 				};
-				Emote2(sm_Poison_MessageOSI[iLevel], sm_Poison_MessageOSI_Other[iLevel], GetClient());
+				Emote2(sm_Poison_MessageOSI[iLevel], sm_Poison_MessageOSI_Other[iLevel], GetClientActive());
 				SysMessagef(g_Cfg.GetDefaultMsg(DEFMSG_SPELL_YOUFEEL), sm_Poison_MessageOSI[iLevel]);
 			}
 			else
@@ -1817,7 +1818,7 @@ bool CChar::Spell_Equip_OnTick( CItem * pItem )
 				if ( g_Cfg.m_iEmoteFlags & EMOTEF_POISON )
 					EmoteObj(pszMsg);
 				else
-					Emote(pszMsg, GetClient());
+					Emote(pszMsg, GetClientActive());
 				SysMessagef(g_Cfg.GetDefaultMsg(DEFMSG_SPELL_YOUFEEL), sm_Poison_Message[iLevel]);
 			}
 
@@ -1825,10 +1826,10 @@ bool CChar::Spell_Equip_OnTick( CItem * pItem )
 			OnTakeDamage(maximum(sm_iPoisonMax[iLevel], iDmg), pItem->m_uidLink.CharFind(), DAMAGE_MAGIC|DAMAGE_POISON|DAMAGE_NODISTURB|DAMAGE_NOREVEAL, 0, 0, 0, 100, 0);
 
 			// We will have this effect again.
-			if (IsSetOF(OF_Buffs) && IsClient())
+			if (IsSetOF(OF_Buffs) && IsClientActive())
 			{
-				GetClient()->removeBuff(BI_POISON);
-				GetClient()->addBuff(BI_POISON, 1017383, 1070722, (word)(pItem->GetTimerSAdjusted()));
+				GetClientActive()->removeBuff(BI_POISON);
+				GetClientActive()->addBuff(BI_POISON, 1017383, 1070722, (word)(pItem->GetTimerSAdjusted()));
 			}
 			break;
 		}
@@ -2347,9 +2348,9 @@ bool CChar::Spell_CanCast( SPELL_TYPE &spellRef, bool fTest, CObjBase * pSrc, bo
 			{
 				if ( iLowerReagentCost <= Calc_GetRandVal(100))
 				{
-					const CResourceQtyArray * pRegs = &(pSpellDef->m_Reags);
-					CContainer* pCont = dynamic_cast<CContainer*>(this);
-					size_t iMissing = pCont->ResourceConsumePart( pRegs, 1, 100, fTest );
+					CContainer* pCont = static_cast<CContainer*>(this);
+					const CResourceQtyArray* pRegs = &(pSpellDef->m_Reags);
+					const size_t iMissing = pCont->ResourceConsumePart( pRegs, 1, 100, fTest );
 					if ( iMissing != SCONT_BADINDEX )
 					{
 						if ( fFailMsg )
@@ -3087,7 +3088,7 @@ bool CChar::Spell_CastDone()
 		Sound( pSpellDef->m_sound );
 
 	// At this point we should gain skill if precasting is enabled
-	if ( IsClient() && IsSetMagicFlags(MAGICF_PRECAST) && !pSpellDef->IsSpellType(SPELLFLAG_NOPRECAST) )
+	if ( IsClientActive() && IsSetMagicFlags(MAGICF_PRECAST) && !pSpellDef->IsSpellType(SPELLFLAG_NOPRECAST) )
 	{
 		iDifficulty /= 10;
 		Skill_Experience((SKILL_TYPE)(iSkill), iDifficulty);
@@ -3121,8 +3122,8 @@ void CChar::Spell_CastFail()
 		Effect(EFFECT_OBJ, iT1, this, 1, 30, false, iColor, dwRender);
 	Sound( SOUND_SPELL_FIZZLE );
 
-	if ( IsClient() )
-		GetClient()->addObjMessage( g_Cfg.GetDefaultMsg( DEFMSG_SPELL_GEN_FIZZLES ), this );
+	if ( IsClientActive() )
+		GetClientActive()->addObjMessage( g_Cfg.GetDefaultMsg( DEFMSG_SPELL_GEN_FIZZLES ), this );
 
 	if ( g_Cfg.m_fReagentLossFail )
 	{
@@ -3148,11 +3149,11 @@ int CChar::Spell_CastStart()
 	if ( !pSpellDef )
 		return -1;
 
-	if ( IsClient() && IsSetMagicFlags(MAGICF_PRECAST) && !pSpellDef->IsSpellType(SPELLFLAG_NOPRECAST) )
+	if ( IsClientActive() && IsSetMagicFlags(MAGICF_PRECAST) && !pSpellDef->IsSpellType(SPELLFLAG_NOPRECAST) )
 	{
 		m_Act_p = GetTopPoint();
-		m_Act_UID = GetClient()->m_Targ_UID;
-		m_Act_Prv_UID = GetClient()->m_Targ_Prv_UID;
+		m_Act_UID = GetClientActive()->m_Targ_UID;
+		m_Act_Prv_UID = GetClientActive()->m_Targ_Prv_UID;
 
 		if ( !Spell_CanCast(m_atMagery.m_iSpell, true, m_Act_Prv_UID.ObjFind(), true) )
 			return -1;
