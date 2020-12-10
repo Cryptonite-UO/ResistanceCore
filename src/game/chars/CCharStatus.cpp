@@ -1567,7 +1567,7 @@ bool CChar::CanMove( const CItem *pItem, bool fMsg ) const
 	if ( pItem->IsAttr(ATTR_MOVE_NEVER|ATTR_LOCKEDDOWN) && !pItem->IsAttr(ATTR_MOVE_ALWAYS) )
 		return false;
 
-	if ( IsStatFlag(STATF_STONE|STATF_FREEZE|STATF_INSUBSTANTIAL|STATF_DEAD|STATF_SLEEPING) || Can(CAN_C_STATUE) )
+	if ( IsStatFlag(STATF_STONE|STATF_FREEZE|STATF_DEAD|STATF_SLEEPING) || Can(CAN_C_STATUE) )//|STATF_INSUBSTANTIAL
 	{
 		if ( fMsg )
 			SysMessageDefault(DEFMSG_CANTMOVE_DEAD);

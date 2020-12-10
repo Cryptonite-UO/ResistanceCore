@@ -1520,14 +1520,14 @@ WAR_SWING_TYPE CChar::Fight_CanHit(CChar * pCharSrc, bool fSwingNoRange)
 	//  WAR_SWING_SWINGING	= taking my swing now
   
 	// We can't hit them. Char deleted? Target deleted? Am I dead or stoned? or Is target Dead, stone, invul, insub or slept?
-	if (IsDisconnected() || pCharSrc->IsDisconnected() || IsStatFlag(STATF_DEAD | STATF_STONE) || (pCharSrc->IsStatFlag(STATF_DEAD | STATF_STONE | STATF_INVUL | STATF_INSUBSTANTIAL)))
+	if (IsDisconnected() || pCharSrc->IsDisconnected() || IsStatFlag(STATF_DEAD | STATF_STONE) || (pCharSrc->IsStatFlag(STATF_DEAD | STATF_STONE | STATF_INVUL )))//| STATF_INSUBSTANTIAL
 	{
 		return WAR_SWING_INVALID;
 	}
 	// We can't hit them right now. Because we can't see them or reach them (invis/hidden).
 	// Why the target is freeze we are change the attack type to swinging? Player can still attack paralyzed or sleeping characters.
 	// We make sure that the target is freeze or sleeping must wait ready for attack!
-	else if ( (pCharSrc->IsStatFlag(STATF_HIDDEN | STATF_INVISIBLE | STATF_SLEEPING)) || (IsStatFlag(STATF_FREEZE | STATF_SLEEPING)) ) // STATF_FREEZE | STATF_SLEEPING
+	else if ( (pCharSrc->IsStatFlag(STATF_HIDDEN | STATF_INVISIBLE | STATF_SLEEPING | STATF_INSUBSTANTIAL)) || (IsStatFlag(STATF_FREEZE | STATF_SLEEPING)) ) // STATF_FREEZE | STATF_SLEEPING
 	{
 		return WAR_SWING_SWINGING;
 	}

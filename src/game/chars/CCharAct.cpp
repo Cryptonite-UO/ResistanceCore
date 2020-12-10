@@ -1229,8 +1229,8 @@ bool CChar::UpdateAnimate(ANIM_TYPE action, bool fTranslate, bool fBackward , by
 		CNetState* state = pClient->GetNetState();
 		if (state->isClientEnhanced() || state->isClientKR())
 			cmdnew->send(pClient);
-		else if (IsGargoyle() && state->isClientVersion(MINCLIVER_NEWMOBILEANIM))
-			cmdnew->send(pClient);
+		/*else if (IsGargoyle() && state->isClientVersion(MINCLIVER_NEWMOBILEANIM))
+			cmdnew->send(pClient);*/
 		else
 			cmd->send(pClient);
 	}
@@ -3373,7 +3373,7 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 
 	EXC_SET_BLOCK("Creature bumping");
 	ushort uiStamReq = 0;
-	if ( fCheckChars && !IsStatFlag(STATF_DEAD|STATF_SLEEPING|STATF_INSUBSTANTIAL) )
+	if ( fCheckChars && !IsStatFlag(STATF_DEAD|STATF_SLEEPING) ) //|STATF_INSUBSTANTIAL
 	{
 		CItem *pPoly = LayerFind(LAYER_SPELL_Polymorph);
 		CWorldSearch AreaChars(ptDst);
@@ -3384,7 +3384,7 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 				break;
             if (pChar->Can(CAN_C_STATUE))
                 return nullptr; // can't walk over a statue
-			if ( (pChar == this) || (abs(pChar->GetTopZ() - ptDst.m_z) > 5) || (pChar->IsStatFlag(STATF_INSUBSTANTIAL)) )
+			if ( (pChar == this) || (abs(pChar->GetTopZ() - ptDst.m_z) > 5) )//|| (pChar->IsStatFlag(STATF_INSUBSTANTIAL))
 				continue;
 			if ( m_pNPC && pChar->m_pNPC )	// NPCs can't walk over another NPC
 				return nullptr;
