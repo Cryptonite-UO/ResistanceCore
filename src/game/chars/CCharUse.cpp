@@ -576,7 +576,7 @@ bool CChar::Use_Item_Web( CItem * pItemWeb )
 	// RETURN: true = held in place.
 	//  false = walk thru it.
 
-	if ( GetDispID() == CREID_GIANT_SPIDER || !pItemWeb || !pItemWeb->IsTopLevel() || IsStatFlag(STATF_DEAD|STATF_INSUBSTANTIAL) || IsPriv(PRIV_GM) )
+	if ( GetDispID() == CREID_GIANT_SPIDER || !pItemWeb || !pItemWeb->IsTopLevel() || IsStatFlag(STATF_DEAD) || IsPriv(PRIV_GM) )//|STATF_INSUBSTANTIAL
 		return false;	// just walk through it
 
 	// Try to break it.
