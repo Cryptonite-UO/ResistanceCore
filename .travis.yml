@@ -1,45 +1,105 @@
 language: cpp
-compiler: gcc
-git:
-  depth: false
-notifications:
-  email: false
-branches:
-  only:
-    - master
-
-env:
-  - CMAKE_GEN="Unix Makefiles"
-    CMAKE_TCH_64="../src/cmake/toolchains/Linux-GNU-64.cmake"
-
-before_install:
-  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-
-install:
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7 
-  - sudo update-alternatives --config gcc
-
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - gcc-7
-      - g++-7
-      - libmysql++-dev
-      
-  master:
-    project:
-      name: "Cryptonite-UO / CryptoCore"
-      description: "Game server for Ultima Online"
-    notification_email: null@null
-    branch_pattern: master
-    build_command_prepend: cmake -G '$CMAKE_GEN' -DCMAKE_BUILD_TYPE="Nightly" -DCMAKE_TOOLCHAIN_FILE='$CMAKE_TCH_64' ./src
-    build_command: make -j4
-      
-script:
-  - if [ $MASTER_BRANCH != 1 ]; then travis_terminate 0; fi
-
-after_script:
-  - echo "Printing Travis log..."
-  - cat cov-int/scm_log.txt
+matrix:
+  include:
+  - os: linux
+    compiler: clang
+    name: clang-ninja
+    sudo: required
+    env: TASK=clang
+    dist: xenial
+    cache:
+      ccache: true
+    addons:
+      apt:
+        sources:
+        - sourceline: ppa:ubuntu-toolchain-r/test
+        packages:
+        - ninja-build
+    script:
+    - bash travis.sh
+    before_deploy:
+        - git tag -f master; sleep 5
+    deploy:
+    - provider: releases
+      api_key: "$GITHUB_TOKEN"
+      overwrite: true
+      #file: CryptoCore-linux-master.tgz
+      skip_cleanup: true
+      tag_name: master
+      on:
+        tags: false
+        branch: master
+        repo: Cryptonite-UO/CryptoCore
+    - provider: releases
+      api_key: "$GITHUB_TOKEN"
+      overwrite: true
+      #file: CryptoCore-linux-v$TRAVIS_TAG.tgz
+      skip_cleanup: true
+      on:
+        tags: true
+        repo: Cryptonite-UO/CryptoCore
+    install:
+    - |
+      CMAKE_URL="https://cmake.org/files/v3.13/cmake-3.13.5-Linux-x86_64.tar.gz"
+      mkdir cmake && travis_retry wget --no-check-certificate --quiet -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake
+      export PATH=${PWD}/cmake/bin:${PATH}
+    - cmake --version
+  - os: osx
+    sudo: false
+    addons:
+      homebrew:
+        packages:
+        - ccache
+        - ninja
+    install:
+    - export PATH="/usr/local/opt/ccache/libexec:$PATH"
+    osx_image: xcode10
+    cache:
+      ccache: true
+    script:
+    - bash travis.sh
+    deploy:
+    - provider: releases
+      api_key: "$GITHUB_TOKEN"
+      overwrite: true
+      file: "sphereX64-osx.zip"
+      skip_cleanup: true
+      tag_name: master
+      on:
+        tags: false
+        branch: master
+        repo: Cryptonite-UO/CryptoCore
+    - provider: releases
+      api_key: "$GITHUB_TOKEN"
+      overwrite: true
+      file: "sphereX64-osx.zip"
+      skip_cleanup: true
+      on:
+        tags: true
+        repo: Cryptonite-UO/CryptoCore
+  - os: windows
+    cache:
+      ccache: true
+    script:
+    - bash travis.sh
+    before_deploy:
+        - git tag -f master; sleep 5
+    deploy:
+    - provider: releases
+      api_key: "$GITHUB_TOKEN"
+      overwrite: true
+      file: "sphereX64-windows.zip"
+      skip_cleanup: true
+      tag_name: master
+      on:
+        tags: false
+        branch: master
+        repo: Cryptonite-UO/CryptoCore
+    - provider: releases
+      api_key: "$GITHUB_TOKEN"
+      overwrite: true
+      file: "sphereX64-windows.zip"
+      skip_cleanup: true
+      on:
+        tags: true
+        repo: Cryptonite-UO/CryptoCore
