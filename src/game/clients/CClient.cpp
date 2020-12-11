@@ -312,6 +312,7 @@ bool CClient::CanSee( const CObjBaseTemplate * pObj ) const
         {
             if( !IsPriv(PRIV_ALLSHOW) )
                 return false;
+            //dont show pet when is ridden (cause double)
             else if ( pChar->IsStatFlag(STATF_PET) && pChar->IsStatFlag(STATF_RIDDEN) )
                 return false;
         }
