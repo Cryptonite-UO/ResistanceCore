@@ -1,3 +1,4 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/a644ed6dd6be4f1cbfc27dc97ea2cab2)](https://app.codacy.com/gh/Cryptonite-UO/CryptoCore?utm_source=github.com&utm_medium=referral&utm_content=Cryptonite-UO/CryptoCore&utm_campaign=Badge_Grade_Settings)
 [![Build status](https://ci.appveyor.com/api/projects/status/551go9fsq18muibc/branch/master?svg=true)](https://ci.appveyor.com/project/Jhobean/cryptocore/branch/master)
 # CRYPTOCORE
 This Repository is a Clone of the SphereServer X version available here: [SOURCEX](https://github.com/Sphereserver/Source-X) 
