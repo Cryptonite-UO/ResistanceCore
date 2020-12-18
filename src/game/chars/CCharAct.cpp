@@ -1896,6 +1896,15 @@ bool CChar::ItemBounce( CItem * pItem, bool fDisplayMsg )
 	if (pPack && CanCarry(pItem) && pPack->CanContainerHold(pItem, this))		// this can happen at load time
 	{
 		fCanAddToPack = true;
+		if (IsTrigUsed(TRIGGER_DROPON_ITEM))
+		{
+			CScriptTriggerArgs Args(pPack);
+			pItem->OnTrigger(ITRIG_DROPON_ITEM, this, &Args);
+
+			if (pItem->IsDeleted())	// the trigger had deleted the item
+				return false;
+		}
+
 		if (IsTrigUsed(TRIGGER_DROPON_SELF) || IsTrigUsed(TRIGGER_ITEMDROPON_SELF))
 		{
             const CItem* pPrevCont = dynamic_cast<CItem*>(pItem->GetContainer());
@@ -4391,7 +4400,7 @@ bool CChar::OnTick()
     {
         const ProfileTask aiTask(PROFILE_NPC_AI);
         EXC_SET_BLOCK("NPC action");
-        if (!IsStatFlag(STATF_FREEZE) && !Can(CAN_C_STATUE))
+        if (!IsStatFlag(STATF_FREEZE|STATF_STONE) && !Can(CAN_C_STATUE))
         {
             NPC_OnTickAction();
 
