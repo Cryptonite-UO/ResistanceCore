@@ -232,17 +232,9 @@ uint GetIdentifierString( tchar * szTag, lpctstr pszArgs )
 	return i;
 }
 
-bool IsValidDef( lpctstr pszTest )
+bool IsValidResourceDef( lpctstr pszTest )
 {
-	const CVarDefCont * pVarBase = g_Exp.m_VarResDefs.CheckParseKey( pszTest );
-	if ( pVarBase == nullptr )
-	{
-		//check VAR.X also
-		pVarBase = g_Exp.m_VarGlobals.CheckParseKey( pszTest );
-		if ( pVarBase == nullptr )
-			return false;
-	}
-	return true;
+	return nullptr != g_Exp.m_VarResDefs.CheckParseKey( pszTest );
 }
 
 bool IsValidGameObjDef( lpctstr pszTest )
@@ -252,10 +244,11 @@ bool IsValidGameObjDef( lpctstr pszTest )
 		const CVarDefCont * pVarBase = g_Exp.m_VarResDefs.CheckParseKey( pszTest );
 		if ( pVarBase == nullptr )
 			return false;
-		const tchar ch = *pVarBase->GetValStr();
-		if (( ! ch ) || ( ch == '<'))
-			return false;
 
+		const tchar ch = *pVarBase->GetValStr();
+		if ( !ch || (ch == '<') )
+			return false;
+		
 		const CResourceID rid = g_Cfg.ResourceGetID(RES_QTY, pszTest);
         const RES_TYPE resType = rid.GetResType();
 		if ((resType != RES_CHARDEF) && (resType != RES_ITEMDEF) && (resType != RES_SPAWN) && (resType != RES_TEMPLATE) && (resType != RES_CHAMPION))
@@ -626,7 +619,9 @@ try_dec:
 								iResult = (llong)sqrt( (double)iTosquare );
 							}
 							else
+							{
 								DEBUG_ERR(( "Exp_GetVal: Sqrt of negative number (%lld) is impossible\n", iTosquare ));
+							}
 						}
 
 					} break;
@@ -1016,14 +1011,9 @@ llong CExpression::GetValMath( llong llVal, lpctstr & pExpr )
 			++pExpr;
 			{
 				llong iVal = GetVal( pExpr );
-				if (llVal < 0)
+				if ( (llVal == 0) && (iVal <= 0) ) //The information from https://en.cppreference.com/w/cpp/numeric/math/pow says if both input are 0, it can cause errors too.
 				{
-					g_Log.EventError("Power with negative base is a complex number.\n");
-					break;
-				}
-				else if ( (llVal == 0) && (iVal < 0) )
-				{
-					g_Log.EventError("Power of zero with negative exponent is undefined.\n");
+					g_Log.EventError("Power of zero with zero or negative exponent is undefined.\n");
 					break;
 				}
 				llVal = power(llVal, iVal);

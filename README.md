@@ -1,4 +1,6 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/551go9fsq18muibc/branch/master?svg=true)](https://ci.appveyor.com/project/Jhobean/cryptocore/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/q22icjwv5h5bonav/branch/master?svg=true)](https://ci.appveyor.com/project/Jhobean/cryptocore-f7p6q/branch/master) (Appveyor)
+
+[![Build Status](https://travis-ci.com/Cryptonite-UO/CryptoCore.svg?branch=master)](https://travis-ci.com/Cryptonite-UO/CryptoCore) (Travis)
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/a644ed6dd6be4f1cbfc27dc97ea2cab2)](https://app.codacy.com/gh/Cryptonite-UO/CryptoCore?utm_source=github.com&utm_medium=referral&utm_content=Cryptonite-UO/CryptoCore&utm_campaign=Badge_Grade_Settings)
 # CRYPTOCORE

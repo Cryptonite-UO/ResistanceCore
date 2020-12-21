@@ -1561,29 +1561,31 @@ bool CItem::MoveToCheck( const CPointMap & pt, CChar * pCharMover )
     {
         MoveTo(ptNewPlace);
     }
+	Update();
 
-	if ( ttResult != TRIGRET_RET_TRUE )
+	if ( ttResult == TRIGRET_RET_TRUE )
+		return true;
+	
+	// Check if there's too many items on the same spot
+	uint iItemCount = 0;
+	CItem * pItem = nullptr;
+	CWorldSearch AreaItems(ptNewPlace);
+	for (;;)
 	{
-		// Check if there's too many items on the same spot
-		uint iItemCount = 0;
-		CItem * pItem = nullptr;
-		CWorldSearch AreaItems(ptNewPlace);
-		for (;;)
+		pItem = AreaItems.GetItem();
+		if ( pItem == nullptr )
+			break;
+
+		++iItemCount;
+		if ( iItemCount > g_Cfg.m_iMaxItemComplexity )
 		{
-			pItem = AreaItems.GetItem();
-			if ( pItem == nullptr )
-				break;
-
-			++iItemCount;
-			if ( iItemCount > g_Cfg.m_iMaxItemComplexity )
-			{
-				Speak("Too many items here!");
-				iDecayTime = 60 * MSECS_PER_SEC;		// force decay (even when REGION_FLAG_NODECAY is set)
-				break;
-			}
+			Speak(g_Cfg.GetDefaultMsg(DEFMSG_TOO_MANY_ITEMS));
+			iDecayTime = 60 * MSECS_PER_SEC;		// force decay (even when REGION_FLAG_NODECAY is set)
+			break;
 		}
-
-        /*  // From 56b
+	}
+	 
+	/*  // From 56b
         if ( iItemCount > g_Cfg.m_iMaxItemComplexity )
         {
             Speak("Too many items here!");
@@ -1596,13 +1598,10 @@ bool CItem::MoveToCheck( const CPointMap & pt, CChar * pCharMover )
             return false;
         }
         */
-
-		SetDecayTime(iDecayTime);
-		Sound(GetDropSound(nullptr));
-	}
-
-	Update();
-	return true;
+	
+	SetDecayTime(iDecayTime);
+	Sound(GetDropSound(nullptr));
+	return true;	
 }
 
 bool CItem::MoveNearObj( const CObjBaseTemplate* pObj, ushort uiSteps )
@@ -1901,7 +1900,7 @@ bool CItem::SetName( lpctstr pszName )
 	return SetNamePool( pszName );
 }
 
-HUE_TYPE CItem::GetHue() const  //Override of CObjBase::GetHue()
+HUE_TYPE CItem::GetHueVisible() const
 {
 	if (g_Cfg.m_iColorInvisItem) //If setting ask a specific color
 	{
@@ -1912,13 +1911,13 @@ HUE_TYPE CItem::GetHue() const  //Override of CObjBase::GetHue()
 		}
 	}
 	
-	return(CObjBase::m_wHue);
+	return CObjBase::GetHue();
 }
 
 int CItem::GetWeight(word amount) const
 {
 	int iWeight = m_weight * (amount ? amount : GetAmount());
-    int iReduction = GetPropNum(COMP_PROPS_ITEMCHAR, PROPITCH_WEIGHTREDUCTION, true);
+    const int iReduction = GetPropNum(COMP_PROPS_ITEMCHAR, PROPITCH_WEIGHTREDUCTION, true);
 	if (iReduction)
 	{
 		iWeight -= (int)IMulDivLL( iWeight, iReduction, 100 );
@@ -1982,11 +1981,14 @@ bool CItem::SetBase( CItemBase * pItemDef )
 
 	if ( pItemOldDef )
 	{
+		pItemOldDef->DelInstance();
 		if ( pParentCont )
 			iWeightOld = GetWeight();
 	}
 
-	m_BaseRef.SetRef(pItemDef);
+	pItemDef->AddInstance();	// Increase object instance counter (different from the resource reference counter!)
+	m_BaseRef.SetRef(pItemDef);	// Among the other things, it increases the new resource reference counter and decreases the old, if any
+
 	m_weight = pItemDef->GetWeight();
 
 	// matex (moved here from constructor so armor/dam is copied too when baseid changes!)
@@ -4913,7 +4915,7 @@ bool CItem::IsMemoryTypes( word wType ) const
 {
 	if ( ! IsType( IT_EQ_MEMORY_OBJ ))
 		return false;
-	return (( GetHueAlt() & wType ) ? true : false );
+	return (( GetHue() & wType ) ? true : false );
 }
 
 lpctstr CItem::Use_SpyGlass( CChar * pUser ) const
