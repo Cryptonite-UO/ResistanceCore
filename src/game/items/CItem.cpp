@@ -3072,7 +3072,7 @@ bool CItem::r_LoadVal( CScript & s ) // Load an item Script
             return true;
         }
 		case IC_ATTR:
-			m_Attr = s.GetArgVal();
+			m_Attr = s.GetArgU64Val();
 			break;
 		case IC_BASEWEIGHT:
 			m_weight = s.GetArgWVal();
@@ -4861,7 +4861,7 @@ CItem *CItem::Weapon_FindRangedAmmo(const CResourceID& id)
 	{
 		// Search container using UID
 		lpctstr  ptcAmmoCont = sAmmoCont.GetBuffer();
-		CContainer *pCont = dynamic_cast<CContainer *>(CUID::ItemFind(Exp_GetDWVal(ptcAmmoCont)));
+		CContainer *pCont = dynamic_cast<CContainer *>(CUID::ItemFindFromUID(Exp_GetDWVal(ptcAmmoCont)));
 		if ( pCont )
 		{
             //If the container exist that means the uid was a valid container uid.
