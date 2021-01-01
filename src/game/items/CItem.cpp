@@ -1908,7 +1908,7 @@ HUE_TYPE CItem::GetHueVisible() const
 		if (IsAttr(ATTR_INVIS))
 		{
 			if (!IsType(IT_SPAWN_CHAR) && !IsType(IT_SPAWN_ITEM))  //Spawn point always keep their m_wHue (HUE_RED_DARK)
-				return(g_Cfg.m_iColorInvisItem);
+				return g_Cfg.m_iColorInvisItem;
 		}
 	}
 	
@@ -2734,8 +2734,16 @@ bool CItem::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc, bo
 			fDoDefault = true;
 			break;
 		case IC_LINK:
-			if ( ptcKey[4] == '.' )
-				return CScriptObj::r_WriteVal( ptcKey, sVal, pSrc, false );
+			if (ptcKey[4] == '.')
+			{
+				if (!strnicmp("ISVALID", ptcKey+5, 7))
+				{
+					sVal.FormatVal(IsValidRef(m_uidLink.ObjFind()));
+					return true;
+				}
+
+				return CScriptObj::r_WriteVal(ptcKey, sVal, pSrc, false);
+			}
 			sVal.FormatHex( m_uidLink );
 			break;
 		case IC_MAXHITS:
@@ -3083,7 +3091,7 @@ bool CItem::r_LoadVal( CScript & s ) // Load an item Script
             break;
 		case IC_CONT:	// needs special processing.
 			{
-				bool normcont = LoadSetContainer(s.GetArgVal(), (LAYER_TYPE)GetUnkZ());
+				bool normcont = LoadSetContainer(CUID(s.GetArgDWVal()), (LAYER_TYPE)GetUnkZ());
 				if (!normcont)
 				{
 					SERVMODE_TYPE iModeCode = g_Serv.GetServerMode();
@@ -3200,7 +3208,7 @@ bool CItem::r_LoadVal( CScript & s ) // Load an item Script
 			SetUnkZ( s.GetArgCVal() ); // GetEquipLayer()
             break;
 		case IC_LINK:
-			m_uidLink = s.GetArgVal();
+			m_uidLink.SetObjUID(s.GetArgDWVal());
             break;
 
 		case IC_FRUIT:	// m_more2
