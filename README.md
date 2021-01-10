@@ -12,6 +12,8 @@ We decide to fork this branch because some little modification are made for adap
 
 
 #### Here the list of difference between the reel sphere X:
+[Commit](https://github.com/Cryptonite-UO/CryptoCore/commit/940a70dfbf07d5d713b1b8afff5738ad8af95b00) 2021-01-10
+1.  Insubtantial flags is use on some class (CL) you can now pass trought him. (partial Revert of commit of december)
 
 [Commit](https://github.com/Cryptonite-UO/CryptoCore/commit/646bd299a0680b02bf70a12f36c703fd925f8796) 2020-12-10
 1.  Cryptonite use c_gargoyle_male and female as custom dwarf. We need to avoid the gargoyle anim and force human anim.
