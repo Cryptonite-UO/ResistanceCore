@@ -190,14 +190,15 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
 	"@SkillWait",
 
 	"@SpellBook",
-	"@SpellCast",			//+Char is casting a spell.
-	"@SpellEffect",			//+A spell just hit me.
+	"@SpellCast",			// Char is casting a spell.
+	"@SpellEffect",			// A spell just hit me.
+    "@SpellEffectTick",		// A spell is going to tick and have an effect on me.
 	"@SpellFail",			// The spell failed
 	"@SpellSelect",			// Selected a spell
 	"@SpellSuccess",		// The spell succeeded
 	"@SpellTargetCancel",	// cancelled spell target
 	"@StatChange",
-	"@StepStealth",			//+Made a step in stealth mode
+	"@StepStealth",			// Made a step in stealth mode
 	"@Targon_Cancel",		//closing target from TARGETF*
 	"@ToggleFlying",		//Flying On/Off
 	"@ToolTip",				// someone did tool tips on me.
@@ -3819,6 +3820,19 @@ void CChar::r_Write( CScript & s )
         s.WriteKeyVal("MAXMANA", iVal);     // should be OMAXMANA, but we keep it like this for backwards compatibility
     s.WriteKeyVal("MANA", Stat_GetVal(STAT_INT));
 
+	static constexpr lpctstr _ptcKeyRegen[STAT_QTY] =
+	{
+		"REGENHITS",
+		"REGENMANA",
+		"REGENSTAM",
+		"REGENFOOD"
+	};
+	for (ushort j = 0; j < STAT_QTY; ++j)
+	{
+		const int64 iRegen = Stats_GetRegenRate((STAT_TYPE)j); //we cannot use ushort here because by default REGENFOOD has a value higher than 65k.
+		if ((iRegen >= 1) && (iRegen != g_Cfg.m_iRegenRate[j]))
+			s.WriteKeyVal(_ptcKeyRegen[j], iRegen / MSECS_PER_SEC);
+	}
     static constexpr lpctstr _ptcKeyRegenVal[STAT_QTY] =
     {
         "REGENVALHITS",
