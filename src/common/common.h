@@ -31,7 +31,11 @@
 #endif
 
 
-#define CountOf(a)			(sizeof(a)/sizeof((a)[0]))
+#define _STRINGIFY_AUX(x)	#x
+#define STRINGIFY(x)		_STRINGIFY_AUX(x)
+
+#define CountOf(a)		(sizeof(a)/sizeof((a)[0]))
+
 
 #if __cplusplus >= 201703L  // is C++17 enabled?
     #define FALLTHROUGH [[fallthrough]]

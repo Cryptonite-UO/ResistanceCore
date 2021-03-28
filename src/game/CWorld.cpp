@@ -617,7 +617,11 @@ void CWorld::Init()
 
 CWorld::~CWorld()
 {
+	EXC_TRY("Destructor");
+
 	Close();
+
+	EXC_CATCH;
 }
 
 ///////////////////////////////////////////////
@@ -1209,7 +1213,7 @@ bool CWorld::LoadFile( lpctstr pszLoadName, bool fError ) // Load world from scr
 	}
 
 	// Find the size of the file.
-	int iLoadSize = s.GetLength();
+	const int iLoadSize = s.GetLength();
     int iLoadStage = 0;
 
 	CScriptFileContext ScriptContext( &s );
@@ -1394,8 +1398,8 @@ void CWorld::r_Write( CScript & s )
 {
 	ADDTOCALLSTACK("CWorld::r_Write");
 	// Write out the safe header.
-	s.WriteKey("TITLE", SPHERE_TITLE " World Script");
-	s.WriteKey("VERSION", SPHERE_VER_ID_STR);
+	s.WriteKeyStr("TITLE", SPHERE_TITLE " World Script");
+	s.WriteKeyStr("VERSION", SPHERE_VER_ID_STR);
 	#ifdef __GITREVISION__
 		s.WriteKeyVal("PREVBUILD", __GITREVISION__);
 	#endif
@@ -1654,9 +1658,9 @@ void CWorld::GarbageCollection()
 	g_Log.Flush();
 }
 
-void CWorld::OnTick()
+void CWorld::_OnTick()
 {
-	ADDTOCALLSTACK("CWorld::OnTick");
+	ADDTOCALLSTACK("CWorld::_OnTick");
 	// 256 real secs = 1 server hour. 19 light levels. check every 10 minutes or so.
 
 	// Do not tick while loading (startup, resync, exiting...) or when double ticking in the same msec?.

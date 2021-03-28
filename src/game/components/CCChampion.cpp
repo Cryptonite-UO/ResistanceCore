@@ -49,7 +49,7 @@ CItem * CCChampion::GetLink() const
 
 CCRET_TYPE CCChampion::OnTickComponent()
 {
-    ADDTOCALLSTACK("CCChampion::OnTick");
+    ADDTOCALLSTACK("CCChampion::_OnTick");
     if (!_pRedCandles.empty())
     {
         _iSpawnsMax += _iSpawnsNextRed;
@@ -753,7 +753,7 @@ void CCChampion::r_Write(CScript & s)
         return;
     }
     s.WriteKeyVal("ACTIVE", _fActive);
-    s.WriteKey("CHAMPIONID", g_Cfg.ResourceGetName(CResourceID(RES_CHARDEF, _idChampion)));
+    s.WriteKeyStr("CHAMPIONID", g_Cfg.ResourceGetName(CResourceID(RES_CHARDEF, _idChampion)));
     s.WriteKeyVal("CHAMPIONSUMMONED", _fChampionSummoned);
     s.WriteKeyVal("CANDLESNEXTLEVEL", _iCandlesNextLevel);
     s.WriteKeyVal("CANDLESNEXTRED", _iCandlesNextRed);
@@ -768,7 +768,7 @@ void CCChampion::r_Write(CScript & s)
 
     if (_idSpawn.IsValidResource())
     {
-        s.WriteKey("CHAMPIONSPAWN", g_Cfg.ResourceGetName(_idSpawn));
+        s.WriteKeyStr("CHAMPIONSPAWN", g_Cfg.ResourceGetName(_idSpawn));
     }
     for (const CUID& uidCandle : _pRedCandles)
     {
@@ -807,7 +807,7 @@ void CCChampion::r_Write(CScript & s)
             std::stringstream finalStream;
             finalStream << "npcgroup[" << (int)group.first << "]";
             
-            s.WriteKey(finalStream.str().c_str(), groupString.c_str());
+            s.WriteKeyStr(finalStream.str().c_str(), groupString.c_str());
         }
     }
     return;
@@ -884,7 +884,7 @@ bool CCChampion::r_WriteVal(lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc
                     }
                 }
             }
-            if (spawnGroup.count(uiGroup) <= 0 || uiGroup > UCHAR_MAX)  // Didn't found any group for the given level, stop!
+            if (spawnGroup.count(uiGroup) <= 0)  // Didn't found any group for the given level, stop!
             {
                 sVal.FormatVal(-1);
                 break;
@@ -1079,9 +1079,9 @@ bool CCChampion::r_GetRef(lpctstr & ptcKey, CScriptObj * & pRef)
     if (!strnicmp(ptcKey, "WHITECANDLE", 11))
     {
         ptcKey += 11;
-        int iCandle = Exp_GetVal(ptcKey);
+        size_t uiCandle = Exp_GetSTVal(ptcKey);
         SKIP_SEPARATORS(ptcKey);
-        CItem * pCandle = _pWhiteCandles[iCandle].ItemFind();
+        CItem * pCandle = _pWhiteCandles[uiCandle].ItemFind();
         if (pCandle)
         {
             pRef = pCandle;
@@ -1091,9 +1091,9 @@ bool CCChampion::r_GetRef(lpctstr & ptcKey, CScriptObj * & pRef)
     if (!strnicmp(ptcKey, "REDCANDLE", 9))
     {
         ptcKey += 9;
-        int iCandle = Exp_GetVal(ptcKey);
+        size_t uiCandle = Exp_GetSTVal(ptcKey);
         SKIP_SEPARATORS(ptcKey);
-        CItem * pCandle = _pRedCandles[iCandle].ItemFind();
+        CItem * pCandle = _pRedCandles[uiCandle].ItemFind();
         if (pCandle)
         {
             pRef = pCandle;

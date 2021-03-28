@@ -333,8 +333,9 @@ void CClient::AOSTooltip_addDefaultItemData(CItem * pItem)
 {
 	// TODO: add check to ATTR_IDENTIFIED, then add tooltips: stolen, BonusSkill1/2/3/4/5, minlevel/maxlevel, shurikencount
 
-    //const CCPropsItemChar *pCCPItemChar = pItem->GetCCPropsItemChar(), *pBaseCCPItemChar = pItem->Base_GetDef()->GetCCPropsItemChar();
-    const CCPropsItemEquippable *pCCPItemEquip = pItem->GetCCPropsItemEquippable(), *pBaseCCPItemEquip = pItem->Base_GetDef()->GetCCPropsItemEquippable();
+    //const CCPropsItemChar *pCCPItemChar = pItem->GetCCPropsItemChar(), *pBaseCCPItemChar = pItem->Base_GetDef()->GetCCPropsItemChar
+	const auto pCCPItemEquip = pItem->GetComponentProps<CCPropsItemEquippable>();
+	const auto pBaseCCPItemEquip = pItem->Base_GetDef()->GetComponentProps<CCPropsItemEquippable>();
 	CClientTooltip* t = nullptr;
 
 	if (pItem->IsAttr(ATTR_LOCKEDDOWN))
@@ -483,7 +484,7 @@ void CClient::AOSTooltip_addDefaultItemData(CItem * pItem)
         if ( pItem->m_itArmor.m_wHitsMax > 0 )
         {
 		    PUSH_BACK_TOOLTIP(pItem, t = new CClientTooltip(1060639)); // durability ~1_val~ / ~2_val~
-		    t->FormatArgs("%hu\t%hu", pItem->m_itArmor.m_wHitsCur, pItem->m_itArmor.m_wHitsMax);
+		    t->FormatArgs("%hu\t%hu", pItem->m_itArmor.m_dwHitsCur, pItem->m_itArmor.m_wHitsMax);
         }
 	}
 	break;
@@ -543,7 +544,7 @@ void CClient::AOSTooltip_addDefaultItemData(CItem * pItem)
         if ( pItem->m_itWeapon.m_wHitsMax > 0 )
         {
 		    PUSH_BACK_TOOLTIP(pItem, t = new CClientTooltip(1060639)); // durability ~1_val~ / ~2_val~
-		    t->FormatArgs("%hu\t%hu", pItem->m_itWeapon.m_wHitsCur, pItem->m_itWeapon.m_wHitsMax);
+		    t->FormatArgs("%hu\t%hu", pItem->m_itWeapon.m_dwHitsCur, pItem->m_itWeapon.m_wHitsMax);
         }
 	}
 	break;

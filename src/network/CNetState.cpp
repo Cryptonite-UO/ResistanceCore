@@ -15,6 +15,7 @@
 
 #define NETWORK_DISCONNECTPRI	PacketSend::PRI_HIGHEST			// packet priorty to continue sending before closing sockets
 
+
 CNetState::CNetState(int id)
 {
     m_id = id;
@@ -194,11 +195,9 @@ void CNetState::init(SOCKET socket, CSocketAddress addr)
     // disable NAGLE algorythm for data compression/coalescing.
     // Send as fast as we can. we handle packing ourselves.
     
-    char nbool = true;
-    iSockRet = m_socket.SetSockOpt(TCP_NODELAY, &nbool, sizeof(char), IPPROTO_TCP);
-    ASSERT(iSockRet == 0);
-    //if (iSockRet)
-    //    return;
+    int iSockFlag = 1;
+    iSockRet = m_socket.SetSockOpt(TCP_NODELAY, &iSockFlag, sizeof(iSockFlag), IPPROTO_TCP);
+    CheckReportNetAPIErr(iSockRet, "NetState::init.TCP_NODELAY");
 
     g_Serv.StatInc(SERV_STAT_CLIENTS);
     CClient* client = new CClient(this);

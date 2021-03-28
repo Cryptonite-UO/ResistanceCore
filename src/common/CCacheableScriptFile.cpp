@@ -74,7 +74,7 @@ bool CCacheableScriptFile::_Open(lpctstr ptcFilename, uint uiModeFlags)
         bool fUTF = false, fFirstLine = true;
         const int iFileLength = _GetLength();
         _fileContent = new std::vector<std::string>();
-        _fileContent->reserve(iFileLength);
+        _fileContent->reserve(iFileLength / 10);
 
         while ( !feof(_pStream) ) 
         {
@@ -104,6 +104,7 @@ bool CCacheableScriptFile::_Open(lpctstr ptcFilename, uint uiModeFlags)
         _fileDescriptor = _kInvalidFD;
         _uiMode = 0;
         _iCurrentLine = 0;
+        _fileContent->shrink_to_fit();
     }
 
     return true;
@@ -156,7 +157,7 @@ bool CCacheableScriptFile::IsFileOpen() const
 
 bool CCacheableScriptFile::_IsEOF() const 
 {
-    ADDTOCALLSTACK("CCacheableScriptFile::_IsEOF");
+    //ADDTOCALLSTACK("CCacheableScriptFile::_IsEOF");
     if ( _useDefaultFile() ) 
         return CSFileText::_IsEOF();
 
@@ -164,7 +165,7 @@ bool CCacheableScriptFile::_IsEOF() const
 }
 bool CCacheableScriptFile::IsEOF() const 
 {
-    ADDTOCALLSTACK("CCacheableScriptFile::IsEOF");
+    //ADDTOCALLSTACK("CCacheableScriptFile::IsEOF");
     THREAD_SHARED_LOCK_RETURN(_IsEOF());
 }
 
@@ -172,7 +173,7 @@ tchar * CCacheableScriptFile::_ReadString(tchar *pBuffer, int sizemax)
 {
     // This function is called for each script line which is being parsed (so VERY frequently), and ADDTOCALLSTACK is expensive if called
     // this much often, so here it's to be preferred ADDTOCALLSTACK_INTENSIVE, even if we'll lose stack trace precision.
-    ADDTOCALLSTACK_INTENSIVE("CCacheableScriptFile::_ReadString");
+    //ADDTOCALLSTACK_INTENSIVE("CCacheableScriptFile::_ReadString");
 
     if ( _useDefaultFile() ) 
         return CSFileText::_ReadString(pBuffer, sizemax);
@@ -195,8 +196,8 @@ tchar * CCacheableScriptFile::_ReadString(tchar *pBuffer, int sizemax)
 
 tchar * CCacheableScriptFile::ReadString(tchar *pBuffer, int sizemax) 
 {
-    ADDTOCALLSTACK_INTENSIVE("CCacheableScriptFile::ReadString");
-    THREAD_UNIQUE_LOCK_RETURN(_ReadString(pBuffer, sizemax));
+    //ADDTOCALLSTACK_INTENSIVE("CCacheableScriptFile::ReadString");
+    THREAD_UNIQUE_LOCK_RETURN(CCacheableScriptFile::_ReadString(pBuffer, sizemax));
 }
 
 void CCacheableScriptFile::_dupeFrom(CCacheableScriptFile *other) 
@@ -273,5 +274,5 @@ int CCacheableScriptFile::_GetPosition() const
 int CCacheableScriptFile::GetPosition() const
 {
     ADDTOCALLSTACK("CCacheableScriptFile::GetPosition");
-    THREAD_UNIQUE_LOCK_RETURN(_GetPosition());
+    THREAD_UNIQUE_LOCK_RETURN(CCacheableScriptFile::_GetPosition());
 }

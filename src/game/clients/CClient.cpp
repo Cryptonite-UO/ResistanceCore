@@ -75,12 +75,17 @@ CClient::CClient(CNetState* state)
 
     m_timeLastSkillThrowing = 0;
     m_pSkillThrowingTarg = nullptr;
+	m_SkillThrowingAnimID = ITEMID_NOTHING;
+	m_SkillThrowingAnimHue = 0;
+	m_SkillThrowingAnimRender = 0;
 }
 
 
 CClient::~CClient()
 {
-	bool bWasChar;
+	EXC_TRY("Cleanup in destructor");
+
+	ADDTOCALLSTACK("CClient::~CClient");
 
 	// update ip history
 	HistoryIP& history = g_NetworkManager.getIPHistoryManager().getHistoryForIP(GetPeer());
@@ -88,7 +93,8 @@ CClient::~CClient()
 		--history.m_connecting;
 	--history.m_connected;
 
-	bWasChar = ( m_pChar != nullptr );
+	const bool fWasChar = ( m_pChar != nullptr );
+
 	CharDisconnect();	// am i a char in game ?
 
 	if (m_pGMPage)
@@ -100,7 +106,7 @@ CClient::~CClient()
 	CAccount * pAccount = GetAccount();
 	if ( pAccount )
 	{
-		pAccount->OnLogout(this, bWasChar);
+		pAccount->OnLogout(this, fWasChar);
 		m_pAccount = nullptr;
 	}
 
@@ -112,6 +118,8 @@ CClient::~CClient()
 
 	if (m_net->isClosed() == false)
 		g_Log.EventError("Client being deleted without being safely removed from the network system\n");
+
+	EXC_CATCH;
 }
 
 bool CClient::CanInstantLogOut() const
@@ -1309,16 +1317,16 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 			CItem *pItem = nullptr;
 			if ( ppArgs[0] )
 			{
-				CUID uidChar = static_cast<CUID>(Exp_GetVal(ppArgs[0]));
-				pChar = uidChar.CharFind();
+				pChar = CUID::CharFindFromUID(Exp_GetDWVal(ppArgs[0]));
 			}
 			if ( ppArgs[1] )
 			{
-				CUID uidItem = static_cast<CUID>(Exp_GetVal(ppArgs[1]));
-				pItem = uidItem.ItemFind();
+				pItem = CUID::ItemFindFromUID(Exp_GetDWVal(ppArgs[1]));
 			}
-			if ( pChar )
+			if (pChar)
+			{
 				Cmd_SecureTrade(pChar, pItem);
+			}
 			break;
 		}
 
@@ -1373,7 +1381,7 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 			if ( pSpellDef->IsSpellType(SPELLFLAG_TARG_OBJ|SPELLFLAG_TARG_XYZ) )
 			{
 				m_tmSkillMagery.m_iSpell = SPELL_Summon;
-				m_tmSkillMagery.m_iSummonID = static_cast<CREID_TYPE>(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
+				m_tmSkillMagery.m_iSummonID = (CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
 
 				lpctstr pPrompt = g_Cfg.GetDefaultMsg(DEFMSG_SELECT_MAGIC_TARGET);
 				if ( !pSpellDef->m_sTargetPrompt.IsEmpty() )
@@ -1389,7 +1397,7 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 			else
 			{
 				m_pChar->m_atMagery.m_iSpell = SPELL_Summon;
-				m_pChar->m_atMagery.m_iSummonID = static_cast<CREID_TYPE>(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
+				m_pChar->m_atMagery.m_iSummonID = (CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
 
 				if ( IsSetMagicFlags(MAGICF_PRECAST) && !pSpellDef->IsSpellType(SPELLFLAG_NOPRECAST) )
 				{
@@ -1402,7 +1410,7 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 					if ( !pSpellDef->GetPrimarySkill(&skill, nullptr) )
 						return false;
 
-					m_pChar->Skill_Start((SKILL_TYPE)(skill));
+					m_pChar->Skill_Start((SKILL_TYPE)skill);
 				}
 			}
 			break;
@@ -1437,7 +1445,8 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 					}
 				}
 				SysMessagef( pszArgs[0], pszArgs[1], pszArgs[2] ? pszArgs[2] : 0, pszArgs[3] ? pszArgs[3] : 0);
-			}break;
+			}
+			break;
 		case CV_SMSGU:
 		case CV_SYSMESSAGEUA:
 			{

@@ -1003,7 +1003,11 @@ bool PacketBookPageEdit::onReceive(CNetState* net)
 		// read next page to change with line count
 		page = readInt16();
 		lineCount = readInt16();
-		if (page < 1 || page > MAX_BOOK_PAGES || lineCount <= 0)
+
+		if (lineCount > 100)	// hard and arbitrary limit, to limit the effectmalicious packets
+			break;
+
+		if (page < 1 || page > MAX_BOOK_PAGES || lineCount == 0u)
 			continue;
 
 		-- page;
@@ -1020,7 +1024,7 @@ bool PacketBookPageEdit::onReceive(CNetState* net)
 			}
 
 			content[len++] = '\t';
-			lineCount--;
+			--lineCount;
 		}
 
 		ASSERT(len > 0);
@@ -1747,11 +1751,9 @@ bool PacketAllNamesReq::onReceive(CNetState* net)
 	if (character == nullptr)
 		return false;
 
-	const CObjBase* object;
-
-	for (word length = readInt16(); length > sizeof(dword); length -= sizeof(dword))
+	for (int length = readInt16(); length > (int)sizeof(dword); length -= sizeof(dword))
 	{
-		object = CUID(readInt32()).ObjFind();
+		const CObjBase* object = CUID::ObjFindFromUID(readInt32());
 		if (object == nullptr)
 			continue;
 		else if (character->CanSee(object) == false)
@@ -2229,17 +2231,17 @@ bool PacketGumpDialogRet::onReceive(CNetState* net)
 
 
 	dword textCount = readInt32();
+	textCount = minimum(textCount, THREAD_STRING_LENGTH);
 	tchar* text = Str_GetTemp();
 	for (uint i = 0; i < textCount; ++i)
 	{
 		word id = readInt16();
 		word length = readInt16();
+		length = minimum(length, THREAD_STRING_LENGTH);
 		readStringNUNICODE(text, THREAD_STRING_LENGTH, length, false);
 
 		tchar* fix;
-		if ((fix = strchr(text, '\n')) != nullptr)
-			*fix = '\0';
-		if ((fix = strchr(text, '\r')) != nullptr)
+		if ((fix = strpbrk(text, "\n\r")) != nullptr)
 			*fix = '\0';
 		if ((fix = strchr(text, '\t')) != nullptr)
 			*fix = ' ';
@@ -2507,6 +2509,7 @@ bool PacketExtendedCommand::onReceive(CNetState* net)
 	word packetLength = readInt16();
     if (packetLength > 1000)
         return false;
+
 	EXTDATA_TYPE type = static_cast<EXTDATA_TYPE>(readInt16());
 	seek();
 
@@ -3172,7 +3175,7 @@ bool PacketBandageMacro::onReceive(CNetState* net)
 	{
 		return true;
 	}
-	
+
 	client->SetTargMode();
 
 	// prepare targeting information
@@ -3568,6 +3571,8 @@ bool PacketEncodedCommand::onReceive(CNetState* net)
 		return false;
 
 	word packetLength = readInt16();
+	if (packetLength > 1000)
+		return false;
 	CUID serial(readInt32());
 	if (character->GetUID() != serial)
 		return false;

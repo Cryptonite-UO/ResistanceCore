@@ -79,8 +79,13 @@ ullong Str_ToULL(lpctstr ptcStr, int base) noexcept
 
 tchar* Str_FromI_Fast(int val, tchar* buf, size_t buf_length, uint base) noexcept
 {
+    if (!buf || !buf_length) {
+        return nullptr;
+    }
+
     const bool hex = (base == 16);
-    if (!val || !buf_length || !base)
+
+    if (!val || !base)
     {
         STR_FROM_SET_ZEROSTR;
         return buf;
@@ -117,8 +122,13 @@ tchar* Str_FromI_Fast(int val, tchar* buf, size_t buf_length, uint base) noexcep
 
 tchar* Str_FromUI_Fast(uint val, tchar* buf, size_t buf_length, uint base) noexcept
 {
+    if (!buf || !buf_length) {
+        return nullptr;
+    }
+
     const bool hex = (base == 16);
-    if (!val || !buf_length || !base)
+
+    if (!val || !base)
     {
         STR_FROM_SET_ZEROSTR;
         return buf;
@@ -140,8 +150,13 @@ tchar* Str_FromUI_Fast(uint val, tchar* buf, size_t buf_length, uint base) noexc
 
 tchar* Str_FromLL_Fast (llong val, tchar* buf, size_t buf_length, uint base) noexcept
 {
+    if (!buf || !buf_length) {
+        return nullptr;
+    }
+
     const bool hex = (base == 16);
-    if (!val || !buf_length || !base)
+
+    if (!val || !base)
     {
         STR_FROM_SET_ZEROSTR;
         return buf;
@@ -178,8 +193,13 @@ tchar* Str_FromLL_Fast (llong val, tchar* buf, size_t buf_length, uint base) noe
 
 tchar* Str_FromULL_Fast (ullong val, tchar* buf, size_t buf_length, uint base) noexcept
 {
+    if (!buf || !buf_length) {
+        return nullptr;
+    }
+
     const bool hex = (base == 16);
-    if (!val || !buf_length || !base)
+
+    if (!val || !base)
     {
         STR_FROM_SET_ZEROSTR;
         return buf;
@@ -416,9 +436,9 @@ size_t Str_LengthUTF8(const char* strInUTF8MB)
 /*
 * Appends src to string dst of size siz (unlike strncat, siz is the
 * full size of dst, not space left). At most siz-1 characters
-* will be copied. Always NUL terminates (unless siz <= strlen(dst)).
-* Returns strlen(src) + MIN(siz, strlen(initial dst)).
-* If retval >= siz, truncation occurred.
+* will be copied. Always NULL terminates (unless siz <= strlen(dst)).
+* Returns strlen(src) + MIN(siz, strlen(initial dst)). Count does not include '\0'
+* If retval >= siz, truncation occurs.
 */
 // Adapted from: OpenBSD: strlcpy.c,v 1.11 2006/05/05 15:27:38
 size_t Str_ConcatLimitNull(tchar *dst, const tchar *src, size_t siz)

@@ -21,11 +21,17 @@ class PacketSend;
 class PacketPropertyList;
 class CCSpawn;
 
+class CSector;
+class CWorldTicker;
+
 class CObjBase : public CObjBaseTemplate, public CScriptObj, public CEntity, public CEntityProps, public virtual CTimedObject
 {
 	static lpctstr const sm_szLoadKeys[];   // All Instances of CItem or CChar have these base attributes.
 	static lpctstr const sm_szVerbKeys[];   // All Instances of CItem or CChar have these base attributes.
 	static lpctstr const sm_szRefKeys[];    // All Instances of CItem or CChar have these base attributes.
+
+    friend class CSector;
+    friend class CWorldTicker;
 
 private:
 	int64 m_timestamp;          // TimeStamp
@@ -74,7 +80,7 @@ protected:
      */
     virtual void DeletePrepare();
 
-    void DeleteCleanup(bool fForce);
+    void DeleteCleanup(bool fForce);    // not virtual!
 
 public:
     inline bool IsBeingDeleted() const noexcept
@@ -82,7 +88,8 @@ public:
         return _fDeleting;
     }
 
-    virtual bool IsDeleted() const override;
+protected:  virtual bool _IsDeleted() const override;
+public:     virtual bool  IsDeleted() const override;
 
     /**
      * @brief   Deletes this CObjBase from game (doesn't delete the raw class instance).
@@ -164,8 +171,8 @@ public:
 
 
     /**
-     * @brief   Gets time stamp.
-     * @return  The time stamp.
+     * @brief   Gets timestamp of the item (it's a property and not related at all with TIMER).
+     * @return  The timestamp.
      */
 	int64 GetTimeStamp() const;
 
@@ -174,6 +181,11 @@ public:
      * @param   t_time  The time.
      */
 	void SetTimeStamp(int64 t_time);
+
+    /*
+    * @brief    Add iDelta to this object's timer (if active) and its child objects.
+    */
+    void TimeoutRecursiveResync(int64 iDelta);
 
     /**
     *@brief Returns the value of the string-type prop from the CComponentProps. Faster than the variant accepting a COMPPROPS_TYPE if you need to retrieve multiple props from the same CComponentProps
@@ -546,7 +558,7 @@ public:
      * @param [in,out]  SourceObj   (Optional) If non-null, source object.
      * @param   sound               The sound.
      */
-	void SetHue( HUE_TYPE wHue, bool fAvoidTrigger = true, CTextConsole *pSrc = nullptr, CObjBase *SourceObj = nullptr, llong sound = 0 );
+	void SetHue( HUE_TYPE wHue, bool fAvoidTrigger = true, CTextConsole *pSrc = nullptr, CObjBase * pSourceObj = nullptr, llong iSound = 0 );
 
     /**
      * @fn  HUE_TYPE CObjBase::GetHue() const;
@@ -603,7 +615,7 @@ public:
      *
      * @param [in,out]  ppTitles    If non-null, the titles.
      */
-	void inline SetNamePool_Fail( tchar * ppTitles );
+	void SetNamePool_Fail( tchar * ppTitles );
 
     /**
      * @fn  bool CObjBase::SetNamePool( lpctstr pszName );
@@ -874,12 +886,19 @@ public:
 #define SU_UPDATE_TOOLTIP   0x04    // update tooltip to all
 	uchar m_fStatusUpdate;  // update flags for next tick
 
+ 
+protected:
+    virtual void _GoAwake() override;
+    virtual void _GoSleep() override;
+
+protected:
     /**
-     * @fn  virtual void CObjBase::OnTickStatusUpdate();
-     *
      * @brief   Update Status window if any flag requires it on m_fStatusUpdate.
      */
-	virtual void OnTickStatusUpdate();
+    virtual void OnTickStatusUpdate();
+
+    virtual bool _CanTick() const override;
+    //virtual bool  _CanTick() const override;   // Not needed: the right virtual is called by CTimedObj::_CanTick.
 
 public:
     std::vector<std::unique_ptr<CClientTooltip>> m_TooltipData; // Storage for tooltip data while in trigger

@@ -295,7 +295,7 @@ ssize_t CServer::PrintPercent( ssize_t iCount, ssize_t iTotal ) const
 
 #ifdef _WIN32
     g_NTWindow.SetWindowTitle(pszTemp);
-	g_NTService.OnTick();
+	g_NTService._OnTick();
 #endif
 	return iPercent;
 }
@@ -485,7 +485,7 @@ bool CServer::OnConsoleCmd( CSString & sText, CTextConsole * pSrc )
 			{
 				// Force periodic stuff
 				g_Accounts.Account_SaveAll();
-				g_Cfg.OnTick(true);
+				g_Cfg._OnTick(true);
 			} break;
 		case 'c':	// List all clients on line.
 			{
@@ -2075,8 +2075,12 @@ bool CServer::SocketsInit( CSocket & socket )
 	linger lval;
 	lval.l_onoff = 0;
 	lval.l_linger = 10;
-	socket.SetSockOpt(SO_LINGER, reinterpret_cast<const char *>(&lval), sizeof(lval));
-	socket.SetNonBlocking();
+	if ((0 != socket.SetSockOpt(SO_LINGER, reinterpret_cast<const char*>(&lval), sizeof(lval))) ||
+		(0 != socket.SetNonBlocking()))
+	{
+		g_Log.Event(LOGL_FATAL | LOGM_INIT, "Unable to initialize socket!\n");
+		return false;
+	}
 
 #ifndef _WIN32
 	int onNotOff = 1;
@@ -2156,9 +2160,9 @@ void CServer::SocketsClose()
 	m_SocketMain.Close();
 }
 
-void CServer::OnTick()
+void CServer::_OnTick()
 {
-	ADDTOCALLSTACK("CServer::OnTick");
+	ADDTOCALLSTACK("CServer::_OnTick");
 	EXC_TRY("Tick");
 
 #ifndef _WIN32
@@ -2206,8 +2210,8 @@ void CServer::OnTick()
 	}
 
 	EXC_SET_BLOCK("generic");
-	g_Cfg.OnTick(false);
-	_hDb.OnTick();
+	g_Cfg._OnTick(false);
+	_hDb._OnTick();
 	EXC_CATCH;
 }
 

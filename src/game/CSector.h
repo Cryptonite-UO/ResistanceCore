@@ -18,8 +18,6 @@ class CItemStone;
 class CSector : public CScriptObj, public CSectorBase, public CTimedObject	// square region of the world.
 {
 	// A square region of the world. ex: MAP0.MUL Dungeon Sectors are 256 by 256 meters
-#define SECTOR_TICK_PERIOD (TICKS_PER_SEC / 2) // after how much ticks do we start a pulse.
-
 public:
 	static const char *m_sClassName;
 	static lpctstr const sm_szVerbKeys[];
@@ -50,8 +48,13 @@ private:
 
 public:
 	virtual void Init(int index, uchar map, short x, short y) override;
-	virtual bool OnTick();
-	virtual bool IsDeleted() const override;
+
+
+protected:	virtual bool _OnTick() override;
+//public:	virtual bool  OnTick() override;    // The right virtual is called by CTimedObject::OnTick
+
+protected:	virtual bool _IsDeleted() const override;
+public:		virtual bool IsDeleted() const override;
 
 	// Time
 	int GetLocalTime() const;
@@ -91,20 +94,25 @@ public:
 
 	// Chars in the sector.
 	size_t GetCharComplexity() const;
+
 	void CheckCharComplexity() const noexcept;
 	bool IsCharActiveIn( const CChar * pChar );
 	bool IsCharDisconnectedIn( const CChar * pChar );
 	size_t GetInactiveChars() const;
 	size_t GetClientsNumber() const;
 	int64 GetLastClientTime() const;
-	bool CanSleep(bool fCheckAdjacents) const;
+	bool MoveCharToSector(CChar* pChar);
+
+	bool _CanSleep(bool fCheckAdjacents) const;
 	void SetSectorWakeStatus();	// Ships may enter a sector before it's riders !
-	bool MoveCharToSector( CChar * pChar );
 
 	// CTimedObject
 private:
-    virtual void GoSleep() override;
-    virtual void GoAwake() override;
+    virtual void _GoSleep() override;
+	virtual void  GoSleep() override;
+
+    virtual void _GoAwake() override;
+	virtual void  GoAwake() override;
 
     // General.
 public:

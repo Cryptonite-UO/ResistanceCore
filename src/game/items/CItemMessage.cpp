@@ -4,7 +4,8 @@
 #include "CItemVendable.h"
 
 CItemMessage::CItemMessage( ITEMID_TYPE id, CItemBase * pItemDef ) :
-    CTimedObject(PROFILE_ITEMS), CItemVendable( id, pItemDef )
+    CTimedObject(PROFILE_ITEMS),
+    CItemVendable( id, pItemDef )
 {
 }
 
@@ -27,7 +28,7 @@ void CItemMessage::r_Write(CScript & s)
 {
     ADDTOCALLSTACK_INTENSIVE("CItemMessage::r_Write");
     CItemVendable::r_Write(s);
-    s.WriteKey("AUTHOR", m_sAuthor);
+    s.WriteKeyStr("AUTHOR", m_sAuthor.GetBuffer());
 
     // Store the message body lines. MAX_BOOK_PAGES
     TemporaryString tsTemp;
@@ -35,7 +36,7 @@ void CItemMessage::r_Write(CScript & s)
     {
         snprintf(tsTemp.buffer(), tsTemp.capacity(), "BODY.%" PRIu16, i);
         lpctstr pszText = GetPageText(i);
-        s.WriteKey(tsTemp.buffer(), pszText != nullptr ? pszText : "");
+        s.WriteKeyStr(tsTemp.buffer(), ((pszText != nullptr) ? pszText : ""));
     }
 }
 

@@ -66,7 +66,6 @@ CCSpawn::CCSpawn(CItem *pLink, bool fIsChampion) : CComponent(COMP_SPAWN), _fIsC
     _iMaxDist = 15;
     _iTimeLo = 15;
     _iTimeHi = 30;
-    _idSpawn.Init();
     _fKillingChildren = false;
     _fIsBadSpawn = false;
 }
@@ -79,13 +78,11 @@ CCSpawn::~CCSpawn()
 
 CItem * CCSpawn::GetLink() const
 {
-    ADDTOCALLSTACK("CCSpawn::GetLink");
     return _pLink;
 }
 
 uint16 CCSpawn::GetAmount() const
 {
-    //ADDTOCALLSTACK_INTENSIVE("CCSpawn::GetAmount");
     return _iAmount;
 }
 
@@ -129,7 +126,7 @@ const CResourceDef* CCSpawn::_FixDef()
 {
     ADDTOCALLSTACK("CCSpawn:FixDef");
 
-    const CItem* pItem = static_cast<CItem*>(GetLink());
+    const CItem* pItem = GetLink();
     const uint uiItemUID = pItem->GetUID().GetObjUID();
     if (!_idSpawn.IsValidUID())
     {
@@ -289,7 +286,7 @@ void CCSpawn::GenerateItem()
 {
     ADDTOCALLSTACK("CCSpawn::GenerateItem");
     
-    const CItem *pSpawnItem = static_cast<CItem*>(GetLink());
+    CItem *pSpawnItem = GetLink();
     if (!pSpawnItem->IsTopLevel())
         return;
 
@@ -306,7 +303,7 @@ void CCSpawn::GenerateItem()
     if (IsTrigUsed(TRIGGER_PRESPAWN))
     {
         CScriptTriggerArgs args(rid.GetResIndex());
-        if (GetLink()->OnTrigger(ITRIG_PreSpawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
+        if (pSpawnItem->OnTrigger(ITRIG_PreSpawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
         {
             return;
         }
@@ -336,7 +333,7 @@ void CCSpawn::GenerateItem()
     {
         CScriptTriggerArgs args;
         args.m_pO1 = pItem;
-        if (GetLink()->OnTrigger(ITRIG_Spawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
+        if (pSpawnItem->OnTrigger(ITRIG_Spawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
         {
             pItem->Delete();
             return;
@@ -371,7 +368,7 @@ CChar* CCSpawn::GenerateChar(CResourceIDBase rid)
 {
     ADDTOCALLSTACK("CCSpawn::GenerateChar(rid)");
 
-    const CItem *pSpawnItem = static_cast<const CItem*>(GetLink());
+    CItem *pSpawnItem = GetLink();
     if (!pSpawnItem->IsTopLevel())
     {
         return nullptr;
@@ -379,7 +376,7 @@ CChar* CCSpawn::GenerateChar(CResourceIDBase rid)
     if (IsTrigUsed(TRIGGER_PRESPAWN))
     {
         CScriptTriggerArgs args(rid.GetResIndex());
-        if (GetLink()->OnTrigger(ITRIG_PreSpawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
+        if (pSpawnItem->OnTrigger(ITRIG_PreSpawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
         {
             return nullptr;
         }
@@ -410,7 +407,7 @@ CChar* CCSpawn::GenerateChar(CResourceIDBase rid)
     {
         CScriptTriggerArgs args;
         args.m_pO1 = pChar;
-        if (GetLink()->OnTrigger(ITRIG_Spawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
+        if (pSpawnItem->OnTrigger(ITRIG_Spawn, &g_Serv, &args) == TRIGRET_RET_TRUE)
         {
             pChar->Delete();
             return nullptr;
@@ -601,7 +598,7 @@ CCRET_TYPE CCSpawn::OnTickComponent()
 {
     ADDTOCALLSTACK("CCSpawn::OnTickComponent");
     int64 iMinutes;
-    CItem *pSpawnItem = static_cast<CItem*>(GetLink());
+    CItem *pSpawnItem = GetLink();
     if (_iTimeHi <= 0)
     {
         iMinutes = Calc_GetRandLLVal(30) + 1;
@@ -615,7 +612,7 @@ CCRET_TYPE CCSpawn::OnTickComponent()
     {
         iMinutes = 1;
     }
-    pSpawnItem->SetTimeoutS(iMinutes * 60);	// set time to check again.
+    pSpawnItem->_SetTimeoutS(iMinutes * 60);	// set time to check again.
 
     if (GetCurrentSpawned() >= GetAmount())
     {
@@ -749,7 +746,7 @@ bool CCSpawn::r_WriteVal(lpctstr ptcKey, CSString & sVal, CTextConsole *pSrc)
     {
         return false;
     }
-    CItem *pSpawnItem = static_cast<CItem*>(GetLink());
+    CItem *pSpawnItem = GetLink();
     switch (iCmd)
     {
         case ISPW_AMOUNT:
@@ -829,7 +826,7 @@ bool CCSpawn::r_LoadVal(CScript & s)
     {
         return false;
     }
-    CItem *pSpawnItem = static_cast<CItem*>(GetLink());
+    CItem *pSpawnItem = GetLink();
 
     switch (iCmd)
     {
@@ -1000,7 +997,7 @@ void CCSpawn::r_Write(CScript & s)
     ADDTOCALLSTACK("CCSpawn:r_Write");
     EXC_TRY("Write");
 
-    CItem *pItem = static_cast<CItem*>(GetLink());
+    CItem *pItem = GetLink();
     if (_fIsChampion == false)
     {
         if (!FixDef())
@@ -1009,7 +1006,7 @@ void CCSpawn::r_Write(CScript & s)
         }
         if (_idSpawn.IsValidResource())
         {
-            s.WriteKey("SPAWNID", g_Cfg.ResourceGetName(_idSpawn));
+            s.WriteKeyStr("SPAWNID", g_Cfg.ResourceGetName(_idSpawn));
         }
     }
 

@@ -5,7 +5,8 @@
 #include "CItemStone.h"
 
 CItemMemory::CItemMemory( ITEMID_TYPE id, CItemBase * pItemDef ) :
-    CTimedObject(PROFILE_ITEMS), CItem( ITEMID_MEMORY, pItemDef )
+    CTimedObject(PROFILE_ITEMS),
+	CItem( ITEMID_MEMORY, pItemDef )
 {
 	UNREFERENCED_PARAMETER(id);
 }
@@ -136,7 +137,7 @@ int CItemMemory::FixWeirdness()
 	if ( IsMemoryTypes(MEMORY_GUARD) && !m_uidLink.ObjFind() )
 	{
 		SetAttr(ATTR_DECAY);
-		SetTimeout(0);
+		_SetTimeout(0);
 	}
 
 	return 0;

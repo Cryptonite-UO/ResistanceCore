@@ -1,16 +1,23 @@
 #include "../resource/CResourceLock.h"
+#include "../CException.h"
 #include "../CSector.h"
 #include "CItemVendable.h"
 #include "CItemCommCrystal.h"
 
 CItemCommCrystal::CItemCommCrystal( ITEMID_TYPE id, CItemBase * pItemDef ) :
-    CTimedObject(PROFILE_ITEMS), CItemVendable( id, pItemDef )
+    CTimedObject(PROFILE_ITEMS),
+    CItemVendable( id, pItemDef )
 {
 }
 
 CItemCommCrystal::~CItemCommCrystal()
 {
-    DeletePrepare();	// Must remove early because virtuals will fail in child destructor.
+    EXC_TRY("Cleanup in destructor");
+
+    // / Must remove early because virtuals will fail in child destructor.
+    DeletePrepare();
+
+    EXC_CATCH;
 }
 
 lpctstr const CItemCommCrystal::sm_szLoadKeys[] =

@@ -174,7 +174,7 @@ void CChar::CallGuards()
 		return;
 
     // Spam check, not calling this more than once per second, which will cause an excess of calls and checks on crowded areas because of the 2 CWorldSearch.
-	if (CWorldGameTime::GetCurrentTime().GetTimeDiff(m_timeLastCallGuards + (1 * MSECS_PER_SEC)) <= 0)
+	if (CWorldGameTime::GetCurrentTime().GetTimeDiff(_iTimeLastCallGuards + (1 * MSECS_PER_SEC)) <= 0)
 		return;
 
 	// We don't have any target yet, let's check everyone nearby
@@ -214,10 +214,10 @@ bool CChar::CallGuards( CChar * pCriminal )
 		return false;
     }
 
-    if (CWorldGameTime::GetCurrentTime().GetTimeDiff(m_timeLastCallGuards + (25 * MSECS_PER_TENTH)) <= 0)	// Spam check
+    if (CWorldGameTime::GetCurrentTime().GetTimeDiff(_iTimeLastCallGuards + (25 * MSECS_PER_TENTH)) <= 0)	// Spam check
         return false;
 
-    m_timeLastCallGuards = CWorldGameTime::GetCurrentTime().GetTimeRaw();
+    _iTimeLastCallGuards = CWorldGameTime::GetCurrentTime().GetTimeRaw();
 
 	CChar *pGuard = nullptr;
 	if (m_pNPC && m_pNPC->m_Brain == NPCBRAIN_GUARD)
@@ -680,7 +680,8 @@ effect_bounce:
 
 	const CCharBase * pCharDef = Char_GetDef();
 	ASSERT(pCharDef);
-    const CCPropsChar *pCCPChar = GetCCPropsChar(), *pBaseCCPChar = pCharDef->GetCCPropsChar();
+	const CCPropsChar* pCCPChar = GetComponentProps<CCPropsChar>();
+	const CCPropsChar* pBaseCCPChar = pCharDef->GetComponentProps<CCPropsChar>();
 
 	// MAGICF_IGNOREAR bypasses defense completely
 	if ( (uType & DAMAGE_MAGIC) && IsSetMagicFlags(MAGICF_IGNOREAR) )
@@ -888,16 +889,19 @@ effect_bounce:
 				if ( GetTopDist3D(pSrc) < 2 )
 				{
 					CItem* pReactive = LayerFind(LAYER_SPELL_Reactive);
-					int iReactiveDamage = (iDmg * pReactive->m_itSpell.m_PolyStr) / 100;
-					if (iReactiveDamage < 1)
+					if (pReactive)
 					{
-						iReactiveDamage = 1;
-					}
+						int iReactiveDamage = (iDmg * pReactive->m_itSpell.m_PolyStr) / 100;
+						if (iReactiveDamage < 1)
+						{
+							iReactiveDamage = 1;
+						}
 
-					iDmg -= iReactiveDamage;
-					pSrc->OnTakeDamage( iReactiveDamage, this, (DAMAGE_TYPE)(DAMAGE_FIXED | DAMAGE_REACTIVE), iDmgPhysical, iDmgFire, iDmgCold, iDmgPoison, iDmgEnergy );
-					pSrc->Sound( 0x1F1 );
-					pSrc->Effect( EFFECT_OBJ, ITEMID_FX_CURSE_EFFECT, this, 10, 16 );
+						iDmg -= iReactiveDamage;
+						pSrc->OnTakeDamage(iReactiveDamage, this, (DAMAGE_TYPE)(DAMAGE_FIXED | DAMAGE_REACTIVE), iDmgPhysical, iDmgFire, iDmgCold, iDmgPoison, iDmgEnergy);
+						pSrc->Sound(0x1F1);
+						pSrc->Effect(EFFECT_OBJ, ITEMID_FX_CURSE_EFFECT, this, 10, 16);
+					}
 				}
 			}
 		}
@@ -1427,17 +1431,17 @@ void CChar::Fight_HitTry()
             {
                 if (retHit == WAR_SWING_EQUIPPING_NOWAIT)
                 {
-                    // Reactivate as soon as possible (without waiting for a new tick) the fighting routines, which are normally called by OnTick(), which in turn calls
+                    // Reactivate as soon as possible (without waiting for a new tick) the fighting routines, which are normally called by _OnTick(), which in turn calls
                     //  OnTickSkill() -> Skill_Done() -> Skill_Stage() -> Skill_Fighting() ->
                     //  -> Fight_HitTry() (which is this method) -> Fight_Hit() (which sets the recoil and swing delays and more) ...
-                    // If i use SetTimeout(1), i will lose a tick, since i'll start to set the timers for the new swing only on the next tick, not on the current.
+                    // If i use _SetTimeout(1), i will lose a tick, since i'll start to set the timers for the new swing only on the next tick, not on the current.
                     OnTickSkill();
                 }
                 else
                 {
                     // Wait a bit, then check again if i can hit. If i don't wait, the condition that leaded to this point will always be the same,
                     //  and the combat code and this function will be called recursively.
-                    SetTimeoutD(1);
+                    _SetTimeoutD(1);
                 }
             }
 			return;
@@ -1448,21 +1452,21 @@ void CChar::Fight_HitTry()
             {
 				Fight_Attack(NPC_FightFindBestTarget());	// keep attacking the same char or change the targ
             }
-            if (!IsTimerSet())	// If i haven't landed the hit yet...
+            if (!_IsTimerSet())	// If i haven't landed the hit yet...
             {
                 // Player & NPC: wait some time and check again if i can land the hit
                 // NPC: also keeps its AI alive, so that in NPCActFight the NPC can further approach his target.
-                SetTimeoutD(1);
+                _SetTimeoutD(1);
             }
 			return;
 		}
 		case WAR_SWING_SWINGING:	// must come back here again to complete
-            if (!IsTimerSet())
+            if (!_IsTimerSet())
             {
                 // This happens (only with both PreHit and Swing_NoRange on) if i can't land the hit right now, otherwise retHit
                 //  should be WAR_SWING_EQUIPPING. If this isn't the case, there's something wrong (asserts are placed to intercept this situations).
                 // Though, consider the case of custom combat systems, in that case the asserts may be invalid.
-                SetTimeoutD(1);
+                _SetTimeoutD(1);
                 //ASSERT(IsSetCombatFlags(COMBAT_FIRSTHIT_INSTANT) && IsSetCombatFlags(COMBAT_SWING_NORANGE|COMBAT_PREHIT));
             }
 			return;
@@ -1621,7 +1625,8 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
                 if ( iDmgType & DAMAGE_FIXED )
                     iDmgType &= ~DAMAGE_FIXED;
 
-                const CCPropsChar *pCCPChar = GetCCPropsChar(), *pBaseCCPChar = Base_GetDef()->GetCCPropsChar();
+				const CCPropsChar* pCCPChar = GetComponentProps<CCPropsChar>();
+				const CCPropsChar* pBaseCCPChar = Base_GetDef()->GetComponentProps<CCPropsChar>();
 
                 pCharTarg->OnTakeDamage(
                     Fight_CalcDamage(m_uidWeapon.ItemFind()),
@@ -1774,7 +1779,7 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
                 m_atFight.m_iSwingAnimationDelay = 0;
         }
 
-        SetTimeoutD(m_atFight.m_iRecoilDelay);   // Wait for the recoil time.
+        _SetTimeoutD(m_atFight.m_iRecoilDelay);   // Wait for the recoil time.
         m_atFight.m_iWarSwingState = WAR_SWING_READY;
         return WAR_SWING_READY;
     }
@@ -1807,7 +1812,7 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 		UpdateAnimate((ANIM_TYPE)m_atFight.m_iSwingAnimation, false, false, iSwingAnimationDelayInSeconds );
 
         // Now that i have waited the recoil time, start the hit animation and wait for it to end
-        SetTimeoutD(m_atFight.m_iSwingAnimationDelay);
+        _SetTimeoutD(m_atFight.m_iSwingAnimationDelay);
 		return WAR_SWING_SWINGING;
 	}
 
@@ -2022,8 +2027,9 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 	}
 
 	// Took my swing. Do Damage !
-    const CCPropsChar *pCCPChar = GetCCPropsChar(), *pBaseCCPChar = Base_GetDef()->GetCCPropsChar();
-    pCharTarg->OnTakeDamage(
+	const CCPropsChar* pCCPChar = GetComponentProps<CCPropsChar>();
+	const CCPropsChar* pBaseCCPChar = Base_GetDef()->GetComponentProps<CCPropsChar>();
+	pCharTarg->OnTakeDamage(
         iDmg,
         this,
         iDmgType,

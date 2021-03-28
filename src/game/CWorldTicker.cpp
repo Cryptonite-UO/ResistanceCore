@@ -26,9 +26,6 @@ void CWorldTicker::_InsertTimedObject(const int64 iTimeout, CTimedObject* pTimed
     std::unique_lock<std::shared_mutex> lock(_mWorldTickList.THREAD_CMUTEX);
     TimedObjectsContainer& cont = _mWorldTickList[iTimeout];
     cont.emplace_back(pTimedObject);
-
-    // pTimedObject should already have its mutex locked by CTimedObject::SetTimeout
-    pTimedObject->_iTimeout = iTimeout;
 }
 
 void CWorldTicker::_RemoveTimedObject(const int64 iOldTimeout, CTimedObject* pTimedObject)
@@ -47,12 +44,9 @@ void CWorldTicker::_RemoveTimedObject(const int64 iOldTimeout, CTimedObject* pTi
     {
         _mWorldTickList.erase(itList);
     }
-
-    // pTimedObject should already have its mutex locked by CTimedObject::SetTimeout
-    pTimedObject->ClearTimeout();
 }
 
-void CWorldTicker::AddTimedObject(const int64 iTimeout, CTimedObject* pTimedObject)
+void CWorldTicker::AddTimedObject(const int64 iTimeout, CTimedObject* pTimedObject, bool fForce, bool fNeedsLock)
 {
     //if (iTimeout < CWorldGameTime::GetCurrentTime().GetTimeRaw())    // We do that to get them tick as sooner as possible
     //    return;
@@ -60,17 +54,8 @@ void CWorldTicker::AddTimedObject(const int64 iTimeout, CTimedObject* pTimedObje
     EXC_TRY("AddTimedObject");
     const ProfileTask timersTask(PROFILE_TIMERS);
 
-    /*
-    if (!fIgnoreSleep)
-    {
-        const CSector* pSector = pChar->GetTopSector();
-        if (pSector && pSector->IsSleeping())
-            return; // Do not allow ticks on sleeping sectors;
-    }
-    */
-
     EXC_SET_BLOCK("Already ticking?");
-    const int64 iTickOld = pTimedObject->_iTimeout;
+    const int64 iTickOld = fNeedsLock ? pTimedObject->GetTimeoutRaw() : pTimedObject->_GetTimeoutRaw();
     if (iTickOld != 0)
     {
         // Adding an object already on the list? Am i setting a new timeout without deleting the previous one?
@@ -79,18 +64,46 @@ void CWorldTicker::AddTimedObject(const int64 iTimeout, CTimedObject* pTimedObje
     }
 
     EXC_SET_BLOCK("Insert");
-    _InsertTimedObject(iTimeout, pTimedObject);
+    bool fCanTick;
+    if (fForce)
+    {
+        fCanTick = true;
+    }
+    else
+    {
+        fCanTick = fNeedsLock ? pTimedObject->CanTick() : pTimedObject->_CanTick();
+        if (!fCanTick)
+        {
+            if (auto pObjBase = dynamic_cast<const CObjBase*>(pTimedObject))
+            {
+                // Not yet placed in the world? We could have set the TIMER before setting its P or CONT, we can't know at this point...
+                // In this case, add it to the list and check if it can tick in the tick loop. We have maybe useless object in the ticking list and this hampers
+                //  performance, but it would be a pain to fix every script by setting the TIMER only after the item is placed in the world...
+                fCanTick = !pObjBase->GetTopLevelObj()->GetTopPoint().IsValidPoint();
+            }
+        }
+    }
+    
+    if (fNeedsLock)
+        pTimedObject->SetTimeoutRaw(iTimeout);
+    else
+        pTimedObject->_SetTimeoutRaw(iTimeout);
+
+    if (fCanTick)
+    {
+        _InsertTimedObject(iTimeout, pTimedObject);
+    }
 
     EXC_CATCH;
 }
 
-void CWorldTicker::DelTimedObject(CTimedObject* pTimedObject)
+void CWorldTicker::DelTimedObject(CTimedObject* pTimedObject, bool fNeedsLock)
 {
     EXC_TRY("DelTimedObject");
     const ProfileTask timersTask(PROFILE_TIMERS);
 
     EXC_SET_BLOCK("Not ticking?");
-    const int64 iTickOld = pTimedObject->_iTimeout;
+    const int64 iTickOld = fNeedsLock ? pTimedObject->GetTimeoutRaw() : pTimedObject->_GetTimeoutRaw();
     if (iTickOld == 0)
         return;
 
@@ -106,6 +119,7 @@ void CWorldTicker::DelTimedObject(CTimedObject* pTimedObject)
 void CWorldTicker::_InsertCharTicking(const int64 iTickNext, CChar* pChar)
 {
     std::unique_lock<std::shared_mutex> lock(_mCharTickList.THREAD_CMUTEX);
+
     TimedCharsContainer& cont = _mCharTickList[iTickNext];
     cont.emplace_back(pChar);
 
@@ -132,27 +146,31 @@ void CWorldTicker::_RemoveCharTicking(const int64 iOldTimeout, CChar* pChar)
     pChar->_iTimePeriodicTick = 0;
 }
 
-void CWorldTicker::AddCharTicking(CChar* pChar, bool fIgnoreSleep)
+void CWorldTicker::AddCharTicking(CChar* pChar, bool fNeedsLock)
 {
     EXC_TRY("AddCharTicking");
 
     const ProfileTask timersTask(PROFILE_TIMERS);
-    // The mutex on the char should already be locked at this point, by 
 
-    if (!fIgnoreSleep)
+    int64 iTickNext, iTickOld;
+    if (fNeedsLock)
     {
-        EXC_SET_BLOCK("Sector sleeping?");
-        const CSector* pSector = pChar->GetTopSector();
-        if (pSector && pSector->IsSleeping())
-            return; // Do not allow ticks on sleeping sectors. This char will be added when the sector awakes.
+        std::unique_lock<std::shared_mutex> lock(pChar->THREAD_CMUTEX);
+        iTickNext = pChar->_iTimeNextRegen;
+        iTickOld = pChar->_iTimePeriodicTick;
+    }
+    else
+    {
+        iTickNext = pChar->_iTimeNextRegen;
+        iTickOld = pChar->_iTimePeriodicTick;
     }
 
+    if (iTickNext == iTickOld)
+        return;
 
-    const int64 iTickNext = pChar->_iTimeNextRegen;
     //if (iTickNext < CWorldGameTime::GetCurrentTime().GetTimeRaw())    // We do that to get them tick as sooner as possible
     //    return;
 
-    const int64 iTickOld = pChar->_iTimePeriodicTick;
     if (iTickOld != 0)
     {
         // Adding an object already on the list? Am i setting a new timeout without deleting the previous one?
@@ -160,28 +178,73 @@ void CWorldTicker::AddCharTicking(CChar* pChar, bool fIgnoreSleep)
         _RemoveCharTicking(iTickOld, pChar);
     }
 
+/*
+#ifdef _DEBUG
+    for (auto& elemList : _mCharTickList)
+    {
+        for (auto& elemChar : elemList.second)
+        {
+            ASSERT(elemChar != pChar);
+        }
+    }
+#endif
+*/
+
     EXC_SET_BLOCK("Insert");
     _InsertCharTicking(iTickNext, pChar);
 
     EXC_CATCH;
 }
 
-void CWorldTicker::DelCharTicking(CChar* pChar)
+void CWorldTicker::DelCharTicking(CChar* pChar, bool fNeedsLock)
 {
     EXC_TRY("DelCharTicking");
     const ProfileTask timersTask(PROFILE_TIMERS);
 
-    const int64 iOldTimeout = pChar->_iTimePeriodicTick;
-
-    if (iOldTimeout == 0)
+    int64 iTickOld;
+    if (fNeedsLock)
+    {
+        std::unique_lock<std::shared_mutex> lock(pChar->THREAD_CMUTEX);
+        iTickOld = pChar->_iTimePeriodicTick;
+    }
+    else
+    {
+        iTickOld = pChar->_iTimePeriodicTick;
+    }
+    if (iTickOld == 0)
         return;
 
     EXC_SET_BLOCK("Remove");
-    _RemoveCharTicking(iOldTimeout, pChar);
+    _RemoveCharTicking(iTickOld, pChar);
 
     EXC_CATCH;
 }
 
+void CWorldTicker::AddObjStatusUpdate(CObjBase* pObj, bool fNeedsLock) // static
+{
+    EXC_TRY("AddObjStatusUpdate");
+
+    UNREFERENCED_PARAMETER(fNeedsLock);
+    {
+        std::unique_lock<std::shared_mutex> lock(_ObjStatusUpdates.THREAD_CMUTEX);
+        _ObjStatusUpdates.insert(pObj);
+    }
+
+    EXC_CATCH;
+}
+
+void CWorldTicker::DelObjStatusUpdate(CObjBase* pObj, bool fNeedsLock) // static
+{
+    EXC_TRY("DelObjStatusUpdate");
+
+    UNREFERENCED_PARAMETER(fNeedsLock);
+    {
+        std::unique_lock<std::shared_mutex> lock(_ObjStatusUpdates.THREAD_CMUTEX);
+        _ObjStatusUpdates.erase(pObj);
+    }
+
+    EXC_CATCH;
+}
 
 // Check timeouts and do ticks
 
@@ -200,7 +263,7 @@ void CWorldTicker::Tick()
         ++_iLastTickDone;   // Update current tick.
 
         /* process objects that need status updates
-        * these objects will normally be in containers which don't have any period OnTick method
+        * these objects will normally be in containers which don't have any period _OnTick method
         * called (whereas other items can receive the OnTickStatusUpdate() call via their normal
         * tick method).
         * note: ideally, a better solution to accomplish this should be found if possible
@@ -262,22 +325,21 @@ void CWorldTicker::Tick()
                 for (auto it = cont.begin(); it != itContEnd;)
                 {
                     CTimedObject* pTimedObj = *it;
-                    if (pTimedObj->IsTimerSet() && !pTimedObj->IsSleeping()) // Double check
+                    
+                    // FIXME / TODO: For now, since we don't have multithreading fully working, locking an unneeded mutex causes only useless slowdowns.
+                    //std::unique_lock<std::shared_mutex> lockTimeObj(pTimedObj->THREAD_CMUTEX);
+                    
+                    if (pTimedObj->_IsTimerSet() && pTimedObj->_CanTick())
                     {
-                        if (pTimedObj->_iTimeout <= iTime)
+                        if (pTimedObj->_GetTimeoutRaw() <= iTime)
                         {
                             vecObjs.emplace_back(static_cast<void*>(pTimedObj));
+
+                            pTimedObj->_ClearTimeout();
+
+                            it = cont.erase(it);
+                            itContEnd = cont.end();
                         }
-
-                        /*
-                        * Doing a SetTimeout() in the object's tick will force CWorld to search for that object's
-                        * current timeout to remove it from any list, prevent that to happen here since it should
-                        * not belong to any other tick than the current one.
-                        */
-                        pTimedObj->ClearTimeout();
-
-                        it = cont.erase(it);
-                        itContEnd = cont.end();
                     }
                     else
                     {
@@ -307,8 +369,12 @@ void CWorldTicker::Tick()
             EXC_TRYSUB("Timed Object Tick");
             EXC_SETSUB_BLOCK("Elapsed");
 
-            CTimedObject* pObj = static_cast<CTimedObject*>(pObjVoid);
-            const PROFILE_TYPE profile = pObj->GetProfileType();
+            CTimedObject* pTimedObj = static_cast<CTimedObject*>(pObjVoid);
+
+            // FIXME / TODO: For now, since we don't have multithreading fully working, locking an unneeded mutex causes only useless slowdowns.
+            //std::unique_lock<std::shared_mutex> lockTimeObj(pTimedObj->THREAD_CMUTEX);
+
+            const PROFILE_TYPE profile = pTimedObj->_GetProfileType();
             const ProfileTask  profileTask(profile);
 
             // Default to true, so if any error occurs it gets deleted for safety
@@ -319,7 +385,7 @@ void CWorldTicker::Tick()
             {
                 case PROFILE_ITEMS:
                 {
-                    CItem* pItem = dynamic_cast<CItem*>(pObj);
+                    CItem* pItem = dynamic_cast<CItem*>(pTimedObj);
                     ASSERT(pItem);
                     if (pItem->IsItemEquipped())
                     {
@@ -334,7 +400,7 @@ void CWorldTicker::Tick()
                     else
                     {
                         ptcSubDesc = "Item";
-                        fDelete = (pItem->OnTick() == false);
+                        fDelete = (pItem->_OnTick() == false);
                         break;
                     }
                 }
@@ -343,12 +409,12 @@ void CWorldTicker::Tick()
                 case PROFILE_CHARS:
                 {
                     ptcSubDesc = "Char";
-                    CChar* pChar = dynamic_cast<CChar*>(pObj);
+                    CChar* pChar = dynamic_cast<CChar*>(pTimedObj);
                     ASSERT(pChar);
-                    fDelete = !pChar->OnTick();
-                    if (pChar->m_pNPC && !pObj->IsTimerSet())
+                    fDelete = !pChar->_OnTick();
+                    if (pChar->m_pNPC && !pTimedObj->_IsTimerSet())
                     {
-                        pObj->SetTimeoutS(3);   //3 seconds timeout to keep NPCs 'alive'
+                        pTimedObj->_SetTimeoutS(3);   //3 seconds timeout to keep NPCs 'alive'
                     }
                 }
                 break;
@@ -357,21 +423,21 @@ void CWorldTicker::Tick()
                 {
                     ptcSubDesc = "Sector";
                     fDelete = false;    // sectors should NEVER be deleted.
-                    pObj->OnTick();
+                    pTimedObj->_OnTick();
                 }
                 break;
 
                 case PROFILE_MULTIS:
                 {
                     ptcSubDesc = "Multi";
-                    fDelete = !pObj->OnTick();
+                    fDelete = !pTimedObj->_OnTick();
                 }
                 break;
 
                 case PROFILE_SHIPS:
                 {
                     ptcSubDesc = "ItemShip";
-                    fDelete = !pObj->OnTick();
+                    fDelete = !pTimedObj->_OnTick();
                 }
                 break;
 
@@ -379,14 +445,14 @@ void CWorldTicker::Tick()
                 {
                     ptcSubDesc = "TimedFunction";
                     fDelete = false;
-                    pObj->OnTick();
+                    pTimedObj->_OnTick();
                 }
                 break;
 
                 default:
                 {
                     ptcSubDesc = "Default";
-                    fDelete = !pObj->OnTick();
+                    fDelete = !pTimedObj->_OnTick();
                 }
                 break;
             }
@@ -394,7 +460,7 @@ void CWorldTicker::Tick()
             if (fDelete)
             {
                 EXC_SETSUB_BLOCK("Delete");
-                CObjBase* pObjBase = dynamic_cast<CObjBase*>(pObj);
+                CObjBase* pObjBase = dynamic_cast<CObjBase*>(pTimedObj);
                 ASSERT(pObjBase); // Only CObjBase-derived objects have the Delete method, and should be Delete-d.
                 pObjBase->Delete();
             }
@@ -427,16 +493,22 @@ void CWorldTicker::Tick()
             for (auto it = cont.begin(); it != itContEnd;)
             {
                 CChar* pChar = *it;
-                if ((pChar->_iTimePeriodicTick != 0) && !pChar->IsSleeping())
+
+                // FIXME / TODO: For now, since we don't have multithreading fully working, locking an unneeded mutex causes only useless slowdowns.
+                //std::unique_lock<std::shared_mutex> lockTimeObj(pTimedObj->THREAD_CMUTEX);
+
+                if ((pChar->_iTimePeriodicTick != 0) && pChar->_CanTick())
                 {
                     if (pChar->_iTimePeriodicTick <= iTime)
                     {
                         vecObjs.emplace_back(static_cast<void*>(pChar));
-                    }
-                    pChar->_iTimePeriodicTick = 0;
 
-                    it = cont.erase(it);
-                    itContEnd = cont.end();
+                        pChar->_iTimePeriodicTick = 0;
+
+                        it = cont.erase(it);
+                        itContEnd = cont.end();
+                    }
+                    
                 }
                 else
                 {
@@ -469,7 +541,7 @@ void CWorldTicker::Tick()
             }
             else
             {
-                pChar->Delete();
+                pChar->Delete(true);
             }
         }
         EXC_CATCHSUB("");

@@ -2,6 +2,7 @@
 #include "../../common/sphereproto.h"
 #include "../chars/CChar.h"
 #include "../chars/CCharNPC.h"
+#include "../CException.h"
 #include "../CWorldGameTime.h"
 #include "../CWorldMap.h"
 #include "CItem.h"
@@ -9,14 +10,19 @@
 
 
 CItemCorpse::CItemCorpse( ITEMID_TYPE id, CItemBase * pItemDef ) :
-    CTimedObject(PROFILE_ITEMS), CItemContainer( id, pItemDef )
+    CTimedObject(PROFILE_ITEMS),
+	CItemContainer( id, pItemDef )
 {
-	ADDTOCALLSTACK("CItemCorpse::CItemCorpse");
 }
 
 CItemCorpse::~CItemCorpse()
 {
-	DeletePrepare();	// Must remove early because virtuals will fail in child destructor.
+	EXC_TRY("Cleanup in destructor");
+
+	// Must remove early because virtuals will fail in child destructor.
+	DeletePrepare();
+
+	EXC_CATCH;
 }
 
 bool CItemCorpse::IsCorpseResurrectable(CChar * pCharHealer, CChar * pCharGhost) const

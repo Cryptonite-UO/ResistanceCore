@@ -11,14 +11,36 @@
 #include "CContainer.h"
 
 
-CContainer::CContainer()
+CContainer::CContainer() :
+	m_totalweight(0)
 {
-	m_totalweight = 0;
 }
 
-CContainer::~CContainer()
+
+void CContainer::_GoAwake()
 {
+	ADDTOCALLSTACK("CContainer::_GoAwake");
+	for (CSObjContRec* pObjRec : GetIterationSafeContReverse())
+	{
+		CItem* pItem = static_cast<CItem*>(pObjRec);
+		//std::unique_lock<std::shared_mutex> lock(pItem->THREAD_CMUTEX);
+		if (pItem->IsSleeping())
+			pItem->GoAwake();
+	}
 }
+
+void CContainer::_GoSleep()
+{
+	ADDTOCALLSTACK("CContainer::_GoSleep");
+	for (CSObjContRec* pObjRec : GetIterationSafeContReverse())
+	{
+		CItem* pItem = static_cast<CItem*>(pObjRec);
+		//std::unique_lock<std::shared_mutex> lock(pItem->THREAD_CMUTEX);
+		if (!pItem->IsSleeping())
+			pItem->GoSleep();
+	}
+}
+
 
 void CContainer::ContentDelete(bool fForce)
 {
@@ -125,7 +147,27 @@ void CContainer::ContentAddPrivate( CItem *pItem )
 		return;
 
 	CSObjCont::InsertContentTail( pItem );
+	//pItem->RemoveUIDFlags(UID_O_DISCONNECT);
+
 	OnWeightChange(pItem->GetWeight());
+
+	if (auto pObj = dynamic_cast<const CObjBase*>(this))
+	{
+		if (pObj->IsSleeping())
+		{
+			if (!pItem->IsSleeping())
+			{
+				pItem->GoSleep();
+			}
+		}
+		else
+		{
+			if (pItem->IsSleeping())
+			{
+				pItem->GoAwake();
+			}
+		}
+	}
 }
 
 void CContainer::OnRemoveObj( CSObjContRec *pObRec )	// Override this = called when removed from list.

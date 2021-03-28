@@ -23,8 +23,8 @@ public:
 	virtual bool NotifyDelete() override;	// overrides CItem:: method
 	virtual void DeletePrepare() override;
 
-    void SetSecuredOfMulti(CUID uidMulti);
-    void SetCrateOfMulti(CUID uidMulti);
+    void SetSecuredOfMulti(const CUID& uidMulti);
+    void SetCrateOfMulti(const CUID& uidMulti);
 
 public:
 	CItemContainer( ITEMID_TYPE id, CItemBase * pItemDef );
@@ -50,10 +50,15 @@ public:
 	void OnWeightChange( int iChange );
 
 	// Contents/Carry stuff. ---------------------------------
+public:
 	virtual void ContentAdd( CItem * pItem, bool bForceNoStack = false ) override;
 	void ContentAdd( CItem * pItem, CPointMap pt, bool fForceNoStack = false, uchar gridIndex = 0 );
 protected:
 	virtual void OnRemoveObj( CSObjContRec* pObRec ) override;	// Override this = called when removed from list.
+
+protected:
+	virtual void _GoAwake() override final;
+	virtual void _GoSleep() override final;
 
 public:
 	bool IsItemInTrade() const;
@@ -65,7 +70,7 @@ public:
 	void SetKeyRing();
 	void Game_Create();
 	void Restock();
-	bool OnTick();
+	bool _OnTick();
 
 	virtual void DupeCopy( const CItem * pItem ) override;  // overriding CItem::DupeCopy
 

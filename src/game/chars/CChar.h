@@ -20,7 +20,10 @@
 #include "CCharPlayer.h"
 
 
+class CWorldTicker;
+
 class CCharNPC;
+
 
 enum NPCBRAIN_TYPE	// General AI type.
 {
@@ -41,7 +44,10 @@ enum NPCBRAIN_TYPE	// General AI type.
 class CChar : public CObjBase, public CContainer, public CTextConsole
 {
 	// RES_WORLDCHAR
-    THREAD_CMUTEX_DEF;
+
+	friend class CWorldTicker;
+
+    // THREAD_CMUTEX_DEF; // It inherits from CObjBase which inherits CTimedObject, which already has a class mutex.
 
 private:
 	// Spell type effects.
@@ -78,7 +84,7 @@ private:
 #define STATF_RIDDEN		0x40000000	// This is the horse. (don't display me) I am being ridden
 #define STATF_ONHORSE		0x80000000	// Mounted on horseback.
 
-	uint64 m_iStatFlag;		// Flags above
+	uint64 _uiStatFlag;		// Flags above
 
 	ushort m_Skill[SKILL_QTY];	// List of skills ( skill * 10 )
 
@@ -170,10 +176,9 @@ public:
 	int64  _iTimePeriodicTick;
 	int64  _iTimeNextRegen;	    // When did i get my last regen tick ?
     ushort _iRegenTickCount;    // ticks until next regen.
-	
 
 	int64 _iTimeLastHitsUpdate;
-	int64 m_timeLastCallGuards;
+	int64 _iTimeLastCallGuards;
 
 	// Some character action in progress.
 	SKILL_TYPE	m_Act_SkillCurrent;	// Currently using a skill. Could be combat skill.
@@ -312,22 +317,28 @@ private:
 	CChar& operator=(const CChar& other);
 
 protected:
-	void DeleteCleanup(bool fForce);
+	void DeleteCleanup(bool fForce);	// Not virtual!
 	virtual void DeletePrepare() override;
 public:
 	bool NotifyDelete();
 	virtual bool Delete(bool fForce = false) override;
 
-    virtual void GoSleep() override;
-    virtual void GoAwake() override;
-
-	// Status and attributes ------------------------------------	
+	// Status and attributes ------------------------------------
 	int IsWeird() const;
+
+//protected:	bool _IsStatFlag(uint64 uiStatFlag) const noexcept;
+public:		bool  IsStatFlag(uint64 uiStatFlag) const noexcept;
+
+//protected:	void _StatFlag_Set(uint64 uiStatFlag) noexcept;
+public:		void  StatFlag_Set(uint64 uiStatFlag) noexcept;
+
+//protected:	void _StatFlag_Clear(uint64 uiStatFlag) noexcept;
+public:		void  StatFlag_Clear(uint64 uiStatFlag) noexcept;
+
+//protected:	void _StatFlag_Mod(uint64 uiStatFlag, bool fMod) noexcept;
+public:		void  StatFlag_Mod(uint64 uiStatFlag, bool fMod) noexcept;
+
 	char GetFixZ(const CPointMap& pt, dword dwBlockFlags = 0);
-	bool IsStatFlag( uint64 iStatFlag ) const;
-	void StatFlag_Set(uint64 iStatFlag);
-	void StatFlag_Clear(uint64 iStatFlag);
-	void StatFlag_Mod(uint64 iStatFlagStatFlag, bool fMod );
 	bool IsPriv( word flag ) const;
 	PLEVEL_TYPE GetPrivLevel() const;
 
@@ -456,9 +467,10 @@ public:
 	bool MoveToRegionReTest( dword dwType );
 	bool MoveToChar(const CPointMap& pt, bool fStanding = true, bool fCheckLocation = true, bool fForceFix = false, bool fAllowReject = true);
 	bool MoveTo(const CPointMap& pt, bool fForceFix = false);
-	virtual void SetTopZ( char z ) noexcept override;
-	bool MoveToValidSpot(DIR_TYPE dir, int iDist, int iDistStart = 1, bool fFromShip = false);
+	virtual void SetTopZ( char z ) override;
 	virtual bool MoveNearObj( const CObjBaseTemplate *pObj, ushort iSteps = 0 ) override;
+	bool MoveToValidSpot(DIR_TYPE dir, int iDist, int iDistStart = 1, bool fFromShip = false);
+	bool MoveToNearestShore(bool fNoMsg = false);
 
 	CRegion * CanMoveWalkTo( CPointMap & pt, bool fCheckChars = true, bool fCheckOnly = false, DIR_TYPE dir = DIR_QTY, bool fPathFinding = false );
 	void CheckRevealOnMove();
@@ -1287,12 +1299,23 @@ public:
 	void OnHarmedBy( CChar * pCharSrc );
 	bool OnAttackedBy( CChar * pCharSrc, bool fPetsCommand = false, bool fShouldReveal = true );
 
+protected:
+	virtual void _GoAwake() override final;
+	virtual void _GoSleep() override final;
+
+	virtual bool _CanTick() const override final;
+
+protected:	virtual bool _OnTick() override final;  // _OnTick timeout for skills, AI, etc
+//public:	virtual bool  _OnTick() override final;
+
+public:
 	bool OnTickEquip( CItem * pItem );
 	void OnTickFood( ushort uiVal, int HitsHungerLoss );
-	void OnTickStatusUpdate();
-	bool OnTick();  // OnTick timeout for skills, AI, etc
-    void OnTickSkill(); // OnTick timeout specific for the skill behavior
-    bool OnTickPeriodic();  // Periodic tick calls (update stats, status bar, notoriety & attackers, death check, etc)
+
+	virtual void OnTickStatusUpdate() override;
+	bool OnTickPeriodic();  // Periodic tick calls (update stats, status bar, notoriety & attackers, death check, etc)
+    
+	void OnTickSkill(); // _OnTick timeout specific for the skill behavior
 
 	static CChar * CreateBasic( CREID_TYPE baseID );
 	static CChar * CreateNPC( CREID_TYPE id );

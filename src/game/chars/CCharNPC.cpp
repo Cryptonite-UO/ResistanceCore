@@ -252,7 +252,7 @@ void CCharNPC::r_WriteChar( CChar * pChar, CScript & s )
 	{
 		TemporaryString tsTemp;
 		m_Need.WriteKey(tsTemp.buffer());
-		s.WriteKey( "NEED", tsTemp);
+		s.WriteKeyStr( "NEED", tsTemp.buffer());
 	}
 }
 

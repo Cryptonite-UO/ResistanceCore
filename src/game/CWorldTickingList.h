@@ -14,14 +14,14 @@ class CWorldTickingList
 public:
     static const char* m_sClassName;
 
-    static void AddObjSingle(int64 iTimeout, CTimedObject* pObj);
-    static void DelObjSingle(CTimedObject* pObj);
+    static void AddObjSingle(int64 iTimeout, CTimedObject* pObj, bool fForce, bool fNeedsLock);
+    static void DelObjSingle(CTimedObject* pObj, bool fNeedsLock);
 
-    static void AddCharPeriodic(CChar* pChar, bool fIgnoreSleep = false);
-    static void DelCharPeriodic(CChar* pChar);
+    static void AddCharPeriodic(CChar* pChar, bool fNeedsLock);
+    static void DelCharPeriodic(CChar* pChar, bool fNeedsLock);
 
-    static void AddObjStatusUpdate(CObjBase* pObj);
-    static void DelObjStatusUpdate(CObjBase* pObj);
+    static void AddObjStatusUpdate(CObjBase* pObj, bool fNeedsLock);
+    static void DelObjStatusUpdate(CObjBase* pObj, bool fNeedsLock);
 
 private:
     friend class CWorld;

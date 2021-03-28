@@ -104,11 +104,14 @@ private:
 
 public:
     /*
-    * @brief Asign it's adjacent's sectors
+    * @brief Assign its adjacent sectors
     */
     void SetAdjacentSectors();
-    CSector *GetAdjacentSector(DIR_TYPE dir) const;
 
+protected:
+    CSector *_GetAdjacentSector(DIR_TYPE dir) const;
+
+public:
 	CSectorBase();
 	virtual ~CSectorBase() = default;
 
@@ -120,10 +123,10 @@ public:
 	virtual void Init(int index, uchar map, short x, short y);
 
 	// Location map units.
-	int GetIndex() const { return m_index; }
-	int GetMap() const { return m_map; }
+	int GetIndex() const noexcept { return m_index; }
+	int GetMap() const noexcept { return m_map; }
 	CPointMap GetBasePoint() const;
-	CRectMap GetRect() const;
+	CRectMap GetRect() const noexcept;
 	bool IsInDungeon() const;
 
 	// CRegion
@@ -137,7 +140,7 @@ public:
 	CTeleport * GetTeleport( const CPointMap & pt ) const;
 	bool AddTeleport( CTeleport * pTeleport );
 
-	bool IsFlagSet( dword dwFlag ) const;
+	bool IsFlagSet( dword dwFlag ) const noexcept;
 
 #define SECF_NoSleep	0x00000001
 #define SECF_InstaSleep	0x00000002

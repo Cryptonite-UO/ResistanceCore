@@ -432,7 +432,7 @@ public:
 #define STAT_FLAG_DENYMAX   0x01    //    MAX* denied
 #define STAT_FLAG_DENYMAXP  0x02    //        .. for players
 #define STAT_FLAG_DENYMAXN  0x04    //        .. for npcs
-	uint m_iStatFlag;
+	uint _uiStatFlag;
 
 #define NPC_AI_PATH				0x00001     // NPC pathfinding.
 #define	NPC_AI_FOOD				0x00002     // NPC food search (objects + grass).
@@ -625,7 +625,7 @@ public:
      * @param   fResync true to resync.
      */
 	void Unload( bool fResync );
-	void OnTick( bool fNow );
+	void _OnTick( bool fNow );
 
     /**
      * @brief   Loads resource section ([SKILL ], [SPELL ], [CHARDEF ]...).

@@ -28,7 +28,7 @@ protected:
 
 public:
 	static const char *m_sClassName;
-	CObjBaseTemplate() = default;
+	CObjBaseTemplate();
 	virtual ~CObjBaseTemplate() = default;
 
 private:
@@ -68,7 +68,10 @@ public:
         m_UID.RemoveObjFlags( dwFlags );
     }
 
+	// Attributes
 	virtual int IsWeird() const;
+
+	// Parent objects
 	virtual const CObjBaseTemplate * GetTopLevelObj() const = 0;
 	virtual CObjBaseTemplate* GetTopLevelObj() = 0;
 
@@ -92,7 +95,7 @@ public:
 
 	// - *Top* methods: are virtual and may do additional checks.
 	void SetTopPoint(const CPointMap& pt);
-	virtual void SetTopZ(char z) noexcept;
+	virtual void SetTopZ(char z);
     inline const CPointMap & GetTopPoint() const noexcept {
         return m_pt;
     }

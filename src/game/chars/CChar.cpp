@@ -238,7 +238,9 @@ CChar * CChar::CreateBasic(CREID_TYPE baseID) // static
 	return pChar;
 }
 
-CChar::CChar( CREID_TYPE baseID ) : CTimedObject(PROFILE_CHARS), CObjBase( false ),
+CChar::CChar( CREID_TYPE baseID ) :
+	CTimedObject(PROFILE_CHARS),
+	CObjBase( false ),
     m_Skill{}, m_Stat{}
 {
 	g_Serv.StatInc( SERV_STAT_CHARS );	// Count created CChars.
@@ -249,7 +251,7 @@ CChar::CChar( CREID_TYPE baseID ) : CTimedObject(PROFILE_CHARS), CObjBase( false
 	m_pPlayer = nullptr;	// May even be an off-line player!
 	m_pNPC	  = nullptr;
 	m_pRoom = nullptr;
-	m_iStatFlag = 0;
+	_uiStatFlag = 0;
 
 	if ( g_World.m_fSaveParity )
 		StatFlag_Set(STATF_SAVEPARITY);	// It will get saved next time.
@@ -274,7 +276,7 @@ CChar::CChar( CREID_TYPE baseID ) : CTimedObject(PROFILE_CHARS), CObjBase( false
     _iTimeCreate = _iTimeLastHitsUpdate = CWorldGameTime::GetCurrentTime().GetTimeRaw();
     _iTimeNextRegen = _iTimeLastHitsUpdate + MSECS_PER_SEC;  // make it regen in one second from now, no need to instant regen.
     _iRegenTickCount = 0;
-	m_timeLastCallGuards = 0;
+	_iTimeLastCallGuards = 0;
 
     m_zClimbHeight = 0;
 	m_fClimbUpdated = false;
@@ -304,13 +306,11 @@ CChar::CChar( CREID_TYPE baseID ) : CTimedObject(PROFILE_CHARS), CObjBase( false
 	g_World.m_uidLastNewChar = GetUID();	// for script access.
 
     // SubscribeComponent Prop Components
-    SubscribeComponentProps(new CCPropsChar());
-    SubscribeComponentProps(new CCPropsItemChar());
+	TrySubscribeComponentProps<CCPropsChar>();
+	TrySubscribeComponentProps<CCPropsItemChar>();
 
     // SubscribeComponent regular Components
     SubscribeComponent(new CCFaction());
-
-    CTimedObject::GoSleep();  // Make it be sleeping at first, to awake it when placing it in the world (errors will show up otherwise).
 
 	ASSERT(IsDisconnected());
 }
@@ -318,10 +318,10 @@ CChar::CChar( CREID_TYPE baseID ) : CTimedObject(PROFILE_CHARS), CObjBase( false
 // Delete character
 CChar::~CChar()
 {
-	ADDTOCALLSTACK("CChar::~CChar");
+	EXC_TRY("Cleanup in destructor");
 
-	DeleteCleanup(true);
-	ClearContainer();
+	CChar::DeleteCleanup(true);
+	CContainer::ClearContainer();
 
     if (IsClientActive())    // this should never happen.
     {
@@ -344,6 +344,8 @@ CChar::~CChar()
     ClearPlayer();
 
     g_Serv.StatDec( SERV_STAT_CHARS );
+
+	EXC_CATCH;
 }
 
 void CChar::DeleteCleanup(bool fForce)
@@ -351,7 +353,8 @@ void CChar::DeleteCleanup(bool fForce)
 	ADDTOCALLSTACK("CChar::DeleteCleanup");
 	_fDeleting = true;
 
-	CWorldTickingList::DelCharPeriodic(this);
+	// Just to be extra sure we won't have invalid pointers over there
+	CWorldTickingList::DelCharPeriodic(this, false);
 
 	if (IsStatFlag(STATF_RIDDEN))
 	{
@@ -403,7 +406,7 @@ bool CChar::NotifyDelete()
 void CChar::DeletePrepare()
 {
 	ADDTOCALLSTACK("CChar::DeletePrepare");
-	ContentDelete(false);	// This object and its contents need to be deleted on the same tick
+	CContainer::ContentDelete(false);	// This object and its contents need to be deleted on the same tick
 	CObjBase::DeletePrepare();
 }
 
@@ -422,10 +425,7 @@ bool CChar::Delete(bool fForce)
 		pClient->GetNetState()->markReadClosed();
 	}
 	
-	DeleteCleanup(fForce);
-
-	// Detach from account now
-	ClearPlayer();
+	DeleteCleanup(fForce);	// not virtual
 
 	return CObjBase::Delete();
 }
@@ -473,7 +473,7 @@ void CChar::ClientAttach( CClient * pClient )
 		return;
 
 	ASSERT(m_pPlayer);
-	m_pPlayer->m_timeLastUsed = CWorldGameTime::GetCurrentTime().GetTimeRaw();
+	m_pPlayer->_iTimeLastUsed = CWorldGameTime::GetCurrentTime().GetTimeRaw();
 
 	m_pClient = pClient;
 	FixClimbHeight();
@@ -492,15 +492,23 @@ void CChar::SetDisconnected(CSector* pNewSector)
     {
         GetClientActive()->GetNetState()->markReadClosed();
     }
+
+	if (m_pPlayer)
+	{
+		m_pPlayer->_iTimeLastDisconnected = CWorldGameTime::GetCurrentTime().GetTimeRaw();
+	}
+
     if (m_pParty)
     {
         m_pParty->RemoveMember( GetUID(), GetUID() );
         m_pParty = nullptr;
     }
-    CWorldTickingList::DelCharPeriodic(this);
 
     if ( IsDisconnected() )
         return;
+
+	// If the char goes offline, we don't want its items to tick anymore when the timer expires.
+	_GoSleep();
 
     RemoveFromView();	// Remove from views.
     MoveToRegion(nullptr, false);
@@ -523,17 +531,21 @@ void CChar::ClearPlayer()
     if ( m_pPlayer == nullptr )
         return;
 
-    // unlink me from my account.
-    if ( g_Serv.GetServerMode() != SERVMODE_Exiting )
-    {
-        if ( m_pPlayer->m_pAccount )
-            DEBUG_WARN(("Player delete '%s' name '%s'\n", m_pPlayer->GetAccount()->GetName(), GetName()));
-        else
-            DEBUG_WARN(("Player delete from account name '%s'\n", GetName()));
-    }
+	CAccount* pAccount = m_pPlayer->GetAccount();
+	if (!pAccount)
+	{
+		g_Log.EventError("Player '%s' (UID 0%x) not attached to account?\n", GetName(), (dword)GetUID());
+	}
+	else
+	{
+		if (g_Serv.GetServerMode() != SERVMODE_Exiting)
+		{
+			g_Log.EventWarn("Player delete '%s' name from account '%s'.\n", GetName(), pAccount->GetName());
+		}
 
-    // Is this valid ?
-    m_pPlayer->GetAccount()->DetachChar( this );
+		pAccount->DetachChar(this);	// unlink me from my account.
+	}
+    
     delete m_pPlayer;
     m_pPlayer = nullptr;
 }
@@ -601,42 +613,6 @@ bool CChar::SetNPCBrain( NPCBRAIN_TYPE NPCBrain )
     return true;
 }
 
-void CChar::GoSleep()
-{
-    ADDTOCALLSTACK("CChar::GoSleep");
-    ASSERT(!IsSleeping());
-
-	CWorldTickingList::DelCharPeriodic(this);   // do not insert into the mutex lock, it access back to this char.
-
-    THREAD_UNIQUE_LOCK_SET;
-    CTimedObject::GoSleep();
-
-	for (CSObjContRec* pObjRec : *this)
-	{
-		CItem* pItem = static_cast<CItem*>(pObjRec);
-        if (!pItem->IsSleeping())
-            pItem->GoSleep();
-    }
-}
-
-void CChar::GoAwake()
-{
-    ADDTOCALLSTACK("CChar::GoAwake");
-    ASSERT(IsSleeping());
-
-	CWorldTickingList::AddCharPeriodic(this, true);
-
-    THREAD_UNIQUE_LOCK_SET;
-    CTimedObject::GoAwake();       // Awake it first, otherwise some other things won't work
-    SetTimeout(Calc_GetRandVal(1 * MSECS_PER_SEC));  // make it tick randomly in the next sector, so all awaken NPCs get a different tick time.
-
-	for (CSObjContRec* pObjRec : *this)
-	{
-		CItem* pItem = static_cast<CItem*>(pObjRec);
-        if (pItem->IsSleeping())
-            pItem->GoAwake();
-    }
-}
 
 // Is there something wrong with this char?
 // RETURN: invalid code.
@@ -765,31 +741,59 @@ char CChar::GetFixZ( const CPointMap& pt, dword dwBlockFlags)
 }
 
 
-bool CChar::IsStatFlag( uint64 iStatFlag ) const
+/*
+bool CChar::_IsStatFlag(uint64 uiStatFlag) const noexcept
 {
-	THREAD_SHARED_LOCK_SET;
-	return ((m_iStatFlag & iStatFlag) ? true : false );
+	return (_uiStatFlag & uiStatFlag);
+}
+*/
+bool CChar::IsStatFlag( uint64 uiStatFlag) const noexcept
+{
+//	THREAD_SHARED_LOCK_SET;
+	return (_uiStatFlag & uiStatFlag);
 }
 
-void CChar::StatFlag_Set( uint64 iStatFlag)
+/*
+void CChar::_StatFlag_Set( uint64 uiStatFlag) noexcept
 {
-    THREAD_UNIQUE_LOCK_SET;
-    m_iStatFlag |= iStatFlag;
+    _uiStatFlag |= uiStatFlag;
+}
+*/
+void CChar::StatFlag_Set(uint64 uiStatFlag) noexcept
+{
+//	THREAD_UNIQUE_LOCK_SET;
+	_uiStatFlag |= uiStatFlag;
 }
 
-void CChar::StatFlag_Clear( uint64 iStatFlag)
+/*
+void CChar::_StatFlag_Clear(uint64 uiStatFlag) noexcept
 {
-    THREAD_UNIQUE_LOCK_SET;
-    m_iStatFlag &= ~iStatFlag;
+    _uiStatFlag &= ~uiStatFlag;
+}
+*/
+void CChar::StatFlag_Clear(uint64 uiStatFlag) noexcept
+{
+//	THREAD_UNIQUE_LOCK_SET;
+	_uiStatFlag &= ~uiStatFlag;
 }
 
-void CChar::StatFlag_Mod(uint64 iStatFlag, bool fMod )
+/*
+void CChar::_StatFlag_Mod(uint64 uiStatFlag, bool fMod) noexcept
 {
-    THREAD_UNIQUE_LOCK_SET;
 	if ( fMod )
-        m_iStatFlag |= iStatFlag;
+        _uiStatFlag |= uiStatFlag;
 	else
-        m_iStatFlag &= ~iStatFlag;
+        _uiStatFlag &= ~uiStatFlag;
+}
+*/
+void CChar::StatFlag_Mod(uint64 uiStatFlag, bool fMod) noexcept
+{
+//	THREAD_UNIQUE_LOCK_SET;
+//	_StatFlag_Mod(uiStatFlag, fMod);
+	if (fMod)
+		_uiStatFlag |= uiStatFlag;
+	else
+		_uiStatFlag &= ~uiStatFlag;
 }
 
 bool CChar::IsPriv( word flag ) const
@@ -940,8 +944,8 @@ int CChar::FixWeirdness()
 		{
 			for ( size_t i = 0; i < g_Cfg.m_iMaxSkill; ++i )
 			{
-				ushort uiSkillMax = Skill_GetMax((SKILL_TYPE)i);
-				ushort uiSkillVal = Skill_GetBase((SKILL_TYPE)i);
+				const ushort uiSkillMax = Skill_GetMax((SKILL_TYPE)i);
+				const ushort uiSkillVal = Skill_GetBase((SKILL_TYPE)i);
 				if ( uiSkillVal > uiSkillMax * g_Cfg.m_iOverSkillMultiply )
 					Skill_SetBase((SKILL_TYPE)i, uiSkillMax);
 			}
@@ -951,7 +955,7 @@ int CChar::FixWeirdness()
 			{
 				for ( int j = STAT_STR; j < STAT_BASE_QTY; ++j )
 				{
-					ushort uiStatMax = Stat_GetLimit((STAT_TYPE)j);
+					const ushort uiStatMax = Stat_GetLimit((STAT_TYPE)j);
 					if ( Stat_GetAdjusted((STAT_TYPE)j) > (uiStatMax * g_Cfg.m_iOverSkillMultiply) )
 						Stat_SetBase((STAT_TYPE)j, uiStatMax);
 				}
@@ -974,8 +978,8 @@ int CChar::FixWeirdness()
 		}
 	}
 
-	if ( GetTimerSAdjusted() > 60*60 )
-		SetTimeout(1);	// unreasonably long for a char?
+	if ( _GetTimerSAdjusted() > 60*60 )
+		_SetTimeout(1);	// unreasonably long for a char?
 
 	return IsWeird();
 }
@@ -1027,7 +1031,7 @@ void CChar::CreateNewCharCheck()
 				ChangeExperience();
 		}
 
-		SetTimeout(1);
+		_SetTimeout(1);
 	}
 }
 
@@ -1039,7 +1043,7 @@ bool CChar::DupeFrom(const CChar * pChar, bool fNewbieItems )
 
 	m_pArea = pChar->m_pArea;
 	m_pRoom = pChar->m_pRoom;
-    m_iStatFlag = pChar->m_iStatFlag;
+    _uiStatFlag = pChar->_uiStatFlag;
 
 	if ( g_World.m_fSaveParity )
 		StatFlag_Set(STATF_SAVEPARITY);	// It will get saved next time.
@@ -1199,9 +1203,9 @@ bool CChar::DupeFrom(const CChar * pChar, bool fNewbieItems )
 
 	FixWeight();
 
-	if (pChar->_iTimePeriodicTick != 0)
+	if (!pChar->IsSleeping())
 	{
-		CWorldTickingList::AddCharPeriodic(this);
+		_GoAwake();
 	}
 
 	Update();
@@ -2280,7 +2284,7 @@ do_default:
 						SKIP_SEPARATORS(ptcKey);
 						if ( attackerIndex < (int)m_lastAttackers.size() )
 						{
-							const LastAttackers & refAttacker = m_lastAttackers[attackerIndex];
+							const LastAttackers & refAttacker = m_lastAttackers[(size_t)attackerIndex];
 
 							if( !strnicmp(ptcKey, "DAM", 3) )
 							{
@@ -2887,7 +2891,7 @@ do_default:
 			sVal.FormatVal( IsStatFlag(STATF_EMOTEACTION) );
 			break;
 		case CHC_FLAGS:
-			sVal.FormatULLHex(m_iStatFlag);
+			sVal.FormatULLHex(_uiStatFlag);
 			break;
 		case CHC_FONT:
 			sVal.FormatVal( m_fonttype );
@@ -3436,11 +3440,11 @@ bool CChar::r_LoadVal( CScript & s )
 			if (g_Serv.IsLoading())
 			{
 				// Don't set STATF_SAVEPARITY at server startup, otherwise the first worldsave will not save these chars
-				m_iStatFlag = s.GetArgLLVal() & ~STATF_SAVEPARITY;
+				_uiStatFlag = s.GetArgLLVal() & ~STATF_SAVEPARITY;
 				break;
 			}
 			// Don't modify STATF_SAVEPARITY, STATF_PET, STATF_SPAWNED here
-			m_iStatFlag = (m_iStatFlag & (STATF_SAVEPARITY | STATF_PET | STATF_SPAWNED)) | (s.GetArgLLVal() & ~(STATF_SAVEPARITY | STATF_PET | STATF_SPAWNED));
+			_uiStatFlag = (_uiStatFlag & (STATF_SAVEPARITY | STATF_PET | STATF_SPAWNED)) | (s.GetArgLLVal() & ~(STATF_SAVEPARITY | STATF_PET | STATF_SPAWNED));
 			NotoSave_Update();
 			break;
 		case CHC_FONT:
@@ -3671,31 +3675,35 @@ void CChar::r_Write( CScript & s )
 
     // Do not save TAG.LastHit (used by PreHit combat flag). It's based on the server uptime, so if this tag isn't zeroed,
     //  after the server restart the char may not be able to attack until the server reaches the serv.time when the previous TAG.LastHit was set.
-    int64 iValLastHit = 0;
-    CVarDefContNum* pVarLastHit = m_TagDefs.GetKeyDefNum("LastHit");
-    if (pVarLastHit)
-    {
-        iValLastHit = pVarLastHit->GetValNum();
-        pVarLastHit->SetValNum(0);
-    }
+	{
+	int64 iValLastHit = 0;
+	CVarDefContNum* pVarLastHit = m_TagDefs.GetKeyDefNum("LastHit");
+	if (pVarLastHit)
+	{
+		iValLastHit = pVarLastHit->GetValNum();
+		pVarLastHit->SetValNum(0);
+	}
 
 	CObjBase::r_Write(s);
 
-    if (iValLastHit != 0)
-    {
-        pVarLastHit->SetValNum(iValLastHit);
-    }
+	if (iValLastHit != 0)
+	{
+		pVarLastHit->SetValNum(iValLastHit);
+	}
+	}
 
 	if ( m_pPlayer )
 		m_pPlayer->r_WriteChar(this, s);
 	if ( m_pNPC )
 		m_pNPC->r_WriteChar(this, s);
 
-    const CPointMap& pt = GetTopPoint();
-	if ( pt.IsValidPoint() )
-		s.WriteKey("P", pt.WriteUsed());
+	{
+	const CPointMap& pt = GetTopPoint();
+	if (pt.IsValidPoint())
+		s.WriteKeyStr("P", pt.WriteUsed());
+	}
 	if ( !m_sTitle.empty() )
-		s.WriteKey("TITLE", m_sTitle.c_str());
+		s.WriteKeyStr("TITLE", m_sTitle.c_str());
 	if ( m_fonttype != FONT_NORMAL )
 		s.WriteKeyVal("FONT", m_fonttype);
 	if (m_SpeechHueOverride)
@@ -3705,48 +3713,52 @@ void CChar::r_Write( CScript & s )
 	if ( m_dirFace != DIR_SE )
 		s.WriteKeyVal("DIR", m_dirFace);
 	if ( _iPrev_id != GetID() )
-		s.WriteKey("OBODY", g_Cfg.ResourceGetName(CResourceID(RES_CHARDEF, _iPrev_id)));
+		s.WriteKeyStr("OBODY", g_Cfg.ResourceGetName(CResourceID(RES_CHARDEF, _iPrev_id)));
 	if ( _wPrev_Hue != HUE_DEFAULT )
 		s.WriteKeyHex("OSKIN", _wPrev_Hue);
-	if ( m_iStatFlag )
-		s.WriteKeyHex("FLAGS", m_iStatFlag);
+	if ( _uiStatFlag )
+		s.WriteKeyHex("FLAGS", _uiStatFlag);
 	if ( m_attackBase )
 		s.WriteKeyFormat("DAM", "%" PRIu16 ",%" PRIu16, m_attackBase, m_attackBase + m_attackRange);
 	if ( m_defense )
 		s.WriteKeyVal("ARMOR", m_defense);
 
-    const uint uiActUID = m_Act_UID.GetObjUID();
-	if ( (uiActUID & UID_UNUSED) != UID_UNUSED )
+	{
+	const uint uiActUID = m_Act_UID.GetObjUID();
+	if ((uiActUID & UID_UNUSED) != UID_UNUSED)
 		s.WriteKeyHex("ACT", uiActUID);
+	}
 
 	if ( m_Act_p.IsValidPoint() )
-		s.WriteKey("ACTP", m_Act_p.WriteUsed());
+		s.WriteKeyStr("ACTP", m_Act_p.WriteUsed());
 
-    const SKILL_TYPE action = Skill_GetActive();
-	if ( action != SKILL_NONE )
+	{
+	const SKILL_TYPE action = Skill_GetActive();
+	if (action != SKILL_NONE)
 	{
 		const CSkillDef* pSkillDef = g_Cfg.GetSkillDef(action);
-		tchar * pszActionTemp;
+		tchar* pszActionTemp;
 		if (pSkillDef != nullptr)
 			pszActionTemp = const_cast<tchar*>(pSkillDef->GetKey());
 		else
 			pszActionTemp = Str_FromI_Fast(action, Str_GetTemp(), STR_TEMPLENGTH, 10);
-		s.WriteKey("ACTION", pszActionTemp);
+		s.WriteKeyStr("ACTION", pszActionTemp);
 
-		/* We save ACTARG1/ACTARG2/ACTARG3 only if the following conditions are satisfied:
-		ACTARG1/ACTARG2/ACTARG3 is different from 0 AND
-		The character action is one of the valid skill OR
-		The character action is one of the NPC Action that uses ACTARG1/ACTARG2/ACTARG3
-		*/
-        if ((action > SKILL_NONE && action < SKILL_QTY) || action == NPCACT_FLEE || action == NPCACT_TALK || action == NPCACT_TALK_FOLLOW || action == NPCACT_RIDDEN)
-        {
-            if (m_atUnk.m_dwArg1 != 0)
-                s.WriteKeyHex("ACTARG1", m_atUnk.m_dwArg1);
-            if (m_atUnk.m_dwArg2 != 0)
-                s.WriteKeyHex("ACTARG2", m_atUnk.m_dwArg2);
-            if (m_atUnk.m_dwArg3 != 0)
-                s.WriteKeyHex("ACTARG3", m_atUnk.m_dwArg3);
-        }
+			/* We save ACTARG1/ACTARG2/ACTARG3 only if the following conditions are satisfied:
+			ACTARG1/ACTARG2/ACTARG3 is different from 0 AND
+			The character action is one of the valid skill OR
+			The character action is one of the NPC Action that uses ACTARG1/ACTARG2/ACTARG3
+			*/
+		if ((action > SKILL_NONE && action < SKILL_QTY) || action == NPCACT_FLEE || action == NPCACT_TALK || action == NPCACT_TALK_FOLLOW || action == NPCACT_RIDDEN)
+		{
+			if (m_atUnk.m_dwArg1 != 0)
+				s.WriteKeyHex("ACTARG1", m_atUnk.m_dwArg1);
+			if (m_atUnk.m_dwArg2 != 0)
+				s.WriteKeyHex("ACTARG2", m_atUnk.m_dwArg2);
+			if (m_atUnk.m_dwArg3 != 0)
+				s.WriteKeyHex("ACTARG3", m_atUnk.m_dwArg3);
+		}
+	}
 	}
 
 	if ( m_virtualGold )
@@ -3760,7 +3772,7 @@ void CChar::r_Write( CScript & s )
 	if ( m_height )
 		s.WriteKeyVal("HEIGHT", m_height);
 	if ( m_ptHome.IsValidPoint() )
-		s.WriteKey("HOME", m_ptHome.WriteUsed());
+		s.WriteKeyStr("HOME", m_ptHome.WriteUsed());
 	if ( m_StepStealth )
 		s.WriteKeyVal("STEPSTEALTH", m_StepStealth);
 
@@ -3768,57 +3780,58 @@ void CChar::r_Write( CScript & s )
     s.WriteKeyVal("OKARMA", GetKarma() );
     s.WriteKeyVal("OFAME", GetFame() );
 
-    int iVal;
+	{
+	int iVal;
+	if ((iVal = Stat_GetMod(STAT_FOOD)) != 0)
+		s.WriteKeyVal("MODFOOD", iVal);
+	if ((iVal = Stat_GetBase(STAT_FOOD)) != Char_GetDef()->m_MaxFood)
+		s.WriteKeyVal("OFOOD", iVal);
+	s.WriteKeyVal("FOOD", Stat_GetVal(STAT_FOOD));
 
-    if ( (iVal = Stat_GetMod(STAT_FOOD)) != 0 )
-        s.WriteKeyVal("MODFOOD", iVal);
-    if ( (iVal = Stat_GetBase(STAT_FOOD)) != Char_GetDef()->m_MaxFood )
-        s.WriteKeyVal("OFOOD", iVal );
-    s.WriteKeyVal("FOOD", Stat_GetVal(STAT_FOOD));
+	static constexpr lpctstr _ptcKeyModStat[STAT_BASE_QTY] =
+	{
+		"MODSTR",
+		"MODINT",
+		"MODDEX"
+	};
+	static constexpr lpctstr _ptcKeyOStat[STAT_BASE_QTY] =
+	{
+		"OSTR",
+		"OINT",
+		"ODEX"
+	};
 
-    static constexpr lpctstr _ptcKeyModStat[STAT_BASE_QTY] =
-    {
-        "MODSTR",
-        "MODINT",
-        "MODDEX"
-    };
-    static constexpr lpctstr _ptcKeyOStat[STAT_BASE_QTY] =
-    {
-        "OSTR",
-        "OINT",
-        "ODEX"
-    };
-
-	for ( int j = 0; j < STAT_BASE_QTY; ++j )
+	for (int j = 0; j < STAT_BASE_QTY; ++j)
 	{
 		// this is VERY important, saving the MOD first
-		if ( (iVal = Stat_GetMod((STAT_TYPE)j)) != 0 )
+		if ((iVal = Stat_GetMod((STAT_TYPE)j)) != 0)
 		{
-            s.WriteKeyVal(_ptcKeyModStat[j], iVal);
+			s.WriteKeyVal(_ptcKeyModStat[j], iVal);
 		}
-		if ( (iVal = Stat_GetBase((STAT_TYPE)j)) != 0 )
+		if ((iVal = Stat_GetBase((STAT_TYPE)j)) != 0)
 		{
-            s.WriteKeyVal(_ptcKeyOStat[j], iVal);
+			s.WriteKeyVal(_ptcKeyOStat[j], iVal);
 		}
 	}
 
-    if ( (iVal = Stat_GetMaxMod(STAT_STR)) != 0 )
-        s.WriteKeyVal("MODMAXHITS", iVal);
-    if ( (iVal = Stat_GetMax(STAT_STR)) != Stat_GetAdjusted(STAT_STR) )
-        s.WriteKeyVal("MAXHITS", iVal);     // should be OMAXHITS, but we keep it like this for backwards compatibility
-    s.WriteKeyVal("HITS", Stat_GetVal(STAT_STR));
+	if ((iVal = Stat_GetMaxMod(STAT_STR)) != 0)
+		s.WriteKeyVal("MODMAXHITS", iVal);
+	if ((iVal = Stat_GetMax(STAT_STR)) != Stat_GetAdjusted(STAT_STR))
+		s.WriteKeyVal("MAXHITS", iVal);     // should be OMAXHITS, but we keep it like this for backwards compatibility
+	s.WriteKeyVal("HITS", Stat_GetVal(STAT_STR));
 
-    if ( (iVal = Stat_GetMaxMod(STAT_DEX)) != 0 )
-        s.WriteKeyVal("MODMAXSTAM", iVal);
-    if ( (iVal = Stat_GetMax(STAT_DEX)) != Stat_GetAdjusted(STAT_DEX) )
-        s.WriteKeyVal("MAXSTAM", iVal);     // should be OMAXSTAM, but we keep it like this for backwards compatibility
-    s.WriteKeyVal("STAM", Stat_GetVal(STAT_DEX));
+	if ((iVal = Stat_GetMaxMod(STAT_DEX)) != 0)
+		s.WriteKeyVal("MODMAXSTAM", iVal);
+	if ((iVal = Stat_GetMax(STAT_DEX)) != Stat_GetAdjusted(STAT_DEX))
+		s.WriteKeyVal("MAXSTAM", iVal);     // should be OMAXSTAM, but we keep it like this for backwards compatibility
+	s.WriteKeyVal("STAM", Stat_GetVal(STAT_DEX));
 
-    if ( (iVal = Stat_GetMaxMod(STAT_INT)) != 0 )
-        s.WriteKeyVal("MODMAXMANA", iVal);
-    if ( (iVal = Stat_GetMax(STAT_INT)) != Stat_GetAdjusted(STAT_INT) )
-        s.WriteKeyVal("MAXMANA", iVal);     // should be OMAXMANA, but we keep it like this for backwards compatibility
-    s.WriteKeyVal("MANA", Stat_GetVal(STAT_INT));
+	if ((iVal = Stat_GetMaxMod(STAT_INT)) != 0)
+		s.WriteKeyVal("MODMAXMANA", iVal);
+	if ((iVal = Stat_GetMax(STAT_INT)) != Stat_GetAdjusted(STAT_INT))
+		s.WriteKeyVal("MAXMANA", iVal);     // should be OMAXMANA, but we keep it like this for backwards compatibility
+	s.WriteKeyVal("MANA", Stat_GetVal(STAT_INT));
+	}
 
 	static constexpr lpctstr _ptcKeyRegen[STAT_QTY] =
 	{
@@ -4182,7 +4195,7 @@ bool CChar::r_Verb( CScript &s, CTextConsole * pSrc ) // Execute command from sc
 		case CHV_INVIS:
 			if ( pSrc )
 			{
-                m_iStatFlag = s.GetArgLLFlag( m_iStatFlag, STATF_INSUBSTANTIAL );
+                _uiStatFlag = s.GetArgLLFlag( _uiStatFlag, STATF_INSUBSTANTIAL );
 				UpdateMode(nullptr, true);
 				if ( IsStatFlag(STATF_INSUBSTANTIAL) )
 				{
@@ -4203,7 +4216,7 @@ bool CChar::r_Verb( CScript &s, CTextConsole * pSrc ) // Execute command from sc
 		case CHV_INVUL:
 			if ( pSrc )
 			{
-                m_iStatFlag = s.GetArgLLFlag( m_iStatFlag, STATF_INVUL );
+                _uiStatFlag = s.GetArgLLFlag( _uiStatFlag, STATF_INVUL );
 				NotoSave_Update();
 				if ( IsSetOF( OF_Command_Sysmsgs ) )
 					pSrc->SysMessage( IsStatFlag( STATF_INVUL )? g_Cfg.GetDefaultMsg(DEFMSG_MSG_INVUL_ON) : g_Cfg.GetDefaultMsg(DEFMSG_MSG_INVUL_OFF) );

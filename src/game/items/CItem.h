@@ -21,6 +21,9 @@
 #include "CItemBase.h"
 
 
+class CWorldTicker;
+class CCSpawn;
+
 enum ITC_TYPE	// Item Template commands
 {
 	ITC_BREAK,
@@ -37,6 +40,10 @@ enum ITC_TYPE	// Item Template commands
 class CItem : public CObjBase
 {
 	// RES_WORLDITEM
+
+	friend class CWorldTicker;
+	friend class CCSpawn;
+
 public:
 	static const char *m_sClassName;
 	static lpctstr const sm_szLoadKeys[];
@@ -170,7 +177,7 @@ public:
 		// IT_WEAPON_*
 		struct
 		{
-			word m_wHitsCur;		// more1l=eqiv to quality of the item (armor/weapon).
+			word m_dwHitsCur;		// more1l=eqiv to quality of the item (armor/weapon).
 			word m_wHitsMax;		// more1h=can only be repaired up to this level.
 			int32 m_spellcharges;	// more2=for a wand etc.
 			word m_spell;			// morex=SPELL_TYPE = The magic spell cast on this. (daemons breath)(boots of strength) etc
@@ -186,7 +193,7 @@ public:
 		// IT_JEWELRY
 		struct
 		{
-			word m_wHitsCur;		// more1l= eqiv to quality of the item (armor/weapon).
+			word m_dwHitsCur;		// more1l= eqiv to quality of the item (armor/weapon).
 			word m_wHitsMax;		// more1h= can only be repaired up to this level.
 			int32 m_spellcharges;	// more2 = ? spell charges ? not sure how used here..
 			word m_spell;			// morex = SPELL_TYPE = The magic spell cast on this. (daemons breath)(boots of strength) etc
@@ -463,7 +470,7 @@ public:
 		// IT_WEB
 		struct
 		{
-			dword m_wHitsCur;	// more1 = how much damage the web can take.
+			dword m_dwHitsCur;	// more1 = how much damage the web can take.
 		} m_itWeb;
 
 		// IT_DREAM_GATE
@@ -545,12 +552,21 @@ private:
 protected:
 	virtual int FixWeirdness() override;
 	void DeleteCleanup(bool fForce);
+
 public:
 	virtual bool NotifyDelete(); // overridden CItemContainer:: method
 	virtual bool Delete(bool fForce = false) override;
 
+protected:
+	virtual void _GoAwake() override;
+	virtual void _GoSleep() override;
+
+	// On CItem, _OnTick is virtual also because we need to call the topmost superclass:
+	//	a CItem can be the base class for CItemShip, CItemMessage...
+protected:	virtual bool _OnTick() override;
+//public:	virtual bool  OnTick() override;
+
 public:
-	virtual bool OnTick() override;
 	virtual void OnHear( lpctstr pszCmd, CChar * pSrc );
 	CItemBase * Item_GetDef() const;
 	ITEMID_TYPE GetID() const;
@@ -668,9 +684,10 @@ public:
 
 	virtual int GetWeight(word amount = 0) const;
 
-    virtual void SetTimeout(int64 iMsecs) override;
+protected:	virtual void _SetTimeout(int64 iMsecs) override final;
 
-	virtual void OnMoveFrom();
+public:
+	virtual void OnMoveFrom() {};	// Moving from current location.
 	virtual bool MoveTo(const CPointMap& pt, bool fForceFix = false); // Put item on the ground here.
 	bool MoveToUpdate(const CPointMap& pt, bool fForceFix = false);
 	bool MoveToDecay(const CPointMap & pt, int64 iMsecsTimeout, bool fForceFix = false);

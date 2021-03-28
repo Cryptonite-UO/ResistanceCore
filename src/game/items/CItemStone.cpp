@@ -14,15 +14,21 @@ CItemStone::CItemStone( ITEMID_TYPE id, CItemBase * pItemDef ) :
     CTimedObject(PROFILE_ITEMS),
     CItem( id, pItemDef )
 {
+	EXC_TRY("Constructor");
+
 	m_itStone.m_iAlign = STONEALIGN_STANDARD;
     g_World.m_Stones.emplace_back(this);
     _pMultiStorage = new CMultiStorage(CUID());
     _iMaxShips = g_Cfg._iMaxShipsGuild;
     _iMaxHouses = g_Cfg._iMaxHousesGuild;
+
+	EXC_CATCH;
 }
 
 CItemStone::~CItemStone()
 {
+	EXC_TRY("Cleanup in destructor");
+
 	SetAmount(0);	// Tell everyone we are deleting.
 	DeletePrepare();	// Must remove early because virtuals will fail in child destructor.
 
@@ -32,6 +38,8 @@ CItemStone::~CItemStone()
     delete _pMultiStorage;
 	// all members are deleted automatically.
 	ClearContainer();	// do this manually to preserve the parents type cast
+
+	EXC_CATCH;
 }
 
 MEMORY_TYPE CItemStone::GetMemoryType() const
@@ -118,7 +126,7 @@ void CItemStone::r_Write( CScript & s )
 	CItem::r_Write( s );
 	s.WriteKeyVal( "ALIGN", GetAlignType());
 	if ( ! m_sAbbrev.IsEmpty())
-		s.WriteKey( "ABBREV", m_sAbbrev );
+		s.WriteKeyStr( "ABBREV", m_sAbbrev.GetBuffer() );
 
 	TemporaryString tsTemp;
 	for ( uint i = 0; i < CountOf(m_sCharter); ++i )
@@ -126,14 +134,14 @@ void CItemStone::r_Write( CScript & s )
 		if ( ! m_sCharter[i].IsEmpty())
 		{
 			snprintf(tsTemp.buffer(), tsTemp.capacity(), "CHARTER%u", i);
-			s.WriteKey(tsTemp.buffer(), m_sCharter[i] );
+			s.WriteKeyStr(tsTemp.buffer(), m_sCharter[i].GetBuffer() );
 		}
 	}
 
 	if ( ! m_sWebPageURL.IsEmpty())
-		s.WriteKey( "WEBPAGE", GetWebPageURL() );
+		s.WriteKeyStr( "WEBPAGE", GetWebPageURL() );
 
-	// s.WriteKey( "//", "uid,title,priv,loyaluid,abbr&theydecl,wedecl");
+	// s.WriteKeyVal( "//", "uid,title,priv,loyaluid,abbr&theydecl,wedecl");
 
 	CStoneMember * pMember = static_cast <CStoneMember *>(GetContainerHead());
 	for ( ; pMember != nullptr; pMember = pMember->GetNext())
@@ -959,6 +967,9 @@ bool CItemStone::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command f
 			break;
 		case ISV_TOGGLEABBREVIATION:
 			{
+				if (!s.HasArgs() && !pMember)
+					return false;
+
 				const CUID uidMember(s.HasArgs() ? s.GetArgDWVal() : pMember->GetLinkUID());
 				CChar * pMemberChar = uidMember.CharFind();
 				if ( pMemberChar )
