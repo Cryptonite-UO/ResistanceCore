@@ -806,7 +806,7 @@ AddOns support:
     -MaxVendors(RO): Returns the maximum Vendors allowed: BaseVendors + ((BaseVendors / IncreasedStorage)/100) (Max 255).
 
     -LockdownsPercent(RW): Base percent of allowed Lockdowns (Max 255).
-    -MaxLockdowns(RW): Total Lockdowns allowed based on MaxStorage: + ((MaxStorage / LockdownsPercent)/100) (Max 65535).
+    -MaxLockdowns(RO): Total Lockdowns allowed based on MaxStorage: + ((MaxStorage / LockdownsPercent)/100) (Max 65535).
     eg:
         - Base Storage = 400
         - IncreasedStorage = 20%
@@ -2532,3 +2532,17 @@ Must have event, even if it's empty, since it's applied by the source to generat
    remembering to remove the flag (CANMASK &= ~<def.CAN_NOSLEEP>) if you don't need it anymore.
 - Fixed: Items created under @CreateLoot trigger played the drop sound before being put in the corpse.
 - Fixed: FORCONT not giving a warning if it was called with only 1 argument.
+
+29-03-2021, Drk84
+- Fixed: ManaLoss fail not working (Issue #602).
+- Fixed: Meditation Buff Icon not removed when the skill was aborted (Issue #646).
+- Added: New arguments in @SpellFail / @Fail trigger:
+		 ARGN2: The mana loss if the spell is failed.
+		 local.tithingloss: The tithing points loss if the spell is failed.
+		 While both are writeable, they only works if  ManaLossFail or ReagentLossFail ( also for tithing points) are enabled in the sphere.ini
+- Updated SphereCrypt.ini
+
+04-04-2021, Nolok
+- Fixed: Item TIMER not reset and ATTR_DECAY not cleared after moving the item into a container (Issue #655).
+- Fixed: BaseVendors and BaseStorage house properties not being saved (Issue #643).
+- Fixed: cont.consume on @Timer freezes the server if char does not have the item and amount (Issue #654).
