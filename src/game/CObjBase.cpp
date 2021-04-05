@@ -120,7 +120,10 @@ CObjBase::~CObjBase()
         }
     }	
 
-	DeleteCleanup(true);
+	// As a safety net. If we are calling those methods via the class destructor, we know that calling virtual methods won't work,
+	//  since the superclasses were already destructed. At least, do minimal cleanup here with CObjBase methods.
+	DeletePrepare();	// virtual
+	CObjBase::DeleteCleanup(true);	// it isn't virtual
 
 	FreePropertyList();
 
@@ -144,7 +147,7 @@ bool CObjBase::_IsDeleted() const
 }
 
 bool CObjBase::IsDeleted() const
-{
+{ 
 	THREAD_SHARED_LOCK_RETURN(_IsDeleted());	
 }
 
@@ -152,9 +155,9 @@ void CObjBase::DeletePrepare()
 {
 	ADDTOCALLSTACK("CObjBase::DeletePrepare");
 	// Prepare to delete.
-	RemoveFromView();
-	RemoveSelf();			// Must remove early or else virtuals will fail.
 	CObjBase::_GoSleep();	// virtual, but superclass methods are called in their ::DeletePrepare methods
+	RemoveFromView();
+	RemoveSelf();
 }
 
 void CObjBase::DeleteCleanup(bool fForce)
@@ -162,13 +165,7 @@ void CObjBase::DeleteCleanup(bool fForce)
 	ADDTOCALLSTACK("CObjBase::DeleteCleanup");
 	_fDeleting = true;
 
-	// As a safety net. If we are calling those methods via the class destructor, we know that calling virtual methods won't work,
-	//  since the superclasses were already destructed. At least, do minimal cleanup here with CObjBase methods.
-	RemoveSelf();	// Should be virtual
-
-	// Just to be extra sure we won't have invalid pointers over there
-	CWorldTickingList::DelObjSingle(this, false);
-	CWorldTickingList::DelObjStatusUpdate(this, false);
+	RemoveSelf();
 
 	CEntity::Delete(fForce);
 	CWorldTimedFunctions::ClearUID(GetUID());
@@ -212,7 +209,7 @@ void CObjBase::TimeoutRecursiveResync(int64 iDelta)
 	ADDTOCALLSTACK("CObjBase::TimeoutRecursiveResync");
 	if (_IsTimerSet())
 	{
-		_SetTimeout(_GetTimeoutRaw() + iDelta);
+		_SetTimeout(_GetTimerAdjusted() + iDelta);
 	}
 
 	if (CContainer* pCont = dynamic_cast<CContainer*>(this))
@@ -3103,7 +3100,7 @@ void CObjBase::_GoAwake()
 
 	if (_IsTimerSet())
 	{
-		CWorldTickingList::AddObjSingle(_GetTimeoutRaw(), this, true, false);
+		CWorldTickingList::AddObjSingle(_GetTimeoutRaw(), this, true);
 	}
 	// CWorldTickingList::AddObjStatusUpdate(this, false);	// Don't! It's done when needed in UpdatePropertyFlag()
 }
@@ -3115,7 +3112,7 @@ void CObjBase::_GoSleep()
 
 	if (_IsTimerSet())
 	{
-		CWorldTickingList::DelObjSingle(this, false);
+		CWorldTickingList::DelObjSingle(this);
 	}
 	CWorldTickingList::DelObjStatusUpdate(this, false);
 }

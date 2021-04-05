@@ -20,7 +20,7 @@ CTimedObject::~CTimedObject()
     ADDTOCALLSTACK("CTimedObject::~CTimedObject");
     //if (_iTimeout > 0)
     //{
-        CWorldTickingList::DelObjSingle(this, false);
+        CWorldTickingList::DelObjSingle(this);
     //}
 
     EXC_CATCH;
@@ -43,13 +43,13 @@ void CTimedObject::_GoAwake()
 
 bool CTimedObject::_CanTick() const
 {
-    //ADDTOCALLSTACK_INTENSIVE("_CTimedObject::_CanTick");
+    //ADDTOCALLSTACK_INTENSIVE("CTimedObject::_CanTick");
     return _IsSleeping();
 }
 
 bool CTimedObject::CanTick() const
 {
-    //ADDTOCALLSTACK_INTENSIVE("CTimedObject::_CanTick");
+    //ADDTOCALLSTACK_INTENSIVE("CTimedObject::CanTick");
     THREAD_SHARED_LOCK_RETURN(_CanTick());
 }
 
@@ -57,12 +57,6 @@ bool CTimedObject::OnTick()
 {
     ADDTOCALLSTACK("CTimedObject::OnTick");
     THREAD_UNIQUE_LOCK_RETURN(_OnTick());
-}
-
-void CTimedObject::SetTimeoutRaw(int64 iDelayInMsecs) noexcept
-{
-    THREAD_UNIQUE_LOCK_SET;
-    _iTimeout = iDelayInMsecs;
 }
 
 void CTimedObject::_SetTimeout(int64 iDelayInMsecs)
@@ -73,6 +67,7 @@ void CTimedObject::_SetTimeout(int64 iDelayInMsecs)
     const ProfileTask timersTask(PROFILE_TIMERS); // profile the settimeout proccess.
     if (_IsDeleted()) //prevent deleted objects from setting new timers to avoid nullptr calls
     {
+        //CWorldTickingList::DelObjSingle(this); // This should already by done upon object deletion.
         return;
     }
 
@@ -85,13 +80,13 @@ void CTimedObject::_SetTimeout(int64 iDelayInMsecs)
     */
     if (iDelayInMsecs < 0)
     {
-        CWorldTickingList::DelObjSingle(this, false);
+        CWorldTickingList::DelObjSingle(this);
         _SetTimeoutRaw(0);
     }
     else
     {
         const int64 iNewTimeout = CWorldGameTime::GetCurrentTime().GetTimeRaw() + iDelayInMsecs;
-        CWorldTickingList::AddObjSingle(iNewTimeout, this, false, false); // Adding this object to the ticks list.
+        CWorldTickingList::AddObjSingle(iNewTimeout, this, false); // Adding this object to the ticks list.
         _SetTimeoutRaw(iNewTimeout);
     }
 }
@@ -110,12 +105,14 @@ void CTimedObject::SetTimeout(int64 iDelayInMsecs)
 
     if (iDelayInMsecs < 0)
     {
-        CWorldTickingList::DelObjSingle(this, false);
+        CWorldTickingList::DelObjSingle(this);
+        _SetTimeoutRaw(0);
     }
     else
     {
         const int64 iNewTimeout = CWorldGameTime::GetCurrentTime().GetTimeRaw() + iDelayInMsecs;
-        CWorldTickingList::AddObjSingle(iNewTimeout, this, false, false); // Adding this object to the tick list.
+        CWorldTickingList::AddObjSingle(iNewTimeout, this, false); // Adding this object to the tick list.
+        _SetTimeoutRaw(iNewTimeout);
     }
 }
 
@@ -140,18 +137,13 @@ void CTimedObject::SetTimeoutD(int64 iTenths)
 
 int64 CTimedObject::_GetTimerDiff() const noexcept
 {
-    // How long till this will expire ?
     return _iTimeout - CWorldGameTime::GetCurrentTime().GetTimeRaw();
-}
-int64 CTimedObject::GetTimerDiff() const noexcept
-{
-    THREAD_SHARED_LOCK_RETURN(CTimedObject::_GetTimerDiff());
 }
 
 int64 CTimedObject::_GetTimerAdjusted() const noexcept
 {
+    // How long till this will expire ?
     // RETURN: time in msecs from now.
-    THREAD_SHARED_LOCK_SET;
     if (!_IsTimerSet())
         return -1;
 
@@ -239,9 +231,4 @@ bool CTimedObject::IsTimerSet() const noexcept
 bool CTimedObject::IsTimerExpired() const noexcept
 {
     THREAD_SHARED_LOCK_RETURN(CTimedObject::_IsTimerExpired());
-}
-
-int64 CTimedObject::GetTimeoutRaw() const noexcept
-{
-    THREAD_SHARED_LOCK_RETURN(CTimedObject::_GetTimeoutRaw());
 }

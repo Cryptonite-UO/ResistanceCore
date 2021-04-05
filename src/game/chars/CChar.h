@@ -86,8 +86,6 @@ private:
 
 	uint64 _uiStatFlag;		// Flags above
 
-	ushort m_Skill[SKILL_QTY];	// List of skills ( skill * 10 )
-
 	CClient * m_pClient;	// is the char a currently logged in m_pPlayer ?
 
 public:
@@ -142,7 +140,7 @@ public:
 
 	// Saved stuff.
 	DIR_TYPE m_dirFace;			// facing this dir.
-	std::string m_sTitle;		// Special title such as "the guard" (replaces the normal skill title) [use std::string instead of CSString because the former is allocated on-demand]
+	CSString m_sTitle;			// Special title such as "the guard" (replaces the normal skill title)
 	CPointMap m_ptHome;			// What is our "home" region. (towns and bounding of NPC's)
 	int64 m_virtualGold;		// Virtual gold used by TOL clients
 
@@ -158,6 +156,8 @@ public:
 
 
 	// Skills, Stats and health
+	ushort m_Skill[SKILL_QTY];	// List of skills ( skill * 10 )
+
 	struct
 	{
 		ushort  m_base;      // Base stat: STR, INT, DEX
@@ -169,6 +169,7 @@ public:
         int64   m_regenLast; // Time of the last regen.
         ushort  m_regenVal;  // Amount of Stat to gain at each regen
 	} m_Stat[STAT_QTY];
+
     short m_iKarma;
     ushort m_uiFame;
 

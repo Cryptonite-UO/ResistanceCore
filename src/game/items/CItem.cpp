@@ -172,6 +172,11 @@ void CItem::DeleteCleanup(bool fForce)
 	ADDTOCALLSTACK("CItem::DeleteCleanup");
 	_fDeleting = true;
 
+	// We don't want to have invalid pointers over there
+	// Already called by CObjBase::DeletePrepare -> CObjBase::_GoSleep
+	//CWorldTickingList::DelObjSingle(this);
+	//CWorldTickingList::DelObjStatusUpdate(this, false);
+
 	// Remove corpse map waypoint on enhanced clients
 	if (IsType(IT_CORPSE) && m_uidLink)
 	{
@@ -235,7 +240,7 @@ bool CItem::Delete(bool fForce)
 	if (( NotifyDelete() == false ) && !fForce)
 		return false;
 
-	DeletePrepare();
+	DeletePrepare();	// Virtual -> Must remove early because virtuals will fail in child destructor.
 	DeleteCleanup(fForce);
 
 	return CObjBase::Delete(fForce);
@@ -243,11 +248,15 @@ bool CItem::Delete(bool fForce)
 
 CItem::~CItem()
 {
+	EXC_TRY("Cleanup in destructor");
 	ADDTOCALLSTACK("CItem::~CItem");
-	DeletePrepare();	// Must remove early because virtuals will fail in child destructor.
-	DeleteCleanup(true);
+
+	DeletePrepare();	// Using this in the destructor will fail to call virtuals, but it's better than nothing.
+	CItem::DeleteCleanup(true);
 	
 	g_Serv.StatDec(SERV_STAT_ITEMS);
+
+	EXC_CATCH;
 }
 
 CItem * CItem::CreateBase( ITEMID_TYPE id, IT_TYPE type )	// static
@@ -1395,9 +1404,15 @@ void CItem::SetDecayTime(int64 iMsecsTimeout)
 	// 0 = default (decay on the next tick)
 	// -1 = set none. (clear it)
 
-	if (_IsTimerSet() && ! IsAttr(ATTR_DECAY))
+	if (iMsecsTimeout != -1)
 	{
-		return;	// already a timer here. let it expire on it's own
+		// Otherwise i want to disable its timer!
+
+		if (_IsTimerSet() && !IsAttr(ATTR_DECAY))
+		{
+			// Already a timer here. let it expire on it's own
+			return;
+		}
 	}
 
 	if (iMsecsTimeout == 0)
@@ -3920,7 +3935,7 @@ void CItem::DupeCopy( const CItem * pItem )
 
 	m_dwDispIndex = pItem->m_dwDispIndex;
 	SetBase( pItem->Item_GetDef() );
-	_SetTimeout( pItem->GetTimerDiff() );
+	_SetTimeout( pItem->_GetTimerAdjusted() );
 	SetType(pItem->m_type);
 	m_wAmount = pItem->m_wAmount;
 	m_Attr  = pItem->m_Attr;
@@ -5169,7 +5184,7 @@ bool CItem::Use_Light()
 	else if ( IsType(IT_LIGHT_OUT) )
 	{
 		Sound(m_itLight.m_burned ? 0x4b8 : 0x3be);
-		SetDecayTime();
+		SetDecayTime(0);
 	}
 
 	return true;
@@ -5939,8 +5954,11 @@ bool CItem::_OnTick()
     if (pSector && pSector->IsSleeping())
     {
 		//Make it tick after sector's awakening.
+		if (!_IsSleeping())
+		{
+			_GoSleep();
+		}
 		_SetTimeout(1);
-        _GoSleep();
         return true;
     }
 

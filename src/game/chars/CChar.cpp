@@ -241,6 +241,7 @@ CChar * CChar::CreateBasic(CREID_TYPE baseID) // static
 CChar::CChar( CREID_TYPE baseID ) :
 	CTimedObject(PROFILE_CHARS),
 	CObjBase( false ),
+	m_sTitle(false),
     m_Skill{}, m_Stat{}
 {
 	g_Serv.StatInc( SERV_STAT_CHARS );	// Count created CChars.
@@ -298,7 +299,8 @@ CChar::CChar( CREID_TYPE baseID ) :
     m_uiFame = 0;
     m_iKarma = 0;
 
-	Skill_Cleanup();
+	m_Act_Difficulty = 0;
+	m_Act_SkillCurrent = SKILL_NONE;
     m_atUnk.m_dwArg1 = 0;
     m_atUnk.m_dwArg2 = 0;
     m_atUnk.m_dwArg3 = 0;
@@ -319,9 +321,10 @@ CChar::CChar( CREID_TYPE baseID ) :
 CChar::~CChar()
 {
 	EXC_TRY("Cleanup in destructor");
+	ADDTOCALLSTACK("CChar::~CChar");
 
+	CChar::DeletePrepare();
 	CChar::DeleteCleanup(true);
-	CContainer::ClearContainer();
 
     if (IsClientActive())    // this should never happen.
     {
@@ -353,8 +356,13 @@ void CChar::DeleteCleanup(bool fForce)
 	ADDTOCALLSTACK("CChar::DeleteCleanup");
 	_fDeleting = true;
 
-	// Just to be extra sure we won't have invalid pointers over there
+	// We don't want to have invalid pointers over there
+	// Already called by CObjBase::DeletePrepare -> CObjBase::_GoSleep
+	//CWorldTickingList::DelObjSingle(this);
+	//CWorldTickingList::DelObjStatusUpdate(this, false);
+
 	CWorldTickingList::DelCharPeriodic(this, false);
+
 
 	if (IsStatFlag(STATF_RIDDEN))
 	{
@@ -406,7 +414,7 @@ bool CChar::NotifyDelete()
 void CChar::DeletePrepare()
 {
 	ADDTOCALLSTACK("CChar::DeletePrepare");
-	CContainer::ContentDelete(false);	// This object and its contents need to be deleted on the same tick
+	CContainer::ContentDelete(true);	// This object and its contents need to be deleted on the same tick
 	CObjBase::DeletePrepare();
 }
 
@@ -1665,7 +1673,7 @@ void CChar::InitPlayer( CClient *pClient, const char *pszCharname, bool fFemale,
 	m_fonttype				= FONT_NORMAL;		// Set speech font type
 	m_SpeechHueOverride		= 0;				// Set no server-side speech color override
 	m_EmoteHueOverride		= 0;				// Set no server-side emote color override
-	m_sTitle.clear();							// Set title
+	m_sTitle.Clear();							// Set title
 
 	GetBank(LAYER_BANKBOX);			// Create bankbox
 	GetPackSafe();					// Create backpack
@@ -3077,7 +3085,7 @@ do_default:
 		case CHC_TITLE:
 			{
 				if (strlen(ptcKey) == 5)
-					sVal = m_sTitle.c_str(); //GetTradeTitle
+					sVal = m_sTitle; //GetTradeTitle
 				else
 					sVal = GetTradeTitle();
 			}
@@ -3699,8 +3707,8 @@ void CChar::r_Write( CScript & s )
 	if (pt.IsValidPoint())
 		s.WriteKeyStr("P", pt.WriteUsed());
 
-	if ( !m_sTitle.empty() )
-		s.WriteKeyStr("TITLE", m_sTitle.c_str());
+	if ( !m_sTitle.IsEmpty() )
+		s.WriteKeyStr("TITLE", m_sTitle);
 	if ( m_fonttype != FONT_NORMAL )
 		s.WriteKeyVal("FONT", m_fonttype);
 	if (m_SpeechHueOverride)
