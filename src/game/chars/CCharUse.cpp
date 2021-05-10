@@ -40,9 +40,13 @@ bool CChar::Use_MultiLockDown( CItem * pItemTarg )
 	return false;
 }
 
-void CChar::Use_CarveCorpse( CItemCorpse * pCorpse )
+void CChar::Use_CarveCorpse( CItemCorpse * pCorpse, CItem * pItemCarving )
 {
 	ADDTOCALLSTACK("CChar::Use_CarveCorpse");
+
+	if (!pItemCarving)
+		return;
+
 	CREID_TYPE CorpseID = pCorpse->m_itCorpse.m_BaseID;
 	CCharBase *pCorpseDef = CCharBase::FindCharBase(CorpseID);
 	if ( !pCorpseDef || pCorpse->m_itCorpse.m_carved )
@@ -63,17 +67,59 @@ void CChar::Use_CarveCorpse( CItemCorpse * pCorpse )
 		pBlood->MoveToDecay(pnt, 5 * MSECS_PER_SEC);
 	}
 
-	size_t iItems = 0;
-	for ( size_t i = 0; i < pCorpseDef->m_BaseResources.size(); ++i )
+	word iResourceQty = 0;
+	size_t iResourceTotalQty = pCorpseDef->m_BaseResources.size();
+
+	CScriptTriggerArgs Args(iResourceTotalQty,0,pItemCarving);
+
+	for (size_t i = 0; i < iResourceTotalQty; ++i)
 	{
-		llong iQty = pCorpseDef->m_BaseResources[i].GetResQty();
+		
+		const CResourceID& rid = pCorpseDef->m_BaseResources[i].GetResourceID();
+		if (rid.GetResType() != RES_ITEMDEF)
+			continue;
+
+		ITEMID_TYPE id = (ITEMID_TYPE)(rid.GetResIndex());
+		if (id == ITEMID_NOTHING)
+			break;
+
+		tchar* pszTmp = Str_GetTemp();
+		snprintf(pszTmp, STR_TEMPLENGTH, "resource.%u.ID", (int)i);
+		Args.m_VarsLocal.SetNum(pszTmp, (int64)id);
+
+		iResourceQty = (word)pCorpseDef->m_BaseResources[i].GetResQty();
+		snprintf(pszTmp, STR_TEMPLENGTH, "resource.%u.amount", (int)i);
+		Args.m_VarsLocal.SetNum(pszTmp, iResourceQty);
+	}
+	if (IsTrigUsed(TRIGGER_CARVECORPSE) || IsTrigUsed(TRIGGER_ITEMCARVECORPSE))
+	{
+		switch (static_cast<CItem*>(pCorpse)->OnTrigger(ITRIG_CarveCorpse, this, &Args))
+		{
+		case TRIGRET_RET_TRUE:	return;
+		default:				break;
+		}
+	}
+
+	size_t iItems = 0;
+	for ( size_t i = 0; i < iResourceTotalQty; ++i )
+	{
+		/*llong iQty = pCorpseDef->m_BaseResources[i].GetResQty();
 		const CResourceID& rid = pCorpseDef->m_BaseResources[i].GetResourceID();
 		if ( rid.GetResType() != RES_ITEMDEF )
 			continue;
 
 		ITEMID_TYPE id = (ITEMID_TYPE)(rid.GetResIndex());
 		if ( id == ITEMID_NOTHING )
-			break;
+			break;*/
+
+		tchar* pszTmp = Str_GetTemp();
+		snprintf(pszTmp, STR_TEMPLENGTH, "resource.%u.ID", (int)i);
+		ITEMID_TYPE id = (ITEMID_TYPE)RES_GET_INDEX(Args.m_VarsLocal.GetKeyNum(pszTmp));
+		if (id == ITEMID_NOTHING)
+			break; 
+
+		snprintf(pszTmp, STR_TEMPLENGTH, "resource.%u.amount", (int)i);
+		iResourceQty =(word)Args.m_VarsLocal.GetKeyNum(pszTmp);
 
 		++ iItems;
 		CItem *pPart = CItem::CreateTemplate(id, nullptr, this);
@@ -90,7 +136,7 @@ void CChar::Use_CarveCorpse( CItemCorpse * pCorpse )
 				SysMessageDefault(DEFMSG_CARVE_CORPSE_HIDES);
 				//pPart->m_itSkin.m_creid = CorpseID;
 				if ( (g_Cfg.m_iRacialFlags & RACIALF_HUMAN_WORKHORSE) && IsHuman() )	// humans always find 10% bonus when gathering hides, ores and logs (Workhorse racial trait)
-					iQty = iQty * 110 / 100;
+					iResourceQty = iResourceQty * 110 / 100;
 				break;
 			case IT_FEATHER:
 				SysMessageDefault(DEFMSG_CARVE_CORPSE_FEATHERS);
@@ -108,8 +154,8 @@ void CChar::Use_CarveCorpse( CItemCorpse * pCorpse )
 				break;
 		}
 
-		if ( iQty > 1 )
-			pPart->SetAmount((word)iQty);
+		if (iResourceQty > 1 )
+			pPart->SetAmount((word)iResourceQty);
 
 		if ( pChar && pChar->m_pPlayer )
 		{
@@ -497,8 +543,8 @@ bool CChar::Use_Train_ArcheryButte( CItem * pButte, bool fSetup )
 		return false;
 
 	CItem *pAmmo = nullptr;
-	CResourceID ridAmmo = pWeapon->Weapon_GetRangedAmmoRes();
-	if ( ridAmmo )
+	const CResourceID ridAmmo(pWeapon->Weapon_GetRangedAmmoRes());
+	if (ridAmmo.IsValidUID())
 	{
 		pAmmo = pWeapon->Weapon_FindRangedAmmo(ridAmmo);
 		if ( !pAmmo )
@@ -1146,12 +1192,12 @@ bool CChar::Use_Key( CItem * pKey, CItem * pItemTarg )
 			return false;
 		}
 
-		if ( !pKey->m_itKey.m_UIDLock && !pItemTarg->m_itKey.m_UIDLock )
+		if ( !pKey->m_itKey.m_UIDLock.IsValidUID() && !pItemTarg->m_itKey.m_UIDLock.IsValidUID())
 		{
 			SysMessageDefault(DEFMSG_MSG_KEY_BLANKS);
 			return false;
 		}
-		if ( pItemTarg->m_itKey.m_UIDLock && pKey->m_itKey.m_UIDLock )
+		if ( pItemTarg->m_itKey.m_UIDLock.IsValidUID() && pKey->m_itKey.m_UIDLock.IsValidUID())
 		{
 			SysMessageDefault(DEFMSG_MSG_KEY_NOTBLANKS);
 			return false;
@@ -1163,14 +1209,14 @@ bool CChar::Use_Key( CItem * pKey, CItem * pItemTarg )
 			SysMessageDefault(DEFMSG_MSG_KEY_FAILC);
 			return false;
 		}
-		if ( pItemTarg->m_itKey.m_UIDLock )
+		if ( pItemTarg->m_itKey.m_UIDLock.IsValidUID())
 			pKey->m_itKey.m_UIDLock = pItemTarg->m_itKey.m_UIDLock;
 		else
 			pItemTarg->m_itKey.m_UIDLock = pKey->m_itKey.m_UIDLock;
 		return true;
 	}
 
-	if ( !pKey->m_itKey.m_UIDLock )
+	if ( !pKey->m_itKey.m_UIDLock.IsValidUID())
 	{
 		SysMessageDefault(DEFMSG_MSG_KEY_ISBLANK);
 		return false;
@@ -1188,13 +1234,13 @@ bool CChar::Use_Key( CItem * pKey, CItem * pItemTarg )
 		return false;
 	}
 
-	if ( m_pArea->GetResourceID() == pKey->m_itKey.m_UIDLock )
+	if ( m_pArea->GetResourceID().GetObjUID() == pKey->m_itKey.m_UIDLock.GetObjUID() )
 	{
 		if ( Use_MultiLockDown(pItemTarg) )
 			return true;
 	}
 
-	if ( !pItemTarg->m_itContainer.m_UIDLock )	// or m_itContainer.m_UIDLock
+	if ( !pItemTarg->m_itContainer.m_UIDLock.IsValidUID())	// or m_itContainer.m_UIDLock
 	{
 		SysMessageDefault(DEFMSG_MSG_KEY_NOLOCK);
 		return false;
@@ -1620,7 +1666,7 @@ int CChar::Do_Use_Item(CItem *pItem, bool fLink)
 		case IT_SHIP_PLANK:
 		{
 			// Close the plank if I'm inside the ship
-			if (m_pArea->IsFlag(REGION_FLAG_SHIP) && m_pArea->GetResourceID() == pItem->m_uidLink)
+			if (m_pArea->IsFlag(REGION_FLAG_SHIP) && (m_pArea->GetResourceID().GetObjUID() == pItem->m_uidLink.GetObjUID()))
 			{
 				if (pItem->m_itShipPlank.m_wSideType == IT_SHIP_SIDE_LOCKED && !ContentFindKeyFor(pItem))
 				{

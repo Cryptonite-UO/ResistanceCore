@@ -95,25 +95,8 @@ void CTimedObject::_SetTimeout(int64 iDelayInMsecs)
 void CTimedObject::SetTimeout(int64 iDelayInMsecs)
 {
     ADDTOCALLSTACK("CTimedObject::SetTimeout");
-
-    const ProfileTask timersTask(PROFILE_TIMERS);
     THREAD_UNIQUE_LOCK_SET;
-    if (_IsDeleted())
-    {
-        return;
-    }
-
-    if (iDelayInMsecs < 0)
-    {
-        CWorldTickingList::DelObjSingle(this);
-        _SetTimeoutRaw(0);
-    }
-    else
-    {
-        const int64 iNewTimeout = CWorldGameTime::GetCurrentTime().GetTimeRaw() + iDelayInMsecs;
-        CWorldTickingList::AddObjSingle(iNewTimeout, this, false); // Adding this object to the tick list.
-        _SetTimeoutRaw(iNewTimeout);
-    }
+    _SetTimeout(iDelayInMsecs);
 }
 
 // SetTimeout variants call the right virtual for SetTimeout
@@ -161,7 +144,6 @@ int64 CTimedObject::GetTimerAdjusted() const noexcept
 int64 CTimedObject::_GetTimerDAdjusted() const noexcept
 {
     // RETURN: time in tenths of second from now.
-    THREAD_SHARED_LOCK_SET;
     if (!_IsTimerSet())
         return -1;
 
@@ -179,7 +161,6 @@ int64 CTimedObject::GetTimerDAdjusted() const noexcept
 int64 CTimedObject::_GetTimerSAdjusted() const noexcept
 {
     // RETURN: time in seconds from now.
-    THREAD_SHARED_LOCK_SET;
     if (!_IsTimerSet())
         return -1;
 

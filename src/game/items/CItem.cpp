@@ -48,6 +48,7 @@ lpctstr const CItem::sm_szTrigName[ITRIG_QTY+1] =	// static
 	"@AddWhiteCandle",
 	"@AfterClick",
 	"@Buy",
+	"@CarveCorpse",			//I am a corpse and i am going to be carved.
 	"@Click",
 	"@ClientTooltip",	// Sending tooltip to a client
 	"@ClientTooltip_AfterDefault",
@@ -76,6 +77,7 @@ lpctstr const CItem::sm_szTrigName[ITRIG_QTY+1] =	// static
     "@RegionLeave",
 	"@SELL",
 	"@Ship_Turn",
+	"@Smelt",			// I am going to be smelted.
 	"@Spawn",
 	"@SpellEffect",		// cast some spell on me.
 	"@Start",
@@ -178,7 +180,7 @@ void CItem::DeleteCleanup(bool fForce)
 	//CWorldTickingList::DelObjStatusUpdate(this, false);
 
 	// Remove corpse map waypoint on enhanced clients
-	if (IsType(IT_CORPSE) && m_uidLink)
+	if (IsType(IT_CORPSE) && m_uidLink.IsValidUID())
 	{
 		CChar* pChar = m_uidLink.CharFind();
 		if (pChar && pChar->GetClientActive())
@@ -204,20 +206,20 @@ void CItem::DeleteCleanup(bool fForce)
 			break;
 	}
 
-    if (CUID uidMulti = GetComponentOfMulti())
+	CUID uidTest(GetComponentOfMulti());
+    if (uidTest.IsValidUID())
     {
-        CItemMulti *pMulti = static_cast<CItemMulti*>(uidMulti.ItemFind(true));
-        if (pMulti)
+        if (auto* pMulti = static_cast<CItemMulti*>(uidTest.ItemFind(true)))
         {
-            pMulti->DeleteComponent(GetUID());
+            pMulti->DeleteComponent(GetUID(), true);
         }
     }
-    if (CUID uidMulti = GetLockDownOfMulti())
+	uidTest = GetLockDownOfMulti();
+    if (uidTest.IsValidUID())
     {
-        CItemMulti *pMulti = static_cast<CItemMulti*>(uidMulti.ItemFind(true));
-        if (pMulti)
+		if (auto* pMulti = static_cast<CItemMulti*>(uidTest.ItemFind(true)))
         {
-            pMulti->UnlockItem(GetUID());
+            pMulti->UnlockItem(GetUID(), true);
         }
     }
 }
@@ -652,7 +654,7 @@ bool CItem::IsTopLevelMultiLocked() const
 	const CRegion * pArea = GetTopPoint().GetRegion( REGION_TYPE_MULTI );
 	if ( pArea == nullptr )
 		return false;
-	if ( pArea->GetResourceID() == m_uidLink )
+	if ( pArea->GetResourceID().GetObjUID() == m_uidLink.GetObjUID() )
 		return true;
 	return false;
 }
@@ -1038,7 +1040,7 @@ int CItem::FixWeirdness()
 
         case IT_KEY:
             // blank unlinked keys.
-            if (m_itKey.m_UIDLock && !IsValidUID())
+            if (m_itKey.m_UIDLock.IsValidUID() && !IsValidUID())
             {
                 g_Log.EventError("Key '%s' (UID=0%x) has bad link to 0%x: blanked out.\n", GetName(), (dword)GetUID(), (dword)(m_itKey.m_UIDLock));
                 m_itKey.m_UIDLock.ClearUID();
@@ -1398,21 +1400,16 @@ bool CItem::MoveToDecay(const CPointMap & pt, int64 iMsecsTimeout, bool fForceFi
 	return MoveToUpdate(pt, fForceFix);
 }
 
-void CItem::SetDecayTime(int64 iMsecsTimeout)
+void CItem::SetDecayTime(int64 iMsecsTimeout, bool fOverrideAlways)
 {
 	ADDTOCALLSTACK("CItem::SetDecayTime");
 	// 0 = default (decay on the next tick)
 	// -1 = set none. (clear it)
 
-	if (iMsecsTimeout != -1)
+	if (!fOverrideAlways && _IsTimerSet() && !IsAttr(ATTR_DECAY))
 	{
-		// Otherwise i want to disable its timer!
-
-		if (_IsTimerSet() && !IsAttr(ATTR_DECAY))
-		{
-			// Already a timer here. let it expire on it's own
-			return;
-		}
+		// Already a timer here (and it's not a decay timer). Let it expire on it's own.
+		return;
 	}
 
 	if (iMsecsTimeout == 0)
@@ -2335,7 +2332,7 @@ void CItem::r_Write( CScript & s )
 	if ( !pItemDef->IsType(m_type) )
 		s.WriteKeyStr("TYPE", g_Cfg.ResourceGetName(CResourceID(RES_TYPEDEF, m_type)));
 	if ( m_uidLink.IsValidUID() )
-		s.WriteKeyHex("LINK", m_uidLink);
+		s.WriteKeyHex("LINK", m_uidLink.GetObjUID());
 	if ( m_Attr )
 		s.WriteKeyHex("ATTR", m_Attr);
 	if ( m_attackBase )
@@ -2369,7 +2366,7 @@ void CItem::r_Write( CScript & s )
 				s.WriteKeyVal("LAYER", iEqLayer);
 		}
 
-		s.WriteKeyHex("CONT", pCont->GetUID());
+		s.WriteKeyHex("CONT", pCont->GetUID().GetObjUID());
 		if ( pCont->IsItem() )
 		{
 			s.WriteKeyStr("P", GetContainedPoint().WriteUsed());
@@ -3262,7 +3259,7 @@ bool CItem::r_LoadVal( CScript & s ) // Load an item Script
 			break;
 		case IC_MOREP:
 			{
-				CPointMap pt;	// invalid point
+				CPointBase pt;	// invalid point
 				tchar *pszTemp = Str_GetTemp();
 				Str_CopyLimitNull( pszTemp, s.GetArgStr(), STR_TEMPLENGTH );
 				GETNONWHITESPACE( pszTemp );

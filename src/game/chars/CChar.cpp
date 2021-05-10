@@ -66,8 +66,6 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
 	"@Dismount",			// I am trying to get rid of my ride right now
 	"@Dye",					// My color has been changed
 	"@Eat",
-	"@EffectAdd",
-	"@EffectRemove",
 	"@EnvironChange",		// my environment changed somehow (light,weather,season,region)
 	"@ExpChange",			// EXP is going to change
 	"@ExpLevelChange",		// Experience LEVEL is going to change
@@ -89,6 +87,7 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
 	// ITRIG_QTY
 	"@itemAfterClick",
 	"@itemBuy",
+	"@itemCarveCorpse",			// I am carving a corpse.
 	"@itemClick",			// I clicked on an item
 	"@itemClientTooltip", 	// Receiving tooltip for something
 	"@itemClientTooltip_AfterDefault",
@@ -114,6 +113,7 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
     "@ItemRegionEnter",
     "@ItemRegionLeave",
 	"@itemSELL",
+	"@itemSmelt",			// I am smelting an item.
 	"@itemSPELL",			// cast some spell on the item.
 	"@itemSTEP",			// stepped on an item
 	"@itemTARGON_CANCEL",
@@ -192,6 +192,8 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
 	"@SpellBook",
 	"@SpellCast",			// Char is casting a spell.
 	"@SpellEffect",			// A spell just hit me.
+	"@SpellEffectAdd",		// A spell memory item is going to be placed upon me.
+	"@SpellEffectRemove",   // A spell memory item is going to be removed from me.
     "@SpellEffectTick",		// A spell is going to tick and have an effect on me.
 	"@SpellFail",			// The spell failed
 	"@SpellSelect",			// Selected a spell
@@ -1203,9 +1205,19 @@ bool CChar::DupeFrom(const CChar * pChar, bool fNewbieItems )
 			}
 		}
 
-		const CChar * pTest3 = CUID::CharFindFromUID(pItem->m_uidLink);
-		if ( pTest3 && pTest3 == pChar)
-			pItem->m_uidLink = myUID;
+		CChar * pTest3 = CUID::CharFindFromUID(pItem->m_uidLink);
+		if (pTest3)
+		{
+			if (pTest3 == pChar)
+				pItem->m_uidLink = myUID; //If the character being duped has an item which linked to himself, set the newly duped character link instead.
+			else if (IsSetOF(OF_PetSlots) &&  pItem->IsMemoryTypes(MEMORY_IPET) && pTest3 == NPC_PetGetOwner())
+			{
+				const short iFollowerSlots = (short)GetDefNum("FOLLOWERSLOTS", true, 1);
+				//If we have reached the maximum follower slots we remove the ownership of the pet by clearing the memory flag instead of using NPC_PetClearOwners().
+				if (!pTest3->FollowersUpdate(this, maximum(0, iFollowerSlots)))
+					Memory_ClearTypes(MEMORY_IPET); 
+			}
+		}
 	}
 	// End copying items.
 
@@ -1215,7 +1227,8 @@ bool CChar::DupeFrom(const CChar * pChar, bool fNewbieItems )
 	{
 		_GoAwake();
 	}
-
+	//g_World.m_uidNew stored the last duped item, so we need to set back again the newly duped character.
+	g_World.m_uidNew.SetObjUID(GetUID());
 	Update();
 	return true;
 }
@@ -2245,7 +2258,7 @@ do_default:
 					else if ( !strnicmp(ptcKey, "TARGET", 6 ) )
 					{
 						ptcKey += 6;
-						if ( m_Act_UID )
+						if (m_Act_UID.IsValidUID())
 							sVal.FormatHex((dword)(m_Fight_Targ_UID));
 						else
 							sVal.FormatVal(-1);
@@ -2655,7 +2668,7 @@ do_default:
 				dword		dwBlockFlags = 0;
 				CRegion	*	pArea;
 				pArea = CheckValidMove( ptDst, &dwBlockFlags, dir, nullptr );
-				sVal.FormatHex( pArea ? pArea->GetResourceID() : 0 );
+				sVal.FormatHex( pArea ? pArea->GetResourceID().IsValidUID() : 0 );
 			}
 			return true;
 

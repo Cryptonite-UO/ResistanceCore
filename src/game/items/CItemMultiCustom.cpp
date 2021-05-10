@@ -16,7 +16,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-CItemMultiCustom::CItemMultiCustom(ITEMID_TYPE id, CItemBase * pItemDef) : 
+CItemMultiCustom::CItemMultiCustom(ITEMID_TYPE id, CItemBase * pItemDef) :
     CTimedObject(PROFILE_MULTIS),
     CItemMulti(id, pItemDef, true)
 {
@@ -268,7 +268,7 @@ void CItemMultiCustom::CommitChanges(CClient * pClientSrc)
     // working copy so that everyone can see them
     if (m_designWorking.m_iRevision == m_designMain.m_iRevision)
         return;
-    
+
     CChar* pCharClient = pClientSrc ? pClientSrc->GetChar() : nullptr;
     if (pCharClient)
     {
@@ -370,7 +370,7 @@ void CItemMultiCustom::CommitChanges(CClient * pClientSrc)
 
         pItem->ClrAttr(ATTR_DECAY);
         pItem->SetAttr(ATTR_MOVE_NEVER);
-        pItem->m_TagDefs.SetNum("FIXTURE", (int64)(GetUID()));
+        pItem->m_TagDefs.SetNum("FIXTURE", GetUID().GetObjUID());
 
         if (pItem->IsType(IT_TELEPAD))
         {
@@ -556,7 +556,7 @@ void CItemMultiCustom::AddItem(CClient * pClientSrc, ITEMID_TYPE id, short x, sh
                 CItem *pItem = static_cast<CItem*>(uid.ItemFind());
                 if (pItem)
                 {
-                    UnlockItem(uid);
+                    UnlockItem(uid, true);
                     pMovingCrate->ContentAdd(pItem);
                     pItem->RemoveFromView();
                 }
@@ -573,7 +573,7 @@ void CItemMultiCustom::AddItem(CClient * pClientSrc, ITEMID_TYPE id, short x, sh
                 CItemContainer *pCont = static_cast<CItemContainer*>(uid.ItemFind());
                 if (pCont)
                 {
-                    Release(uid);
+                    Release(uid, true);
                     pMovingCrate->ContentAdd(pCont);
                     pCont->RemoveFromView();
                 }
@@ -725,7 +725,7 @@ void CItemMultiCustom::RemoveItem(CClient * pClientSrc, ITEMID_TYPE id, short x,
 
     bool fComponentsChanged = false;
     auto& vectorComponents = m_designWorking.m_vectorComponents;
-	    
+
 	/*
 	if (fAllowRemoveWholeFloor && (uiPlaneAtZ > 1))
 	{
@@ -1245,11 +1245,11 @@ const CRect CItemMultiCustom::GetDesignArea()
     return rect;
 }
 
-void CItemMultiCustom::DeleteComponent(const CUID& uidComponent)
+void CItemMultiCustom::DeleteComponent(const CUID& uidComponent, bool fRemoveFromList)
 {
     /* The code below should remove the item from the m_mainDesign, however it's not being deleted from there even if the world item is
         So, in the next customize, the item will appear again.
-        TODO: Make the whole customizing system more flexible to allow 'enter' and 'exit' customize mode and tweak the items without involving 
+        TODO: Make the whole customizing system more flexible to allow 'enter' and 'exit' customize mode and tweak the items without involving
         any heavy load, trigger, or player iteraction/notifications.
     */
     /*CItem *pComp = uidComponent.ItemFind();
@@ -1261,7 +1261,7 @@ void CItemMultiCustom::DeleteComponent(const CUID& uidComponent)
         pt.m_z -= GetTopPoint().m_z;
         RemoveItem(GetOwner().CharFind()->GetClientActive(), pComp->GetDispID(), pt.m_x, pt.m_y, pt.m_z);
     }*/
-    CItemMulti::DeleteComponent(uidComponent);
+    CItemMulti::DeleteComponent(uidComponent, fRemoveFromList);
 }
 
 void CItemMultiCustom::CopyDesign(CDesignDetails * designFrom, CDesignDetails * designTo)
@@ -1348,7 +1348,7 @@ char CItemMultiCustom::CalculateLevel(char z)
 {
     z -= GetTopPoint().m_z; // Take out the Multi Z level.
     z -= 6; // Customizable's Houses have a +6 level from the foundation.
-    z /= 20;    // Each floor 
+    z /= 20;    // Each floor
     return z;
 }
 
@@ -1369,7 +1369,7 @@ void CItemMultiCustom::ClearFloor(char iFloor)
             CItemContainer *pCont = static_cast<CItemContainer*>(uid.ItemFind());
             if ((pCont->GetTopPoint().m_z >= iMinZ) && (pCont->GetTopPoint().m_z <= iMaxZ))
             {
-                Release(uid);
+                Release(uid, true);
                 pCont->RemoveFromView();
                 pCrate->ContentAdd(pCont);
             }
@@ -1385,7 +1385,7 @@ void CItemMultiCustom::ClearFloor(char iFloor)
             CItem *pItem = uid.ItemFind();
             if ((pItem->GetTopPoint().m_z >= iMinZ) && (pItem->GetTopPoint().m_z <= iMaxZ))
             {
-                UnlockItem(uid);
+                UnlockItem(uid, true);
                 pItem->RemoveFromView();
                 pCrate->ContentAdd(pItem);
             }
@@ -1440,11 +1440,11 @@ void CItemMultiCustom::ClearFloor(char iFloor)
         pItem->RemoveFromView();
         pCrate->ContentAdd(pItem);
     }
-    
+
     CMultiComponent *comp;
 
     // Reset Main Design
-    i = (int)m_designMain.m_vectorComponents.size()-1; 
+    i = (int)m_designMain.m_vectorComponents.size()-1;
 
     for (;i >= 0;--i)   //decreasing iteration.
     {

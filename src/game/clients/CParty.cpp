@@ -237,7 +237,7 @@ bool CPartyDef::MessageEvent( CUID uidDst, CUID uidSrc, const nchar *pText, int 
 	UNREFERENCED_PARAMETER(ilenmsg);
 	if ( pText == nullptr )
 		return false;
-	if ( uidDst && !IsInParty(uidDst.CharFind()) )
+	if ( uidDst.IsValidUID() && !IsInParty(uidDst.CharFind()) )
 		return false;
 
 	CChar *pFrom = uidSrc.CharFind();
@@ -252,8 +252,8 @@ bool CPartyDef::MessageEvent( CUID uidDst, CUID uidSrc, const nchar *pText, int 
 	{
 		TRIGRET_TYPE tr = TRIGRET_RET_FALSE;
 		CScriptTriggerArgs Args;
-		Args.m_iN1 = uidSrc;
-		Args.m_iN2 = uidDst;
+		Args.m_iN1 = uidSrc.GetObjUID();
+		Args.m_iN2 = uidDst.GetObjUID();
 		Args.m_s1 = szText;
 		Args.m_s1_buf_vec = szText;
 
@@ -732,17 +732,17 @@ bool CPartyDef::r_Verb( CScript &s, CTextConsole *pSrc )
 		case PDV_ADDMEMBER:
 		case PDV_ADDMEMBERFORCED:
 		{
-			bool bForced = (iIndex == PDV_ADDMEMBERFORCED);
+			const bool fForced = (iIndex == PDV_ADDMEMBERFORCED);
 			CUID toAdd(s.GetArgDWVal());
 			CChar *pCharAdd = toAdd.CharFind();
 			CChar *pCharMaster = GetMaster().CharFind();
 			if ( !pCharAdd || IsInParty(pCharAdd) )
 				return false;
 
-			if ( pCharMaster && !bForced )
-				pCharMaster->SetKeyNum("PARTY_LASTINVITE", (llong)toAdd);
+			if ( pCharMaster && !fForced )
+				pCharMaster->SetKeyNum("PARTY_LASTINVITE", toAdd.GetObjUID());
 			
-			return CPartyDef::AcceptEvent(pCharAdd, GetMaster(), bForced);
+			return CPartyDef::AcceptEvent(pCharAdd, GetMaster(), fForced);
 		} break;
 
 		case PDV_CLEARTAGS:

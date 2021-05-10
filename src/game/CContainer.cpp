@@ -149,7 +149,8 @@ void CContainer::ContentAddPrivate( CItem *pItem )
 	CSObjCont::InsertContentTail( pItem );
 	//pItem->RemoveUIDFlags(UID_O_DISCONNECT);
 
-	OnWeightChange(pItem->GetWeight());
+	if ( !pItem->IsType(IT_EQ_TRADE_WINDOW) )  //Don't apply trade window layer item weight on character weight.
+		OnWeightChange(pItem->GetWeight());
 
 	if (auto pThisObj = dynamic_cast<const CObjBase*>(this))
 	{
@@ -195,7 +196,8 @@ void CContainer::OnRemoveObj( CSObjContRec *pObRec )	// Override this = called w
 	ASSERT(pItem->GetParent() == nullptr);
 
 	pItem->SetUIDContainerFlags(UID_O_DISCONNECT);		// It is no place for the moment.
-	OnWeightChange(-pItem->GetWeight());
+	if ( !pItem->IsType(IT_EQ_TRADE_WINDOW) ) //Don't apply trade window layer item weight on character weight.
+		OnWeightChange(-pItem->GetWeight());
 }
 
 void CContainer::r_WriteContent( CScript &s ) const
@@ -357,7 +359,8 @@ bool CContainer::ContentFindKeyFor( CItem *pLocked ) const
 {
 	ADDTOCALLSTACK("CContainer::ContentFindKeyFor");
 	// Look for the key that fits this in my possesion.
-	return (pLocked->m_itContainer.m_UIDLock && (nullptr != ContentFind(CResourceID(RES_TYPEDEF, IT_KEY), pLocked->m_itContainer.m_UIDLock)));
+	const CUID& uidLock(pLocked->m_itContainer.m_UIDLock);
+	return (uidLock.IsValidUID() && (nullptr != ContentFind(CResourceID(RES_TYPEDEF, IT_KEY), uidLock)));
 }
 
 CItem *CContainer::ContentFindRandom() const
