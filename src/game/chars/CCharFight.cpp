@@ -664,14 +664,14 @@ effect_bounce:
 	if ( IsAosFlagEnabled(FEATURE_AOS_UPDATE_B) )
 	{
 		CItem * pEvilOmen = LayerFind(LAYER_SPELL_Evil_Omen);
-		if ( pEvilOmen )
+		if ( pEvilOmen && !g_Cfg.GetSpellDef(SPELL_Evil_Omen)->IsSpellType(SPELLFLAG_SCRIPTED))
 		{
 			iDmg += iDmg / 4;
 			pEvilOmen->Delete();
 		}
 
 		CItem * pBloodOath = LayerFind(LAYER_SPELL_Blood_Oath);
-		if ( pBloodOath && pBloodOath->m_uidLink == pSrc->GetUID() && !(uType & DAMAGE_FIXED) )	// if DAMAGE_FIXED is set we are already receiving a reflected damage, so we must stop here to avoid an infinite loop.
+		if ( pBloodOath && pBloodOath->m_uidLink == pSrc->GetUID() && !(uType & DAMAGE_FIXED) && !g_Cfg.GetSpellDef(SPELL_Blood_Oath)->IsSpellType(SPELLFLAG_SCRIPTED))	// if DAMAGE_FIXED is set we are already receiving a reflected damage, so we must stop here to avoid an infinite loop.
 		{
 			iDmg += iDmg / 10;
 			pSrc->OnTakeDamage(iDmg * (100 - pBloodOath->m_itSpell.m_spelllevel) / 100, this, DAMAGE_MAGIC|DAMAGE_FIXED);
@@ -1696,8 +1696,9 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
         if ( pWeapon )
         {
             const CResourceID ridAmmo(pWeapon->Weapon_GetRangedAmmoRes());
-            if (ridAmmo.IsValidUID())
+			if (ridAmmo.IsUIDItem() && ridAmmo.IsValidResource()) // Illimited ammo (TDATA3=0) mean ridAmmo.IsUIDItem()=0
             {
+				
                 pAmmo = pWeapon->Weapon_FindRangedAmmo(ridAmmo);
                 if ( !pAmmo && m_pPlayer )
                 {
