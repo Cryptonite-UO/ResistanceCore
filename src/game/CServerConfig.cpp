@@ -2025,7 +2025,7 @@ bool CServerConfig::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * 
 			sVal.FormatLLVal(_iTimerCall / (60*MSECS_PER_SEC));
 			break;
 		case RC_VERSION:
-			sVal = g_szServerDescription;
+			sVal = g_sServerDescription.c_str();
 			break;
 		case RC_EXPERIMENTAL:
 			sVal.FormatHex( m_iExperimentalFlags );
@@ -4209,6 +4209,7 @@ void CServerConfig::PrintEFOFFlags(bool bEF, bool bOF, CTextConsole *pSrc)
         if ( IsSetOF(OF_StatAllowValOverMax) )		catresname(zOptionFlags, "StatAllowValOverMax");
         if ( IsSetOF(OF_GuardOutsideGuardedArea) )	catresname(zOptionFlags, "GuardOutsideGuardedArea");
         if ( IsSetOF(OF_OWNoDropCarriedItem) )		catresname(zOptionFlags, "OWNoDropCarriedItem");
+		if (IsSetOF(OF_AllowContainerInsideContainer)) catresname(zOptionFlags, "AllowContainerInsideContainer");
 
 		if ( zOptionFlags[0] != '\0' )
 		{
