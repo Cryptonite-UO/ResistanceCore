@@ -1591,7 +1591,9 @@ void CChar::Spell_Effect_Add( CItem * pSpell )
 			{
 				if ( pCaster != nullptr )
 				{
-                    wStatEffectRef = (400 + pCaster->Skill_GetBase(SKILL_EVALINT) - Skill_GetBase(SKILL_MAGICRESISTANCE)) / 10;
+					if ( IsSetMagicFlags(MAGICF_OSIFORMULAS) )
+						 wStatEffectRef = (400 + pCaster->Skill_GetBase(SKILL_EVALINT) - Skill_GetBase(SKILL_MAGICRESISTANCE)) / 10;
+
 					if ( wStatEffectRef > Stat_GetVal(STAT_INT) )
                         wStatEffectRef = (word)(Stat_GetVal(STAT_INT));
 				}
@@ -3161,11 +3163,22 @@ void CChar::Spell_CastFail(bool fAbort)
  	if (!pSpell)
 		return;
 
-	if (g_Cfg.m_fManaLossFail && !fAbort)
-		iManaLoss = g_Cfg.Calc_SpellManaCost(this, pSpell, m_Act_Prv_UID.ObjFind());
+	if (fAbort)
+	{
+		if (g_Cfg.m_fManaLossAbort)
+			iManaLoss = (g_Cfg.Calc_SpellManaCost(this, pSpell, m_Act_Prv_UID.ObjFind()) * g_Cfg.m_fManaLossPercent/100);
 
-	if (g_Cfg.m_fReagentLossFail && !fAbort)
-		iTithingLoss = g_Cfg.Calc_SpellTithingCost(this, pSpell, m_Act_Prv_UID.ObjFind());
+		if (g_Cfg.m_fReagentLossAbort)
+			iTithingLoss = g_Cfg.Calc_SpellTithingCost(this, pSpell, m_Act_Prv_UID.ObjFind());
+	}
+	else //Spell fail without abort
+	{
+		if (g_Cfg.m_fManaLossFail)
+			iManaLoss = (g_Cfg.Calc_SpellManaCost(this, pSpell, m_Act_Prv_UID.ObjFind()) * g_Cfg.m_fManaLossPercent / 100);
+
+		if (g_Cfg.m_fReagentLossFail)
+			iTithingLoss = g_Cfg.Calc_SpellTithingCost(this, pSpell, m_Act_Prv_UID.ObjFind());
+	}
 
 	CScriptTriggerArgs	Args( m_atMagery.m_iSpell, iManaLoss, m_Act_Prv_UID.ObjFind() );
 
@@ -3199,21 +3212,44 @@ void CChar::Spell_CastFail(bool fAbort)
 		GetClientActive()->addObjMessage( g_Cfg.GetDefaultMsg( DEFMSG_SPELL_GEN_FIZZLES ), this );
 
 	//consume the reagents and tithing points (if any).
-	if (g_Cfg.m_fReagentLossFail && !fAbort)
+	if (fAbort)
 	{
-		//Spell_CanCast(m_atMagery.m_iSpell, false, m_Act_Prv_UID.ObjFind(), false);
-		g_Cfg.Calc_SpellReagentsConsume(this, pSpell, m_Act_Prv_UID.ObjFind());
-		if ( iTithingLoss > 0)
+		if (g_Cfg.m_fReagentLossAbort)
 		{
-			CVarDefContNum* pVarTithing = GetDefKeyNum("Tithing", false);
-			int64 iValTithing = pVarTithing ? pVarTithing->GetValNum() : 0;
-			pVarTithing->SetValNum(iValTithing - iTithingLoss);
+			//Spell_CanCast(m_atMagery.m_iSpell, false, m_Act_Prv_UID.ObjFind(), false);
+			g_Cfg.Calc_SpellReagentsConsume(this, pSpell, m_Act_Prv_UID.ObjFind());
+			if (iTithingLoss > 0)
+			{
+				CVarDefContNum* pVarTithing = GetDefKeyNum("Tithing", false);
+				int64 iValTithing = pVarTithing ? pVarTithing->GetValNum() : 0;
+				pVarTithing->SetValNum(iValTithing - iTithingLoss);
+			}
 		}
+
+		//consume mana.
+		if (g_Cfg.m_fManaLossAbort)
+			UpdateStatVal(STAT_INT, -iManaLoss);
+	}
+	else //Spell fail without abort
+	{
+		if (g_Cfg.m_fReagentLossFail)
+		{
+			//Spell_CanCast(m_atMagery.m_iSpell, false, m_Act_Prv_UID.ObjFind(), false);
+			g_Cfg.Calc_SpellReagentsConsume(this, pSpell, m_Act_Prv_UID.ObjFind());
+			if (iTithingLoss > 0)
+			{
+				CVarDefContNum* pVarTithing = GetDefKeyNum("Tithing", false);
+				int64 iValTithing = pVarTithing ? pVarTithing->GetValNum() : 0;
+				pVarTithing->SetValNum(iValTithing - iTithingLoss);
+			}
+		}
+
+		//consume mana.
+		if (g_Cfg.m_fManaLossFail)
+			UpdateStatVal(STAT_INT, -iManaLoss);
 	}
 
-	//consume mana.
-	if (g_Cfg.m_fManaLossFail && !fAbort)
-		UpdateStatVal(STAT_INT, -iManaLoss);
+
 
 }
 
@@ -3345,11 +3381,10 @@ int CChar::Spell_CastStart()
 		WOPColor = Args.m_VarsLocal.GetKeyNum("WOPColor");
 		WOPFont = Args.m_VarsLocal.GetKeyNum("WOPFont");
 
-		// Correct talk mode for spells WOP is TALKMODE_SPELL, but since sphere doesn't have any delay between spell casts this can allow WOP flood on screen.
-		// So to avoid this problem we must use TALKMODE_SAY, which is not the correct type but with this type the client only show last 3 messages on screen.
+		// Correct talk mode for spells WOP is TALKMODE_SPELL, but sphere doesn't have any delay between spell casts this can allow WOP flood on screen.
 		if ( pSpellDef->m_sRunes[0] == '.' )
 		{
-			Speak((pSpellDef->m_sRunes.GetBuffer()) + 1, (HUE_TYPE)WOPColor, TALKMODE_SAY, (FONT_TYPE)WOPFont);
+			Speak((pSpellDef->m_sRunes.GetBuffer()) + 1, (HUE_TYPE)WOPColor, TALKMODE_SPELL, (FONT_TYPE)WOPFont);
 		}
 		else
 		{
@@ -3367,7 +3402,7 @@ int CChar::Spell_CastStart()
 			if ( len > 0 )
 			{
 				pszTemp[len] = 0;
-				Speak(pszTemp, (HUE_TYPE)WOPColor, TALKMODE_SAY, (FONT_TYPE)WOPFont);
+				Speak(pszTemp, (HUE_TYPE)WOPColor, TALKMODE_SPELL, (FONT_TYPE)WOPFont);
 			}
 		}
 	}
@@ -3643,7 +3678,6 @@ bool CChar::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 		case SPELL_Cunning:
 		case SPELL_Strength:
 		case SPELL_Bless:
-		case SPELL_Mana_Drain:
 		case SPELL_Mass_Curse:
 			Spell_Effect_Create( spell, fPotion ? LAYER_FLAG_Potion : LAYER_SPELL_STATS, iEffect, iDuration, pCharSrc );
 			break;
@@ -3660,7 +3694,9 @@ bool CChar::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 		case SPELL_Reactive_Armor:
 			Spell_Effect_Create( spell, LAYER_SPELL_Reactive, iEffect, iDuration, pCharSrc );
 			break;
-
+		case SPELL_Mana_Drain:
+			Spell_Effect_Create(spell, LAYER_SPELL_Mana_Drain, iEffect, iDuration, pCharSrc);
+			break;
 		case SPELL_Magic_Reflect:
 			Spell_Effect_Create( spell, LAYER_SPELL_Magic_Reflect, iEffect, iDuration, pCharSrc );
 			break;
@@ -3676,17 +3712,22 @@ bool CChar::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 
 		case SPELL_Cure:
 		case SPELL_Arch_Cure:
-			if (g_Cfg.Calc_CurePoisonChance(LayerFind(LAYER_FLAG_Poison), iSkillLevel, pCharSrc->IsPriv(PRIV_GM)))
+			if (IsStatFlag(STATF_POISONED))
 			{
-				SetPoisonCure((spell == SPELL_Arch_Cure || iSkillLevel > 900) ? true : false);
-				pCharSrc->SysMessagef(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_1), (pCharSrc == this) ? g_Cfg.GetDefaultMsg(DEFMSG_HEALING_YOURSELF) : (GetName()));
-				if (pCharSrc != this)
-					SysMessagef(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_2), pCharSrc->GetName());
-			}
-			else
-			{
-				pCharSrc->SysMessage(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_3));
-				SysMessage(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_4));
+				if (g_Cfg.Calc_CurePoisonChance(LayerFind(LAYER_FLAG_Poison), iSkillLevel, pCharSrc->IsPriv(PRIV_GM)))
+				{
+					SetPoisonCure((spell == SPELL_Arch_Cure || iSkillLevel > 900) ? true : false);
+					pCharSrc->SysMessagef(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_1), (pCharSrc == this) ? g_Cfg.GetDefaultMsg(DEFMSG_HEALING_YOURSELF) : (GetName()));
+					if (pCharSrc != this)
+						SysMessagef(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_2), pCharSrc->GetName());
+				}
+				else
+				{
+					if (pCharSrc != this)
+						pCharSrc->SysMessage(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_3));
+
+					SysMessage(g_Cfg.GetDefaultMsg(DEFMSG_HEALING_CURE_4));
+				}
 			}
 			break;
 	
