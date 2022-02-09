@@ -2855,3 +2855,49 @@ It will check if distance is > 10, so you don't need to write the distance check
 - Fixed: Sector not going to sleep and @RegPeriodic and @CliPeriodic not firing (Issues #801 and #765).
 - Fixed: CONT not always updating the item in the new position (Issue #680).
 - Changed: Increased default MaxSizeClientOut default value to 80.000.
+
+01-12-2021, Drk84
+- Fixed: Incorrect EVAL parsing in case of multiple subtraction (Issue #804).
+
+09-12-2021, Drk84
+- Fixed: Players cannot increase combat skills in REGION_FLAG_NOPVP areas.
+
+01-02-2022, Drk84
+- Changed: Added blank space between skill value and skill name when reading the SKILLMAKE property (Issue #832).
+- Changed: You will not be able to cast a spell on a ghost if the spell does not have SPELLFLAG_TARG_DEAD.
+		   You will not be able to cast a spell on an alive character if the spell has the SPELLFLAG_TARG_DEAD flag (Issue #827).
+
+03-02-2022, XuN
+Merge of commits made by Coruja on 56d, related to Weight (see issue https://github.com/Sphereserver/Source-X/issues/822)
+List of changes:
+- Partial Commit https://github.com/Sphereserver/Source/commit/c9c0af71ba1fc54ddbab8f9bdae70739e24b0254:
+    [sphere.ini]: Added new BackpackMaxWeight setting to set default max weight limit for chars main backpack.
+
+- Commit https://github.com/Sphereserver/Source/commit/937fd287975830c76a0cebfcd7e8e8e251b04ef4:
+    Changed: Chars now can exceed MAXWEIGHT limit, but not backpack max weight limit (which is a bit higher)
+        -Walking while overweight will drop stamina faster (as it was on old Sphere versions)
+        -Stamina penalty can be customized using StaminaLossAtWeight and RunningPenalty settings on sphere.ini
+        -Backpack max weight can be customized using BackpackMaxWeight setting on sphere.ini and MODMAXWEIGHT item property
+    [sphere_msgs.scp]: Updated message list with the following changes
+        -Added: cont_full_items, msg_fatigue_weight
+        -Removed: cont_full, cont_magic, msg_overload
+        -Updated: cont_full_weight
+
+ -Commit https://github.com/Sphereserver/Source/commit/f29e8592ad154c4dd55ed4b5d8900b094793e62a:
+    Fixed: BackpackMaxWeight setting on sphere.ini not allowing unlimited weight when set to -1.
+
+ -Commit https://github.com/Sphereserver/Source/commit/191a13e7bc91a709db79d1270c467a5561038541
+    Fixed: Char stamina not decreasing correctly when walk/run while overweight.
+    [sphere.ini]: Updated default value of StaminaLossAtWeight and RunningPenalty settings
+    	-IMPORTANT: It's HIGHLY recommended update these values to make stamina decrease correctly.
+
+*These commits are meant to reenable old stamina and weight behaviour, allowing chars to move while overweight and applying penalties on stam.
+Also excluded GMs from most checks inside this code.
+
+07-02-2022, Jhobean
+- Changed: Make a better integrations of lasts commits about weight modification to avoid changing behavior on all shard.
+	BackpackMaxWeight in the .ini is now called BackpackOverload and define how many extra weight a character can place in his backpack.
+	StaminaLossAtWeight and RunningPenalty now work like before and affect stam only when not overloaded.
+	StaminaLossOverweightMultiplier and RunningPenaltyOverweight are 2 new ini setting for ajustment how stam is drained when overloaded.
+	Drag and drop item was limited to 300% maxweight. Now DRAGWEIGHTMAX define % of maxweight you can move.
+

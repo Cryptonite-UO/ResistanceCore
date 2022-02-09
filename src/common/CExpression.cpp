@@ -433,7 +433,7 @@ llong CExpression::GetSingle( lpctstr & pszArgs )
 	}
 	else if ( pszArgs[0] == '.' || IsDigit(pszArgs[0]) )
 	{
-		// A decminal number
+		// A decimal number
 try_dec:
 		llong iVal = 0;
 		for ( ; ; ++pszArgs )
@@ -934,11 +934,10 @@ llong CExpression::GetValMath( llong llVal, lpctstr & pExpr )
 			break;
 
 		case '-':
-			++pExpr;
 			llValSecond = GetVal(pExpr);
-			llVal -= llValSecond;
+			//++pExpr; No need to consume the negative sign, we need to keep it!
+			llVal += llValSecond; // a subtraction is an addiction with a negative number.
 			break;
-
 		case '*':
 			++pExpr;
 			llValSecond = GetVal(pExpr);
