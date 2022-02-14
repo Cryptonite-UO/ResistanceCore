@@ -1812,7 +1812,7 @@ int CChar::ItemPickup(CItem * pItem, word amount)
 	{
         // Create an leftover item when pick up only part of the stack
         CItem* pItemNew = pItem->UnStackSplit(amount, this);
-        pItemNew->SetTimeout(pItem->GetTimerDAdjusted());
+		pItemNew->SetTimeout(pItem->GetDecayTime());    // Set it's timer to the real decay, in case it gets forced to be drop on ground.
 
         if (IsTrigUsed(TRIGGER_PICKUP_STACK) || IsTrigUsed(TRIGGER_ITEMPICKUP_STACK))
         {
@@ -3454,7 +3454,20 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 	}
 
 	if ( !fCheckOnly )
-	{
+	{		
+		// Falling trigger
+		//lack config feature for sphere.ini if wanted.
+		if (GetTopZ() - 10 >= ptDst.m_z)
+		{
+			//char is falling
+			CScriptTriggerArgs Args(ptDst.m_x, ptDst.m_y, ptDst.m_z);
+
+			if ( IsTrigUsed(TRIGGER_FALLING) )
+			{
+				OnTrigger(CTRIG_Falling, this, &Args);
+			}
+		}
+		//
 		EXC_SET_BLOCK("Stamina penalty");
         if (iWeight < iMaxWeight) //Normal situation
 		{
@@ -3481,7 +3494,7 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 		
 		else //Overweight and lost more stamina each step
         {
-            ushort iWeightPenalty = ushort(g_Cfg.m_iStaminaLossOverweightMultiplier + ((iWeight - iMaxWeight) / 25));
+            ushort iWeightPenalty = ushort(g_Cfg.m_iStaminaLossOverweight + ((iWeight - iMaxWeight) / 5));
 
             if (IsStatFlag(STATF_ONHORSE))
                 iWeightPenalty /= 3;
@@ -3498,7 +3511,6 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 		StatFlag_Mod(STATF_INDOORS, (dwBlockFlags & CAN_I_ROOF) || pArea->IsFlag(REGION_FLAG_UNDERGROUND));
 		m_zClimbHeight = (dwBlockFlags & CAN_I_CLIMB) ? ClimbHeight : 0;
 	}
-
 	EXC_CATCH;
 	return pArea;
 }

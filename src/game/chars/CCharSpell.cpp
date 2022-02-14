@@ -130,7 +130,7 @@ bool CChar::Spell_Teleport( CPointMap ptNew, bool fTakePets, bool fCheckAntiMagi
                 SysMessageDefault(DEFMSG_SPELL_TELE_CANT);
                 return false;
             }
-            if ( pArea->IsFlag(REGION_ANTIMAGIC_RECALL_IN|REGION_ANTIMAGIC_TELEPORT) )
+			if ( pArea->IsFlag(REGION_ANTIMAGIC_TELEPORT) )
             {
                 SysMessageDefault(DEFMSG_SPELL_TELE_AM);
                 return false;
@@ -1844,8 +1844,10 @@ bool CChar::Spell_Equip_OnTick( CItem * pItem )
 					iLevel = 1;
 				else if (iLevel < 800)	// Greater
 					iLevel = 2;
-				else					// Deadly.
+				else if (iLevel < 1000)	// Deadly.
 					iLevel = 3;
+				else					// Lethal
+					iLevel = 4;
 
 				pItem->m_itSpell.m_spelllevel -= 50;	// gets weaker too.	Only on old formulas
 				iEffect = IMulDiv(Stat_GetMaxAdjusted(STAT_STR), iLevel * 2, 100);
@@ -1856,7 +1858,8 @@ bool CChar::Spell_Equip_OnTick( CItem * pItem )
 					g_Cfg.GetDefaultMsg(DEFMSG_SPELL_POISON_1),
 					g_Cfg.GetDefaultMsg(DEFMSG_SPELL_POISON_2),
 					g_Cfg.GetDefaultMsg(DEFMSG_SPELL_POISON_3),
-					g_Cfg.GetDefaultMsg(DEFMSG_SPELL_POISON_4)
+					g_Cfg.GetDefaultMsg(DEFMSG_SPELL_POISON_4),
+					g_Cfg.GetDefaultMsg(DEFMSG_SPELL_POISON_5)
 				};
 
 				tchar * pszMsg = Str_GetTemp();
@@ -2682,6 +2685,18 @@ bool CChar::Spell_TargCheck()
 				return false;
 			}
 		}
+        else if (pObj->IsItem())
+        {
+            if (pObjTop == this)
+            {
+                // Check if the item is in my bankbox, and i'm not in the same position from which I opened it the last time.
+                const CPointMap& ptTop = GetTopPoint();
+                CItemContainer* pBank = GetBank();
+                bool fItemContIsInsideBankBox = pBank->IsItemInside(pObj->GetUID().ItemFind());
+                if (fItemContIsInsideBankBox && (pBank->m_itEqBankBox.m_pntOpen != ptTop))
+                    return false;
+            }
+        }
 		if ( !CanSeeLOS(pObj, LOS_NB_WINDOWS) ) //we should be able to cast through a window
 		{
 			SysMessageDefault( DEFMSG_SPELL_TARG_LOS );
