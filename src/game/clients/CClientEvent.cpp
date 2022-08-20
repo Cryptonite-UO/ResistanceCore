@@ -308,6 +308,23 @@ void CClient::Event_Item_Drop( CUID uidItem, CPointMap pt, CUID uidOn, uchar gri
 
 	ClearTargMode();	// done dragging
 
+	if (pItem->IsAttr(ATTR_QUESTITEM))
+	{
+		// These items can be dropped only on player backpack or trash can
+		CItem *pPack = dynamic_cast<CItem *>(pObjOn);
+		if (pPack && pPack->IsType(IT_TRASH_CAN))
+		{
+			addSound(pItem->GetDropSound(pObjOn));
+			pItem->Delete();
+			return;
+		}
+		else if ((pPack != m_pChar->LayerFind(LAYER_PACK)) && !IsPriv(PRIV_GM))
+		{
+			SysMessageDefault(DEFMSG_ITEM_CANTDROPTRADE);
+			return Event_Item_Drop_Fail(pItem);
+		}
+	}
+
 	if ( pObjOn != nullptr )	// Put on or in another object
 	{
 		if ( ! m_pChar->CanTouch( pObjOn ))	// Must also be LOS !
@@ -637,10 +654,10 @@ void CClient::Event_Skill_Use( SKILL_TYPE skill ) // Skill is clicked on the ski
 	if ( g_Cfg.IsSkillFlag( skill, SKF_SCRIPTED ) )
 	{
 		const CSkillDef * pSkillDef = g_Cfg.GetSkillDef(skill);
-		if (pSkillDef != nullptr && pSkillDef->m_sTargetPrompt.IsEmpty() == false)
+		if (pSkillDef != nullptr && (pSkillDef->m_sTargetPrompt.IsEmpty() == false || pSkillDef->m_sTargetPromptCliloc.IsEmpty() == false))
 		{
 			m_tmSkillTarg.m_iSkill = skill;	// targetting what skill ?
-			addTarget( CLIMODE_TARG_SKILL, pSkillDef->m_sTargetPrompt.GetBuffer(), false, fCheckCrime );
+			addTarget( CLIMODE_TARG_SKILL, pSkillDef->m_sTargetPrompt.GetBuffer(), false, fCheckCrime, 0, atoi(pSkillDef->m_sTargetPromptCliloc.GetBuffer()));
 			return;
 		}
 		else
@@ -707,16 +724,16 @@ void CClient::Event_Skill_Use( SKILL_TYPE skill ) // Skill is clicked on the ski
 
 	if ( fDoTargeting )
 	{
-		// Go into targtting mode.
+		// Go into targetting mode.
 		const CSkillDef * pSkillDef = g_Cfg.GetSkillDef(skill);
-		if (pSkillDef == nullptr || pSkillDef->m_sTargetPrompt.IsEmpty())
+		if (pSkillDef == nullptr || (pSkillDef->m_sTargetPrompt.IsEmpty() && pSkillDef->m_sTargetPromptCliloc.IsEmpty()))
 		{
 			DEBUG_ERR(( "%x: Event_Skill_Use bad skill %d\n", GetSocketID(), skill ));
 			return;
 		}
 
 		m_tmSkillTarg.m_iSkill = skill;	// targetting what skill ?
-		addTarget( CLIMODE_TARG_SKILL, pSkillDef->m_sTargetPrompt.GetBuffer(), false, fCheckCrime );
+		addTarget( CLIMODE_TARG_SKILL, pSkillDef->m_sTargetPrompt.GetBuffer(), false, fCheckCrime, 0 , atoi(pSkillDef->m_sTargetPromptCliloc.GetBuffer()));
 		return;
 	}
 }

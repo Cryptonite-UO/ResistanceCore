@@ -1698,7 +1698,7 @@ void CItemMulti::LockItem(const CUID& uidItem)
     ASSERT(pItem);
     if (!g_Serv.IsLoading())
     {
-        if (GetLockedItemIndex(uidItem) >= 0)
+        if (GetLockedItemIndex(uidItem) >= 0 || GetSecuredContainerIndex(uidItem) >= 0)
         {
             return;
         }
@@ -1791,16 +1791,21 @@ void CItemMulti::Secure(const CUID& uidContainer)
 void CItemMulti::Release(const CUID& uidContainer, bool fRemoveFromList)
 {
     ADDTOCALLSTACK("CItemMulti::Release");
+
+    // remove from secured list
     if (fRemoveFromList)
     {
-        _lLockDowns.erase(std::remove(_lLockDowns.begin(), _lLockDowns.end(), uidContainer));
+        _lSecureContainers.erase(std::find(_lSecureContainers.begin(), _lSecureContainers.end(), uidContainer));
     }
 
+    // remove container from secure
     CItemContainer *pContainer = static_cast<CItemContainer*>(uidContainer.ItemFind());
     if (!pContainer)
     {
         return;
     }
+
+    // clear secured item
     pContainer->ClrAttr(ATTR_SECURE);
     pContainer->m_uidLink.InitUID();
     pContainer->r_ExecSingle("EVENTS -ei_house_secure");
@@ -2334,13 +2339,13 @@ bool CItemMulti::r_Verb(CScript & s, CTextConsole * pSrc) // Execute command fro
         }
         case SHV_RELEASE:
         {
-            const CUID uidRelease(s.GetArgDWVal());
-            if (!uidRelease.IsValidUID())
+            if (!s.HasArgs())
             {
                 _lAccesses.clear();
             }
             else
             {
+                const CUID uidRelease = (CUID)s.GetArgDWVal();
                 Release(uidRelease, true);
             }
             break;
@@ -3075,9 +3080,14 @@ bool CItemMulti::r_LoadVal(CScript & s)
             CUID uidLock(s.GetArgDWVal());
             if (uidLock.IsValidUID())
             {
-                LockItem(uidLock);
+                CItem* pItem = uidLock.ItemFind();
+                if (pItem && (!pItem->IsType(IT_CONTAINER) && !pItem->IsType(IT_CONTAINER_LOCKED)))
+                {
+                    LockItem(uidLock);
+                    break;
+                }
             }
-            break;
+            return false;
         }
         case SHL_SECURE:
         {

@@ -590,7 +590,7 @@ Fixed some Spell's related stuff not returning correctly the spell required for 
 
 (Scripts)
 SPAWNS:
-	-Added Keywords SpawnID, TimeLo, TimeHi and MaxDist, explained bellow.
+	-Added Keywords SpawnID, TimeLo, TimeHi and MaxDist, explained below.
 	-Changed AT* to r_GetRef so it finds out the object on the n position and works over it.
 
 *There were no major changes on Spawns however i'll leave here a brief explanation of how they work along the new keywords and the updated AT* behaviour.
@@ -1132,7 +1132,7 @@ transfer_secured	= 08	// Transfer Secured Containers.
 - Fixed Custom Multis crashing the server on loading.
 
 24-08-2018, XuN
-- Added missing VirtualGold currency on status when FEATURE_TOL_VIRTUALGOLD is enabled.
+- Added missing 7Gold currency on status when FEATURE_TOL_VIRTUALGOLD is enabled.
 - GOLD and <GOLD> will work as VirtualGold and <VirtualGold> when FEATURE_TOL_VIRTUALGOLD is enabled (but the real money chars had before, if any, will not be removed).
 - Fixed wrong char sent on PacketObjectStatus when opening a new shop menu, hence not correctly showing the player's gold until a new packet updated the status.
 - Added region change support for ships, @Enter and @Exit will be fired on the regions they enter and leave (only them not characters inside, as always they will get it when landing from the ship)
@@ -1200,7 +1200,7 @@ if ((<flags> & STATF_pet) && (<local.dex> < 75))    // for pets ...
     local.dex = 75  // ... set the lowest movement delay to this dex value.
 endif
 local.newdelay = (10 + <r(100-iDex)/3>) * 100   // * 100 because the old formula worked in tenths of second, this tag works in msecs (100 msecs = 1 tenth = 0.1s)
-//If you want enable support for tag.override.moverate in this formula uncomment the bellow lines:
+//If you want enable support for tag.override.moverate in this formula uncomment the below lines:
 
 //local.mod = <tag0.override.moverate>
 //if (<local.mod> < 1)
@@ -1718,7 +1718,7 @@ WARNING: Important change!
 - Changed: Now all multis call RemoveAllKeys when being removed if AutoHouseKeys is enabled in the .ini
 - Fixed: Redeed crashing sphere when no real char was given as src (for example via @Timer).
 - Added: f_multi_onplacement_check function called from CItemMulti::Multi_Create (where the multis do their checks to be placed) with this params:
-	return 0 // Use default checks (wich values may be modified with the bellow locals)
+	return 0 // Use default checks (wich values may be modified with the below locals)
 	return 1 // Prevents the multi from being placed.
 	return 6 // Allows the multi to be placed without default placement checks.
 
@@ -2048,7 +2048,7 @@ R/W Keywords available for the t_champion_spawn item:
 Verbs available for the t_champion_spawn item:	
     "ADDOBJ": Inserts an already created npc into the champion spawn (be sure you add them when the champion is activated, or they will be removed when it start).
     "DELOBJ": Removes one character from the champion counting towards the progression of itself, this does not remove the character.
-    "ADDREDCANDLE": Advances the champion by adding one red candle (red candles and levels explained bellow).
+    "ADDREDCANDLE": Advances the champion by adding one red candle (red candles and levels explained below).
     "ADDWHITECANDLE": Advances the champion by adding one white candle.
     "DELREDCANDLE": Regress one red candle (if any).
     "DELWHITECANDLE": Regress one white candle (if any) (If there are no white candles, then calls DELREDCANDLE).
@@ -2971,3 +2971,67 @@ Note: The only way the server has to know if the bankself is closed is to store 
 
 24-07-2022, Jhobean
 - Added: In the case you force some T_musical item equipable in the tiledata, you were not able to equip it because server fixed T_musical item not equipable.
+
+25-07-2022, Drk84
+- Added: ACTIONEFFECT keyword, to be used in the @Start/@SkillStart triggers, this allow to override/read the EFFECT value from the skill definition (like how many hitpoints we heal with healing skill).
+		 Currently the EFFECT field is used in the following skills:
+			DetectinHidden: The "reveal" radius, default value is skill/10 if EFFECT field or ACTIONEFFECT are not defined.
+			Healing: How many hitpoints we heal, default value is 1 if EFFECT field or ACTIONEFFECT are not defined.
+			Meditation: How much mana we recover, default value is 1 if EFFECT field or ACTIONEFFECT are not defined.
+			Tracking: Maximum tracking range, default value is skill/10 if EFFECT field or ACTIONEFFECT are not defined.
+			Crafting Skills: The amount in % of how many resources are lost if we fail to craft the item.
+		 If the EFFECT field is not defined in the SKILL block, Sphere will use the default value (but you can still override it with ACTIONEFFECT).
+		 Notes: Only positive numbers are accepted, if ACTIONEFFECT is set to a value less than 0 Sphere will use the default value of the skill.
+				ACTIONEFFECT has, by default, no effect in @UseQuick/@SkillUseQuick triggers
+- Added: ARGN2 in trigger @Start/@SkillStart, this allow to override/read the DELAY  value from the skill definition (how much time it takes for the skill to be completed).
+		
+26-07-2022, Drk84
+- Fixed: Wrong calculation in Magic Resistance check.
+
+01-08-2022, Julian
+- Added: t_talisman for talismans. These items should be equipped on layer_talisman. Remember to set the layer and add some cool functionality in the scripts :)
+- Added: t_armor_chain and t_armor_ring typedefs. You can still use t_armor for every piece of armor, but also allows you to use these new types to use specific behavior for each type of armor.
+		 *IMPORTANT* If you want to use these types, you need to add the following definitions under [TYPEDEFS] in your scripts:
+			t_armor_chain			302
+			t_armor_ring			303
+			t_talisman				304
+- Added: SPELLFLAG_FREEZEONCAST, when a player casts this spell it gets frozen, opposite to SPELLFLAG_NOFREEZEONCAST 
+		 Example use: freeze while opening a gate or recall). MAGICF_FREEZEONCAST must be disabled.
+		 *IMPORTANTE* You need to add the following definition under [DEFNAME spell_flags] in your scripts:
+			spellflag_freezeoncast	   0100000000 
+- Added: Chars TAG, TAG.SkillMod%d being %d the SKILL ID. This allows you to increase the bonus for certaing skill instead of modifying the raw base value (just like stats affect skill bonus).
+		 Example: TAG.SkillMod10 = 100 will bonus you 10.0% in Camping (SKILL 10). If you click on "show real" in the skill menu, you won't see this bonus but the real value.
+		 Note that most of the internal calculations are used taking in account stats + tag bonus.
+- Added: @SpellInterrupt, fired when a char interrupts someone's casting. Default is the interrupter, SRC is the person casting.
+		  ARGN1 = Spell being casted.
+		  ARGN2 = The disturb chance calculated: 0-1000. (Internally, this number is compared against a random of 1000)
+		  RETURN 1 cancels the interruption and allows the target (SRC) to cast.
+- Added: SKILLUPDATE %d, argument is the skill to update. Use this function with the tag described previously.
+- Added: [sphere.ini] ColorNotoGoodNPC, you can now set a custom color for good npcs (this should not affect tamed creatures).
+- Changed: ATTR_QUESTITEM to have internal functionality. These items can't be dropped, traded or looted (as described in script definition).
+- Changed: ATTR_CANNOTREPAIR to have internal functionality. These items can not be repaired.
+- Changed: Mining @Start/@SkillStart, now ACT is the Worldgem Bit we're mining from. You can modify it easily instead of using workarounds to get the UID.
+- Changed: @UserQuestArrowClick, using return 1 now prevents from showing default message when (left/right)clicking arrow.
+- Changed: Crafting skills now won't display the bounce message when successfully crafting an item, with the skill message is enough.
+
+
+10-08-2022, Drk84
+- Added: PROMPT_CLILOC for Skill Definition. This allow you to set a cliloc number in the aforementioned property and it will be used instead of the PROMPT_MSG text.
+		 Example:
+		 [SKILL 1]
+		DEFNAME=Skill_Anatomy
+		KEY=Anatomy
+		PROMPT_MSG=Whom shall I examine?
+		PROMPT_CLILOC = 500000
+
+15-08-2022, Julian
+[sphereCrypt.ini]: Added crypt key for classic client 7.0.96 and enhanced client 4.0.95, 4.0.96
+- Added: Complex maths to be able to use negative values with SQRT or POW.
+- Added: TAG.NAMELOC.HUE to use HTML colored names for items/chars with tooltips. (Issue #390)
+		 Example: TAG.NAMELOC.HUE = FF00FF // Color of the name: violet
+		 This will be internally expanded to: <basefont color=#FF00FF><name></basefont>
+- Fixed: Statues getting all wrong when updating the char, possibly don't need to be updated with addCharMove. (Issue #716)
+- Fixed: Character list was filling faster than the actual removal of the character. (Issue #753)
+- Fixed: Removing a secured container from a multi didn't work. (Issue #685)
+- Fixed: Moving multis now will add components as first priority to avoid dropping them. (Issue #821)
+- Changed: Skills with SKF_GATHER, @Start/@SkillStart, now ACT is the Worldgem Bit we're gathering from.

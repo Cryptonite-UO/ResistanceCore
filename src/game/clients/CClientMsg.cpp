@@ -1120,13 +1120,16 @@ void CClient::addChar( CChar * pChar, bool fFull )
 	ADDTOCALLSTACK("CClient::addChar");
 	// Full update about a char.
 	EXC_TRY("addChar");
+	const bool fStatue = pChar->Can(CAN_C_STATUE);
 
-    if (fFull)
-	    new PacketCharacter(this, pChar);
-    else
-        addCharMove(pChar);
+	if (fFull) {
+		new PacketCharacter(this, pChar);
+	} else {
+		if (!fStatue) {
+			addCharMove(pChar);
+		}
+	}
 
-    const bool fStatue = pChar->Can(CAN_C_STATUE);
     if (fStatue)
     {
         const int iAnim = (int)pChar->GetKeyNum("STATUE_ANIM", true);
@@ -1576,7 +1579,7 @@ uint CClient::Setup_FillCharList(Packet* pPacket, const CChar * pCharFirst)
 	return (uint)count;
 }
 
-void CClient::SetTargMode( CLIMODE_TYPE targmode, lpctstr pPrompt, int64 iTimeout )
+void CClient::SetTargMode( CLIMODE_TYPE targmode, lpctstr pPrompt, int64 iTimeout, int iCliloc )
 {
 	ADDTOCALLSTACK("CClient::SetTargMode");
 	// ??? Get rid of menu stuff if previous targ mode.
@@ -1704,8 +1707,10 @@ void CClient::SetTargMode( CLIMODE_TYPE targmode, lpctstr pPrompt, int64 iTimeou
 	}
 
 	m_Targ_Mode = targmode;
-	if ( targmode == CLIMODE_NORMAL && fSuppressCancelMessage == false )
-		addSysMessage( g_Cfg.GetDefaultMsg(DEFMSG_TARGET_CANCEL_1) );
+	if (targmode == CLIMODE_NORMAL && fSuppressCancelMessage == false)
+		addSysMessage(g_Cfg.GetDefaultMsg(DEFMSG_TARGET_CANCEL_1));
+	else if (iCliloc > 0)
+		addBarkLocalized(iCliloc, nullptr, HUE_GRAY_LIGHT, TALKMODE_SAY, FONT_BOLD, ""); //For some reason it crash if i omit the last parameter
 	else if ( pPrompt && *pPrompt ) // Check that the message is not blank.
 		addSysMessage( pPrompt );
 }
@@ -1724,15 +1729,14 @@ void CClient::addPromptConsole( CLIMODE_TYPE mode, lpctstr pPrompt, CUID context
 	new PacketAddPrompt(this, context1, context2, bUnicode);
 }
 
-void CClient::addTarget( CLIMODE_TYPE targmode, lpctstr pPrompt, bool fAllowGround, bool fCheckCrime, int64 iTimeout) // Send targetting cursor to client
+void CClient::addTarget( CLIMODE_TYPE targmode, lpctstr pPrompt, bool fAllowGround, bool fCheckCrime, int64 iTimeout, int iCliloc) // Send targetting cursor to client
 {
 	ADDTOCALLSTACK("CClient::addTarget");
 	// Send targetting cursor to client.
     // Expect XCMD_Target back.
 	// ??? will this be selective for us ? objects only or chars only ? not on the ground (statics) ?
 
-	SetTargMode( targmode, pPrompt, iTimeout);
-
+	SetTargMode( targmode, pPrompt, iTimeout, iCliloc);
 	new PacketAddTarget(this,
 						fAllowGround? PacketAddTarget::Ground : PacketAddTarget::Object,
 						targmode,
@@ -2842,7 +2846,7 @@ byte CClient::Setup_Delete( dword iSlot ) // Deletion of character
 	}
 
 	g_Log.Event(LOGM_ACCOUNTS|LOGL_EVENT, "%x:Account '%s' deleted char '%s' [0%x] on client login screen.\n", GetSocketID(), GetAccount()->GetName(), pChar->GetName(), (dword)(pChar->GetUID()));
-	pChar->Delete();
+	pChar->Delete(true);
 
 	// refill the list.
 	new PacketCharacterListUpdate(this, GetAccount()->m_uidLastChar.CharFind());
