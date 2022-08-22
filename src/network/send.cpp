@@ -292,17 +292,17 @@ void PacketObjectStatus::WriteVersionSpecific(const CClient* target, CChar* othe
 
 	if (version >= 4) // AOS attributes
 	{
-        if (fElemental)
-        {
+        //if (fElemental) //Désactivé pour UO Resistance
+        //{
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESFIRE, pBaseCCPChar));
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESCOLD, pBaseCCPChar));
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESPOISON, pBaseCCPChar));
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESENERGY, pBaseCCPChar));
-        }
-        else
-        {
-            writeInt64(0);
-        }
+        //}
+        //else
+        //{
+        //    writeInt64(0);
+        //}
         writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_LUCK, pBaseCCPChar));
 
 		const CItem* weapon = other->m_uidWeapon.ItemFind();
