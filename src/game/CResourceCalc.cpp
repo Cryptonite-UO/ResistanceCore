@@ -20,7 +20,11 @@ int CServerConfig::Calc_MaxCarryWeight( const CChar * pChar ) const
 	//  Weight in tenths of stones i should be able to carry.
 
 	ASSERT(pChar);
-	int iQty = 40 + ( pChar->Stat_GetAdjusted(STAT_STR) * 35 / 10 ) + pChar->m_ModMaxWeight;
+	int iQty=0;
+	if (pChar->IsNPC())
+		iQty = 40 + (pChar->Stat_GetAdjusted(STAT_STR) * 35 / 10) + pChar->m_ModMaxWeight;  //Originale	
+	else
+		iQty = 130 + (pChar->Stat_GetAdjusted(STAT_STR) * 20 / 100) + pChar->m_ModMaxWeight;  //Custom UO Resistance
 	if ( iQty < 0 )
 		iQty = 0;
 	if ( (m_iRacialFlags & RACIALF_HUMAN_STRONGBACK) && pChar->IsHuman())

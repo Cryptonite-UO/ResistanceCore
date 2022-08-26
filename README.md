@@ -12,6 +12,9 @@ We decide to fork this branch because some little modification are made for adap
 
 
 #### Here the list of difference between the reel sphere X:
+[Commit](https://github.com/Cryptonite-UO/CryptoCore/commit/407fd259eaa5ed43a748b5405ae7582e4b56cbc8) 2022-08-26
+1.  Custom maxweight calculation because STR of player is greater.
+
 [Commit](https://github.com/Cryptonite-UO/CryptoCore/commit/fee2a7dc9b1e3a4ca8e436547268d3492b80a217) 2022-08-21
 1.  Possibility to see resfire,rescold,respoison and resenergy on statut without elemental_engine active.
 
