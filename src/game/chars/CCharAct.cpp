@@ -3087,7 +3087,16 @@ bool CChar::Death()
 		if ( OnTrigger(CTRIG_Death, this) == TRIGRET_RET_TRUE )
 			return true;
 	}
-
+	//Dismount now. Later is may be too late and cause problems
+	if ( m_pNPC )
+	{
+		if (Skill_GetActive() == NPCACT_RIDDEN) 
+		{
+			CChar* pCRider = Horse_GetMountChar();
+			if (pCRider)
+				pCRider->Horse_UnMount();
+		}
+	}
 	// Look through memories of who I was fighting (make sure they knew they where fighting me)
 	for (CSObjContRec* pObjRec : GetIterationSafeContReverse())
 	{
@@ -4602,7 +4611,13 @@ bool CChar::OnTickPeriodic()
         {
             StatFlag_Clear(STATF_FLY);
         }
-
+	// Show returning anim for thowing weapons after throw it
+	if ((pClient->m_timeLastSkillThrowing > 0) && ((iTimeCur - pClient->m_timeLastSkillThrowing) > (2 * MSECS_PER_TENTH)))
+	{
+		pClient->m_timeLastSkillThrowing = 0;
+		if (pClient->m_pSkillThrowingTarg->IsValidUID())
+			Effect(EFFECT_BOLT, pClient->m_SkillThrowingAnimID, pClient->m_pSkillThrowingTarg, 18, 1, false, pClient->m_SkillThrowingAnimHue, pClient->m_SkillThrowingAnimRender);
+	}
         // Check targeting timeout, if set
         if ((pClient->m_Targ_Timeout > 0) && ((iTimeCur - pClient->m_Targ_Timeout) > 0) )
         {

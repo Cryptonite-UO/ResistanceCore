@@ -173,6 +173,7 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
 	"@SeeCrime",			// I saw a crime
 	"@SeeHidden",			// Can I see hidden chars?
 	"@SeeSnoop",
+	"@SendPaperdoll",		//Server send paperdollpacket
 
 	// SKTRIG_QTY
 	"@SkillAbort",
@@ -4508,6 +4509,9 @@ bool CChar::r_Verb( CScript &s, CTextConsole * pSrc ) // Execute command from sc
 			break;
 		case CHV_UNEQUIP:	// uid
 			return ItemBounce( CUID::ItemFindFromUID(s.GetArgVal()) );
+		case CHV_WAKE:
+			Wake();
+			break;
 		case CHV_WHERE:
 			if ( pCharSrc )
 			{

@@ -284,7 +284,11 @@ void CChar::OnHarmedBy( CChar * pCharSrc )
 
 	bool fFightActive = Fight_IsActive();
 	Memory_AddObjTypes(pCharSrc, MEMORY_HARMEDBY);
-
+	if ( m_pNPC)
+	{
+		if (Skill_GetActive() == NPCACT_RIDDEN) //prevent action 111 to be changed.
+			return;
+	}
 	if (fFightActive && m_Fight_Targ_UID.CharFind())
 	{
 		// In war mode already
@@ -852,13 +856,16 @@ effect_bounce:
 
 		if ( iDisturbChance > Calc_GetRandVal(1000) )
 		{
+			bool bInterrupt = true;
 			if (IsTrigUsed(TRIGGER_SPELLINTERRUPT))
 			{
 				CScriptTriggerArgs ArgsInterrupt(m_atMagery.m_iSpell, iDisturbChance);
-				if (pSrc->OnTrigger(CTRIG_SpellInterrupt, this, &ArgsInterrupt) != TRIGRET_RET_TRUE)
-					Skill_Fail();
+				if (pSrc->OnTrigger(CTRIG_SpellInterrupt, this, &ArgsInterrupt) == TRIGRET_RET_TRUE)
+					bInterrupt = false;
 			}
 
+			if (bInterrupt)
+				Skill_Fail();
 		}
 	}
 
