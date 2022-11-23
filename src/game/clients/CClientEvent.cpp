@@ -2631,11 +2631,11 @@ void CClient::Event_AOSPopupMenuRequest( dword uid ) //construct packet after a 
 					m_pPopupPacket->addOption( (word)(POPUP_TRAINSKILL + i), 6000 + i, wFlag, 0xFFFF);
 				}
 
-				if (pChar->m_pNPC->m_Brain == NPCBRAIN_STABLE)
-				{
-					m_pPopupPacket->addOption(POPUP_STABLESTABLE, 6126, POPUPFLAG_COLOR, 0xFFFF);
-					m_pPopupPacket->addOption(POPUP_STABLERETRIEVE, 6127, POPUPFLAG_COLOR, 0xFFFF);
-				}
+				//if (pChar->m_pNPC->m_Brain == NPCBRAIN_STABLE)
+				//{
+				//	m_pPopupPacket->addOption(POPUP_STABLESTABLE, 6126, POPUPFLAG_COLOR, 0xFFFF);
+				//	m_pPopupPacket->addOption(POPUP_STABLERETRIEVE, 6127, POPUPFLAG_COLOR, 0xFFFF);
+				//}
 			}
 			else
 			{
