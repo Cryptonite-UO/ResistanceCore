@@ -18,9 +18,6 @@ We decide to fork this branch because some little modification are made for adap
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/407fd259eaa5ed43a748b5405ae7582e4b56cbc8) 2022-08-26
 1.  Custom maxweight calculation because STR of player is greater.
 
-[Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/fee2a7dc9b1e3a4ca8e436547268d3492b80a217) 2022-08-21
-1.  Possibility to see resfire,rescold,respoison and resenergy on statut without elemental_engine active.
-
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/940a70dfbf07d5d713b1b8afff5738ad8af95b00) 2021-01-10
 1.  Insubtantial flags is use on some class (CL) you can now pass trought him. (partial Revert of commit of december)
 
