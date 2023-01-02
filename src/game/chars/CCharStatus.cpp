@@ -93,7 +93,7 @@ bool CChar::CanUnderstandGhost() const
 
 bool CChar::IsPlayableCharacter() const
 {
-	return( IsHuman() || IsElf() || IsGargoyle() );
+	return( IsHuman() || IsElf() || IsGargoyle() || IsVampire());
 }
 
 bool CChar::IsHuman() const
@@ -109,6 +109,11 @@ bool CChar::IsElf() const
 bool CChar::IsGargoyle() const
 {
 	return( CCharBase::IsGargoyleID( GetDispID()) );
+}
+
+bool CChar::IsVampire() const
+{
+	return(CCharBase::IsVampireID(GetDispID()));
 }
 
 CItemContainer * CChar::GetPack() const
@@ -593,6 +598,8 @@ lpctstr CChar::GetPronoun() const
 		case CREID_ELFGHOSTMAN:
 		case CREID_GARGMAN:
 		case CREID_GARGGHOSTMAN:
+		case CREID_VAMPMAN:
+		case CREID_VAMPGHOSTMAN:
 			return g_Cfg.GetDefaultMsg(DEFMSG_PRONOUN_HE);
 		case CREID_WOMAN:
 		case CREID_GHOSTWOMAN:
@@ -600,6 +607,8 @@ lpctstr CChar::GetPronoun() const
 		case CREID_ELFGHOSTWOMAN:
 		case CREID_GARGWOMAN:
 		case CREID_GARGGHOSTWOMAN:
+		case CREID_VAMPWOMAN:
+		case CREID_VAMPGHOSTWOMAN:
 			return g_Cfg.GetDefaultMsg(DEFMSG_PRONOUN_SHE);
 		default:
 			return g_Cfg.GetDefaultMsg(DEFMSG_PRONOUN_IT);
@@ -617,6 +626,8 @@ lpctstr CChar::GetPossessPronoun() const
 		case CREID_ELFGHOSTMAN:
 		case CREID_GARGMAN:
 		case CREID_GARGGHOSTMAN:
+		case CREID_VAMPMAN:
+		case CREID_VAMPGHOSTMAN:
 			return g_Cfg.GetDefaultMsg(DEFMSG_POSSESSPRONOUN_HIS);
 		case CREID_WOMAN:
 		case CREID_GHOSTWOMAN:
@@ -624,6 +635,8 @@ lpctstr CChar::GetPossessPronoun() const
 		case CREID_ELFGHOSTWOMAN:
 		case CREID_GARGWOMAN:
 		case CREID_GARGGHOSTWOMAN:
+		case CREID_VAMPWOMAN:
+		case CREID_VAMPGHOSTWOMAN:
 			return g_Cfg.GetDefaultMsg(DEFMSG_POSSESSPRONOUN_HER);
 		default:
 			return g_Cfg.GetDefaultMsg(DEFMSG_POSSESSPRONOUN_ITS);
@@ -1779,7 +1792,7 @@ bool CChar::IsMountCapable() const
 
 	if ( IsStatFlag(STATF_DEAD) )
 		return false;
-	if ( IsHuman() || IsElf() || (GetCanFlags() & CAN_C_MOUNT) )
+	if ( IsHuman() || IsElf() || IsVampire() || (GetCanFlags() & CAN_C_MOUNT) )
 		return true;
 
 	return false;

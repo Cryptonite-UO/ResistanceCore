@@ -390,6 +390,11 @@ enum CREID_TYPE	// enum the creature animations. (dont allow any others !) also 
 	CREID_GARGGHOSTMAN		= 0x2B6, // 694
 	CREID_GARGGHOSTWOMAN	= 0x2B7,
 
+	CREID_VAMPMAN = 0x2E8, // 744 decimal
+	CREID_VAMPWOMAN = 0x2E9,
+	CREID_VAMPGHOSTMAN = 0x2F0, // Ghost robe is not automatic !
+	CREID_VAMPGHOSTWOMAN = 0x2F1,
+
 	//..
 	
 	CREID_MAN_PALADIN		= 0x8D,
@@ -438,8 +443,6 @@ enum CREID_TYPE	// enum the creature animations. (dont allow any others !) also 
 	CREID_WOLF_LEATHER			= 0x2E3,
 	CREID_DREAM_WRAITH			= 0x2E4,
 	CREID_SLASHER_VEILS			= 0x2E5,
-	CREID_VAMPIRE				= 0x2E8,
-	CREID_VAMPIRE_FEMALE		= 0x2E9,
 	CREID_GARG_ENSLAVED			= 0x2F1,
 
 	CREID_LICH_PRIMEVAL			= 0x33e,

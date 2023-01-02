@@ -3829,6 +3829,8 @@ CResourceID CServerConfig::ResourceGetNewID( RES_TYPE restype, lpctstr pszName, 
 				wPage = (word)RACETYPE_ELF;
 			else if ( ! strcmpi( pArg2, "GARG" ))
                 wPage = (word)RACETYPE_GARGOYLE;
+			else if (!strcmpi(pArg2, "VAMP"))
+				wPage = (word)RACETYPE_VAMPIRE;
 			else if (*pArg2)
 			{
 				g_Log.EventWarn("Unrecognized race for a NEWBIE section. Defaulting to human.\n");

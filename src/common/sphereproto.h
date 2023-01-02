@@ -654,7 +654,8 @@ enum RACE_TYPE		// character race, used in new character creation (0x8D) and sta
 	RACETYPE_UNDEFINED = 0x00,	// none of the below
 	RACETYPE_HUMAN = 0x01,		// human
 	RACETYPE_ELF = 0x02,		// elf
-	RACETYPE_GARGOYLE = 0x03	// gargoyle
+	RACETYPE_GARGOYLE = 0x03,	// gargoyle
+	RACETYPE_VAMPIRE = 0x04		// Vampire
 };
 
 

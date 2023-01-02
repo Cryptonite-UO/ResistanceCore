@@ -1142,6 +1142,8 @@ void CChar::Spell_Effect_Add( CItem * pSpell )
 					SetName(pCharDef->IsFemale() ? "#NAMES_ELF_FEMALE" : "#NAMES_ELF_MALE");
 				else if (IsGargoyle())
 					SetName(pCharDef->IsFemale() ? "#NAMES_GARGOYLE_FEMALE" : "#NAMES_GARGOYLE_MALE");
+				else if (IsVampire())
+					SetName(pCharDef->IsFemale() ? "#NAMES_HUMANFEMALE" : "#NAMES_HUMANMALE");
 
 				if (IsPlayableCharacter())
 					SetHue((HUE_TYPE)(Calc_GetRandVal2(HUE_SKIN_LOW, HUE_SKIN_HIGH)) | HUE_UNDERWEAR);
@@ -3898,6 +3900,8 @@ bool CChar::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 					SetID( pCharDef->IsFemale() ? CREID_ELFMAN : CREID_ELFWOMAN );
 				else if ( IsGargoyle() )
 					SetID( pCharDef->IsFemale() ? CREID_GARGMAN : CREID_GARGWOMAN );
+				else if (IsVampire())
+					SetID(pCharDef->IsFemale() ? CREID_VAMPMAN : CREID_VAMPWOMAN);
 				_iPrev_id = GetID();
 			}
 			break;

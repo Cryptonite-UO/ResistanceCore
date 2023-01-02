@@ -1231,7 +1231,7 @@ void CClient::Event_VendorBuy(CChar* pVendor, const VendorItem* items, uint uiIt
             }
             case IT_BEARD:
             {
-                if ((m_pChar->GetDispID() != CREID_MAN) && (m_pChar->GetDispID() != CREID_GARGMAN) && !m_pChar->IsPriv(PRIV_GM))
+                if ((m_pChar->GetDispID() != CREID_MAN) && (m_pChar->GetDispID() != CREID_GARGMAN) && (m_pChar->GetDispID() != CREID_VAMPMAN) && !m_pChar->IsPriv(PRIV_GM))
                 {
                     pVendor->Speak(g_Cfg.GetDefaultMsg(DEFMSG_NPC_VENDOR_CANTBUY));
                     return;

@@ -108,6 +108,7 @@ public:
 	static bool IsHumanID( CREID_TYPE id, bool fCheckGhost = false ) noexcept;
 	static bool IsElfID( CREID_TYPE id, bool fCheckGhost = false) noexcept;
 	static bool IsGargoyleID( CREID_TYPE id, bool fCheckGhost = false ) noexcept;
+	static bool IsVampireID(CREID_TYPE id, bool fCheckGhost = false) noexcept;
 
 	bool IsFemale() const noexcept
 	{
