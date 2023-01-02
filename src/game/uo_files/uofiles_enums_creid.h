@@ -288,7 +288,6 @@ enum CREID_TYPE	// enum the creature animations. (dont allow any others !) also 
 	CREID_BIRD_CROW			= 0x11B,
 	CREID_STEED_ARMORED		= 0x11C,
 	CREID_REAPER_REDUX		= 0x11D,
-	CREID_REVENANT			= 0x2EE,
 	CREID_HORRIFIC_BEAST	= 0x2EA,	// moloch duplicate?
 	CREID_REAPER_FORM		= 0xE6,
 	CREID_SPECTRAL_ARMOR	= 0x27D,
@@ -392,8 +391,8 @@ enum CREID_TYPE	// enum the creature animations. (dont allow any others !) also 
 
 	CREID_VAMPMAN = 0x2E8, // 744 decimal
 	CREID_VAMPWOMAN = 0x2E9,
-	CREID_VAMPGHOSTMAN = 0x2F0, // Ghost robe is not automatic !
-	CREID_VAMPGHOSTWOMAN = 0x2F1,
+	CREID_VAMPGHOSTMAN = 0x2EE, // Ghost robe is not automatic !
+	CREID_VAMPGHOSTWOMAN = 0x2EF,
 
 	//..
 	

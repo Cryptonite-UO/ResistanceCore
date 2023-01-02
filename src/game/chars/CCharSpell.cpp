@@ -2521,9 +2521,9 @@ CChar * CChar::Spell_Summon_Try(SPELL_TYPE spell, CPointMap ptTarg, CREID_TYPE i
 		case SPELL_Water_Elem:		
 			m_atMagery.m_iSummonID = CREID_WATER_ELEM;	
 			break;
-		case SPELL_Vengeful_Spirit:	
-			m_atMagery.m_iSummonID = CREID_REVENANT;		
-			break;
+//		case SPELL_Vengeful_Spirit:	
+//			m_atMagery.m_iSummonID = CREID_REVENANT;		
+//			break;
 		case SPELL_Rising_Colossus:
 			m_atMagery.m_iSummonID = CREID_RISING_COLOSSUS;	
 			break;
