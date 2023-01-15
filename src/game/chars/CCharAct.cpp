@@ -3222,6 +3222,10 @@ bool CChar::Death()
 			case CREID_ELFWOMAN:
 				pszGhostName = ( fFemale ? "c_elf_ghost_woman" : "c_elf_ghost_man" );
 				break;
+			case CREID_VAMPMAN:
+			case CREID_VAMPWOMAN:
+				pszGhostName = (fFemale ? "c_vamp_ghost_woman" : "c_vamp_ghost_woman");
+				break;
 			default:
 				pszGhostName = ( fFemale ? "c_ghost_woman" : "c_ghost_man" );
 				break;
