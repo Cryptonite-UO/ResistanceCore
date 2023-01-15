@@ -12,6 +12,10 @@ We decide to fork this branch because some little modification are made for adap
 
 
 #### Here the list of difference between the reel sphere X:
+[Commit1](https://github.com/Cryptonite-UO/ResistanceCore/commit/1b61df4927256bd3a0ffccc8a950fd98e259357b) [Commit2](https://github.com/Cryptonite-UO/ResistanceCore/commit/776269615d6474fd4d637040885972c5f45ee81d) 2023-01-15
+1.  Now c_vampire_male and c_vampire_female can be use for a 4th race in the game. Using same anim patern than human.
+2.  Str now contribute in dammage with 1% of value instead of 10%. 
+
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/445181024855e3733d3c79f8f805ec1e46759751) 2022-11-23
 1.  Animal trainer do not offer anymore the choice to stable or retrieve pet because it's done on script side.
 
