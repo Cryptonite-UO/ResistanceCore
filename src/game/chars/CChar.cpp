@@ -45,6 +45,7 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
 	"@charContextMenuRequest",
 	"@charContextMenuSelect",
 	"@charDClick",
+	"@charShove",
 	"@charTradeAccepted",
 
 	"@Click",				// I got clicked on by someone.
@@ -157,8 +158,8 @@ lpctstr const CChar::sm_szTrigName[CTRIG_QTY+1] =	// static
 	"@PartyLeave",
 	"@PartyRemove",			//I have ben removed from the party by SRC
 
-    "@PayGold",             // I'm going to give out money for a service (Skill Training, hiring...).
-	"@PersonalSpace",		// +i just got stepped on.
+	"@PayGold",             // I'm going to give out money for a service (Skill Training, hiring...).
+	"@PersonalSpace",		// +i just got stepped on by other char.
 	"@PetDesert",			// I just went wild again
 	"@Profile",				// someone hit the profile button for me.
 	"@ReceiveItem",			// I was just handed an item (Not yet checked if i want it)
@@ -2922,8 +2923,18 @@ do_default:
 			break;
 		case CHC_DAMADJUSTED:
 		{
-			CItem *pWeapon = m_uidWeapon.ItemFind();
-			sVal.Format("%d,%d", Fight_CalcDamage(pWeapon, true, false), Fight_CalcDamage(pWeapon, true, true));
+			ptcKey += 11;
+			CItem* pWeapon = m_uidWeapon.ItemFind();
+			if (*ptcKey == '.')
+			{
+				SKIP_SEPARATORS(ptcKey);
+				if (!strnicmp(ptcKey, "LO", 2))
+					sVal.Format("%d", Fight_CalcDamage(pWeapon, true, false));
+				else if (!strnicmp(ptcKey, "HI", 2))
+					sVal.Format("%d", Fight_CalcDamage(pWeapon, true, true));
+			}
+			else
+				sVal.Format("%d,%d", Fight_CalcDamage(pWeapon, true, false), Fight_CalcDamage(pWeapon, true, true));
 		}
 			break;
 		case CHC_DIR:
