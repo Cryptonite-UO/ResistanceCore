@@ -859,8 +859,16 @@ void CChar::NPC_PetRelease()
 		return;
 	}
 
+	if (Skill_GetActive() == NPCACT_RIDDEN)
+	{
+		CChar* pCharRider = Horse_GetMountChar();
+		if (pCharRider)
+			pCharRider->Horse_UnMount();
+	}
+
 	SoundChar(CRESND_NOTICE);
-	Skill_Start(SKILL_NONE);
+	if (Skill_GetActive() != NPCACT_RIDDEN)
+		Skill_Start(SKILL_NONE);
 	NPC_PetClearOwners();
 	UpdatePropertyFlag();
 }

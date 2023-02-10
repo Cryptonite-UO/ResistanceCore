@@ -20,6 +20,7 @@ class CSector;
 class CObjBaseTemplate;
 class CObjBase;
 class CItemStone;
+class CItemMulti;
 
 
 enum IMPFLAGS_TYPE	// IMPORT and EXPORT flags.
@@ -83,6 +84,7 @@ public:
 	void AddIdleObj(CSObjContRec* obj);
 	void ScheduleObjDeletion(CSObjContRec* obj);
 	void ScheduleSpecialObjDeletion(CSObjListRec* obj);
+	NODISCARD bool IsObjIdle(const CSObjContRec* obj) const noexcept;
 	NODISCARD bool IsScheduledObjDeletion(const CSObjContRec* obj) const noexcept;
 	NODISCARD bool IsScheduledSpecialObjDeletion(const CSObjListRec* obj) const noexcept;
 
@@ -164,6 +166,7 @@ public:
 	static lpctstr const sm_szLoadKeys[];
 	CSPtrTypeArray <CItemTypeDef *> m_TileTypes;
 
+	CSPtrTypeArray<CItemMulti*> m_Multis;	//
 
 private:
 	bool LoadFile( lpctstr pszName, bool fError = true );

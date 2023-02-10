@@ -83,10 +83,13 @@ protected:
     void DeleteCleanup(bool fForce);    // not virtual!
 
 public:
-    inline bool IsBeingDeleted() const noexcept
+    inline bool _IsBeingDeleted() const noexcept
     {
         return _fDeleting;
     }
+
+protected:  virtual bool _IsIdle() const;
+public:     virtual bool  IsIdle() const;
 
 protected:  virtual bool _IsDeleted() const override;
 public:     virtual bool  IsDeleted() const override;
@@ -897,8 +900,8 @@ protected:
      */
     virtual void OnTickStatusUpdate();
 
-    virtual bool _CanTick() const override;
-    //virtual bool  _CanTick() const override;   // Not needed: the right virtual is called by CTimedObj::_CanTick.
+    virtual bool _CanTick(bool fParentGoingToSleep = false) const override;
+    //virtual bool  CanTick(bool fParentGoingToSleep = false) const override;   // Not needed: the right virtual is called by CTimedObj::_CanTick.
 
 public:
     std::vector<std::unique_ptr<CClientTooltip>> m_TooltipData; // Storage for tooltip data while in trigger
@@ -1012,6 +1015,7 @@ enum ITRIG_TYPE
 {
 	// XTRIG_UNKNOWN = some named trigger not on this list.
     ITRIG_ADDREDCANDLE = 1,
+    ITRIG_ADDOBJ,				// For t_spawn when obj is add to list
     ITRIG_ADDWHITECANDLE,
 	ITRIG_AfterClick,
 	ITRIG_Buy,
@@ -1024,6 +1028,7 @@ enum ITRIG_TYPE
 	ITRIG_Create,               // Item is being created.
 	ITRIG_DAMAGE,               // I have been damaged in some way.
 	ITRIG_DCLICK,               // I have been dclicked.
+    ITRIG_DELOBJ,				// For t_spawn when obj is remove from list
 	ITRIG_DESTROY,              //+I am nearly destroyed.
 	ITRIG_DROPON_CHAR,          // I have been dropped on this char.
 	ITRIG_DROPON_GROUND,        // I have been dropped on the ground here.
@@ -1043,6 +1048,8 @@ enum ITRIG_TYPE
     ITRIG_RegionEnter,          // Ship entering a new region.
     ITRIG_RegionLeave,          // Ship leaving the region.
 	ITRIG_Sell,                 // I'm being sold.
+	ITRIG_Ship_Move,            // I'm a ship and i'm move around.
+    ITRIG_Ship_Stop,            // I'm a ship and i'm stop around.
 	ITRIG_Ship_Turn,            // I'm a ship and i'm turning around.
     ITRIG_Smelt,                // I'm going to be smelt.
     ITRIG_Spawn,                // This spawn is going to generate something.
@@ -1083,6 +1090,7 @@ enum CTRIG_TYPE : short
 	CTRIG_charContextMenuRequest,// Calling this trigger over other char.
 	CTRIG_charContextMenuSelect,// Calling this trigger over other char.
 	CTRIG_charDClick,           // Calling this trigger over other char.
+	CTRIG_charShove,           // i just stepped on another char.
 	CTRIG_charTradeAccepted,    // Calling this trigger over other char.
 
 	CTRIG_Click,            // I got clicked on by someone.
@@ -1174,6 +1182,7 @@ enum CTRIG_TYPE : short
 	CTRIG_NotoSend,     // sending notoriety.
 
 	CTRIG_NPCAcceptItem,    // (NPC only) i've been given an item i like (according to DESIRES).
+    CTRIG_NPCActCast,       // (NPC only) I decided to cast a spell.
 	CTRIG_NPCActFight,      // (NPC only) I have to fight against my target.
 	CTRIG_NPCActFollow,     // (NPC only) decided to follow someone.
 	CTRIG_NPCAction,        // (NPC only) doing some action.
@@ -1195,7 +1204,7 @@ enum CTRIG_TYPE : short
 	CTRIG_PartyRemove,  // I have ben removed from the party by SRC.
 
     CTRIG_PayGold,          // I'm going to give out money for a service (Skill Training, hiring...).
-	CTRIG_PersonalSpace,	// i just got stepped on.
+	CTRIG_PersonalSpace,	// i just got stepped on by other char.
 	CTRIG_PetDesert,        // I'm deserting from my owner ( starving, being hit by him ...).
 	CTRIG_Profile,			// someone hit the profile button for me.
 	CTRIG_ReceiveItem,		// I was just handed an item (Not yet checked if i want it).
@@ -1211,6 +1220,7 @@ enum CTRIG_TYPE : short
 	CTRIG_SeeCrime,     // I am seeing a crime.
 	CTRIG_SeeHidden,    // I'm about to see a hidden char.
 	CTRIG_SeeSnoop,     // I see someone Snooping something.
+	CTRIG_SendPaperdoll,// Server send my paperdoll info to someone
 
 	// SKTRIG_QTY
 	CTRIG_SkillAbort,       // SKTRIG_ABORT

@@ -80,7 +80,8 @@ enum OF_TYPE
     OF_StatAllowValOverMax          = 0x0100000,    // Allow stats value above their maximum value (i.e. allow hits value > maxhits).
     OF_GuardOutsideGuardedArea      = 0x0200000,    // Allow guards to walk in unguarded areas, instead of being teleported back to their home point.
     OF_OWNoDropCarriedItem          = 0x0400000,     // When overweighted, don't drop items on ground when moving them (or using BOUNCE) and checking if you can carry them.
-    OF_AllowContainerInsideContainer = 0x0800000    //Allow containers inside other containers even if they are heavier than the container being inserted into.
+    OF_AllowContainerInsideContainer = 0x0800000,    //Allow containers inside other containers even if they are heavier than the container being inserted into.
+    OF_VendorStockLimit              = 0x01000000   // Limits how much of an item a vendor can buy using the value set in the TEMPLATE. Format: BUY=ID,AMOUNT
 };
 
 /**
@@ -283,6 +284,7 @@ public:
     bool m_fManaLossFail;       // Lose mana when spell casting failed.
     int  m_fManaLossPercent;    // Percent of mana loss when missing a cast
     bool m_fNPCCanFizzleOnHit;  // NPCs can fizzle the spell when hit in combat.
+    int m_iNPCHealthreshold;    // Minimum value in percent at which the NPCs will start to heal themselves with a spell.
     bool m_fReagentLossAbort;   // Lose reagents when spell casting abort.
 	bool m_fReagentLossFail;    // Lose reagents when spell casting failed.
 	int  m_iMagicUnlockDoor;    // 1 in N chance of magic unlock working on doors -- 0 means never.
@@ -347,8 +349,9 @@ public:
 	int  m_iSkillPracticeMax;		// max skill level a player can practice on dummies/targets upto.
 	bool m_iPacketDeathAnimation;	// packet 02c
     bool m_fDisplayPercentAr;       // Display the ARMOR value in the tooltip as the % 
-
-	// Flags for controlling pvp/pvm behaviour of players
+    bool m_fDisplayElementalResistance; //Display the Elemental and MAxElemental Resistances on the paperdoll and tooltips (RESFIRE/RESCOLD/RESENERGY/RESPOISON) even if combat flag Elemental Engine is disabled.
+	
+    // Flags for controlling pvp/pvm behaviour of players
 	uint m_iCombatFlags;   // combat flags
 	uint m_iMagicFlags;    // magic flags
 	uint m_iRacialFlags;   // racial traits flags
@@ -546,7 +549,8 @@ public:
 
 	int64   m_iRegenRate[STAT_QTY]; // Regen's delay for each stat (in seconds in the ini, then converted to msecs).
     int64   _iItemHitpointsUpdate;  // Update period for CCItemDamageable (in seconds in the ini, then converted to msecs).
-	int64   _iTimerCall;            // Amount of minutes (converted to milliseconds internally) to call f_onserver_timer (0 disables this, default).
+	int64   _iTimerCall;            // Amount of time (converted to milliseconds internally) to call f_onserver_timer (0 disables this, default).
+    bool    _iTimerCallUnit;        // TRUE mean TimerCall is in second and FALSE mean it's in minute
 	bool    m_bAllowLightOverride;  // Allow manual sector light override?
 	CSString m_sZeroPoint;          // Zero point for sextant coordinates counting. Comment this line out if you are not using ML-sized maps.
 	bool    m_fAllowBuySellAgent;   // Allow rapid Buy/Sell through Buy/Sell agent.

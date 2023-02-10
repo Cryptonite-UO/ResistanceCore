@@ -284,7 +284,11 @@ void CChar::OnHarmedBy( CChar * pCharSrc )
 
 	bool fFightActive = Fight_IsActive();
 	Memory_AddObjTypes(pCharSrc, MEMORY_HARMEDBY);
-
+	if ( m_pNPC)
+	{
+		if (Skill_GetActive() == NPCACT_RIDDEN) //prevent action 111 to be changed.
+			return;
+	}
 	if (fFightActive && m_Fight_Targ_UID.CharFind())
 	{
 		// In war mode already
@@ -764,13 +768,15 @@ effect_bounce:
     if (IsSetCombatFlags(COMBAT_SLAYER))
     {
 		CItem *pWeapon = nullptr;
-		if (uType & DAMAGE_MAGIC)	// If the damage is magic
+		if (uType & DAMAGE_MAGIC)	// If the damage is magic, we are probably using a spell or a weapon that causes also magical damage.
 		{
-			pWeapon = pSrc->LayerFind(LAYER_HAND1);	// Search for an equipped spellbook
-			if ((pWeapon) && (!pWeapon->IsTypeSpellbook()))	// If there is nothing on the hand, or the item is not a spellbook.
-			{
+			pWeapon = pSrc->GetSpellbookLayer();	// Search for an equipped spellbook
+			if ( !pWeapon ) //No spellbook, so it's a weapon causing magical damage.
 				pWeapon = pSrc->m_uidWeapon.ItemFind();	// then force a weapon find.
-			}
+		}
+		else //Other types of damage.
+		{
+			pWeapon = pSrc->m_uidWeapon.ItemFind();	//  force a weapon find.
 		}
         int iDmgBonus = 1;
         const CCFaction *pSlayer = nullptr;
@@ -852,13 +858,16 @@ effect_bounce:
 
 		if ( iDisturbChance > Calc_GetRandVal(1000) )
 		{
+			bool bInterrupt = true;
 			if (IsTrigUsed(TRIGGER_SPELLINTERRUPT))
 			{
 				CScriptTriggerArgs ArgsInterrupt(m_atMagery.m_iSpell, iDisturbChance);
-				if (pSrc->OnTrigger(CTRIG_SpellInterrupt, this, &ArgsInterrupt) != TRIGRET_RET_TRUE)
-					Skill_Fail();
+				if (pSrc->OnTrigger(CTRIG_SpellInterrupt, this, &ArgsInterrupt) == TRIGRET_RET_TRUE)
+					bInterrupt = false;
 			}
 
+			if (bInterrupt)
+				Skill_Fail();
 		}
 	}
 
@@ -1159,13 +1168,13 @@ int CChar::Fight_CalcDamage( const CItem * pWeapon, bool bNoRandom, bool bGetMax
 						iDmgBonus += 10;
 				}
 
-				if ( Stat_GetAdjusted(STAT_STR) >= 100 )
-					iDmgBonus += 5;
-
 				if ( !iStatBonus )
 					iStatBonus = STAT_STR;
 				if ( !iStatBonusPercent )
 					iStatBonusPercent = 30;
+				if (Stat_GetAdjusted(iStatBonus) >= 100)
+					iDmgBonus += 5;
+
 				iDmgBonus += Stat_GetAdjusted(iStatBonus) * iStatBonusPercent / 100;
 				break;
 			}
@@ -1197,13 +1206,14 @@ void CChar::Fight_ClearAll()
 		m_Fight_Targ_UID.InitUID();
 	}
 	
-    	Attacker_Clear();
+    Attacker_Clear();
 	m_atFight.m_iWarSwingState = WAR_SWING_EQUIPPING;
 	m_atFight.m_iRecoilDelay = 0;
 	m_atFight.m_iSwingAnimationDelay = 0;
 	m_atFight.m_iSwingAnimation = 0;
 	m_atFight.m_iSwingIgnoreLastHitTag = 0;
 
+	SetKeyStr("LastHit", "");
 	StatFlag_Clear(STATF_WAR);
 	UpdateModeFlag();
 }
@@ -1384,7 +1394,7 @@ void CChar::Fight_HitTry()
             if (iIH_LastHitTag_InstaHit > iIH_LastHitTag_FullHit_Prev)
             {
                 fIH_LastHitTag_Newer = true;
-                if (fIH_ShouldInstaHit)
+                if (fIH_ShouldInstaHit && !iIH_LastHitTag_FullHit_Prev)
                 {
                     // First hit with FirstHit_Instant -> no recoil, only the minimum swing animation delay
                     m_atFight.m_iSwingIgnoreLastHitTag = 1;
@@ -1823,7 +1833,15 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 		UpdateAnimate((ANIM_TYPE)m_atFight.m_iSwingAnimation, false, false, iSwingAnimationDelayInSeconds );
 
         // Now that i have waited the recoil time, start the hit animation and wait for it to end
-        _SetTimeoutD(m_atFight.m_iSwingAnimationDelay);
+		/*
+		// If COMBAT_ANIM_SMOOTH is set we can't set m_iSwingAnimationDelay as the timeout value because otherwise 
+		there will be a delay between the end of the animation and the damage display. This is very noticeable when
+		the m_iSwingAnimationDelay property is near the next digit. (If m_iSwingAnimationDelay is 3.8 the iSwingAnimationDelayInSeconds will be 3 and the damage will be displayed around a 0.8 second later!
+		*/
+		if (!IsSetCombatFlags(COMBAT_ANIM_HIT_SMOOTH))
+			_SetTimeoutD(m_atFight.m_iSwingAnimationDelay);
+		else 
+			_SetTimeoutD(iSwingAnimationDelayInSeconds * TENTHS_PER_SEC);
 		return WAR_SWING_SWINGING;
 	}
 

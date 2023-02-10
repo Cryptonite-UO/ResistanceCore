@@ -457,14 +457,15 @@ LAYER_TYPE CChar::CanEquipLayer( CItem *pItem, LAYER_TYPE layer, CChar *pCharMsg
 	return layer;
 }
 
-int CChar::GetHealthPercent() const
+int CChar::GetStatPercent(STAT_TYPE i) const
 {
-	ADDTOCALLSTACK("CChar::GetHealthPercent");
-	ushort str = Stat_GetAdjusted(STAT_STR);
-	if ( !str )
+	ADDTOCALLSTACK("CChar::GetStatPercent");
+	ushort maxval = Stat_GetMaxAdjusted(i);
+	if (!maxval)
 		return 0;
-	return IMulDiv(Stat_GetVal(STAT_STR), 100, str);
+	return IMulDiv(Stat_GetVal(i), 100, maxval);
 }
+
 
 const CObjBaseTemplate* CChar::GetTopLevelObj() const
 {
@@ -738,9 +739,9 @@ CItem *CChar::GetSpellbook(SPELL_TYPE iSpell) const	// Retrieves a spellbook fro
 	ADDTOCALLSTACK("CChar::GetSpellbook");
 	// Search for suitable book in hands first
 	CItem* pReturn = nullptr;
-	CItem* pItem = LayerFind(LAYER_HAND1);    // Let's do first a direct search for any book in hands.
-	if (pItem && pItem->IsTypeSpellbook() )
-    {
+	CItem* pItem = GetSpellbookLayer();
+	if ( pItem )
+	{
 		const CItemBase *pItemDef = pItem->Item_GetDef();
 		const SPELL_TYPE min = (SPELL_TYPE)pItemDef->m_ttSpellbook.m_iOffset;
 		const SPELL_TYPE max = (SPELL_TYPE)(pItemDef->m_ttSpellbook.m_iOffset + pItemDef->m_ttSpellbook.m_iMaxSpells);
@@ -752,8 +753,7 @@ CItem *CChar::GetSpellbook(SPELL_TYPE iSpell) const	// Retrieves a spellbook fro
 		    	pReturn = pItem;
 		}
     }
-
-	// No book found or found one which doesn't have the spell I am going to cast, then let's search in the top level of the backpack.
+	// No book found in layer 1 or 2 or found one which doesn't have the spell I am going to cast, then let's search in the top level of the backpack.
 	CItemContainer *pPack = GetPack();
 	if ( pPack )
 	{
@@ -776,6 +776,17 @@ CItem *CChar::GetSpellbook(SPELL_TYPE iSpell) const	// Retrieves a spellbook fro
 		}
 	}
 	return pReturn;
+}
+
+CItem * CChar::GetSpellbookLayer() const //Retrieve a Spellbook from Layer 1 or Layer 2
+{
+	CItem* pItem = LayerFind(LAYER_HAND1);    // Let's do first a direct search for any book in hand layer 1.
+	if (pItem && pItem->IsTypeSpellbook())
+		return pItem;
+	pItem = LayerFind(LAYER_HAND2); // on custom freeshard, it's possible to have book on layer 2
+	if (pItem && pItem->IsTypeSpellbook())
+		return pItem;
+	return nullptr;
 }
 
 short CChar::Food_GetLevelPercent() const
@@ -1326,7 +1337,7 @@ bool CChar::CanTouch( const CObjBase *pObj ) const
             if (pWeapon)
             {
                 IT_TYPE iType = pWeapon->GetType();
-                if ((iType == IT_WEAPON_BOW) || (iType == IT_WEAPON_XBOW))
+                if ((iType == IT_WEAPON_BOW) || (iType == IT_WEAPON_XBOW) || (iType == IT_WEAPON_THROWING))
                     return (iDist <= pWeapon->GetRangeH());
             }
             break;

@@ -292,7 +292,7 @@ void PacketObjectStatus::WriteVersionSpecific(const CClient* target, CChar* othe
 
 	if (version >= 4) // AOS attributes
 	{
-        if (fElemental)
+        if (fElemental || g_Cfg.m_fDisplayElementalResistance)
         {
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESFIRE, pBaseCCPChar));
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESCOLD, pBaseCCPChar));
@@ -314,7 +314,7 @@ void PacketObjectStatus::WriteVersionSpecific(const CClient* target, CChar* othe
 
 	if (version >= 6)	// SA attributes
 	{
-        if (fElemental)
+        if (fElemental || g_Cfg.m_fDisplayElementalResistance)
         {
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESPHYSICALMAX, pBaseCCPChar));
             writeInt16((word)other->GetPropNum(pCCPChar,     PROPCH_RESFIREMAX, pBaseCCPChar));
@@ -3002,6 +3002,7 @@ uint PacketVendorSellList::fillSellList(CClient* target, const CItemContainer* c
 	uint countpos = getPosition();
 	skip(2);
 
+	bool bLimitStock = IsSetOF(OF_VendorStockLimit) ? true : false;
 	uint count = 0;
 
 	std::deque<const CItemContainer*> otherBoxes;
@@ -3040,7 +3041,16 @@ uint PacketVendorSellList::fillSellList(CClient* target, const CItemContainer* c
 						writeInt32(vendItem->GetUID());
 						writeInt16((word)vendItem->GetDispID());
 						writeInt16((word)hue);
-						writeInt16(vendItem->GetAmount());
+
+						if (bLimitStock) {
+							if (vendSell->GetAmount() <= vendItem->GetAmount())
+								writeInt16(vendSell->GetAmount());
+							else
+								writeInt16(vendItem->GetAmount());
+						}
+						else {
+							writeInt16(vendItem->GetAmount());
+						}
 
 						uint price = 0;
 

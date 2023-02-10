@@ -45,6 +45,7 @@ lpctstr const CItem::sm_szTrigName[ITRIG_QTY+1] =	// static
 {
 	"@AAAUNUSED",
 	"@AddRedCandle",
+	"@AddObj",				// For t_spawn when obj is add to list
 	"@AddWhiteCandle",
 	"@AfterClick",
 	"@Buy",
@@ -57,6 +58,7 @@ lpctstr const CItem::sm_szTrigName[ITRIG_QTY+1] =	// static
 	"@Create",
 	"@DAMAGE",				// I have been damaged in some way
 	"@DCLICK",				// I have been dclicked.
+	"@DelObj",				// For t_spawn when obj is remove from list
 	"@Destroy",				//+I am nearly destroyed
 	"@DropOn_Char",			// I have been dropped on this char
 	"@DropOn_Ground",		// I have been dropped on the ground here
@@ -76,6 +78,8 @@ lpctstr const CItem::sm_szTrigName[ITRIG_QTY+1] =	// static
     "@RegionEnter",
     "@RegionLeave",
 	"@SELL",
+	"@Ship_Move",
+	"@Ship_Stop",
 	"@Ship_Turn",
 	"@Smelt",			// I am going to be smelted.
 	"@Spawn",
@@ -1176,7 +1180,7 @@ int CItem::FixWeirdness()
         // unreasonably long for a top level item ?
         if (_GetTimerSAdjusted() > 90ll * 24 * 60 * 60)
         {
-            g_Log.EventWarn("FixWeirdness on Item (UID=0%x): timer unreasonably long (> 90 days) on a top level object.\n", (uint)GetUID());
+            g_Log.EventWarn("FixWeirdness on Item (UID=0%x): timer unreasonably long (> 90 days) on a top level object.\n", GetUID().GetObjUID());
             _SetTimeoutS(60 * 60);
         }
     }
@@ -1383,6 +1387,16 @@ void CItem::_SetTimeout( int64 iMsecs )
 	//  -1 = never.
 	// NOTE:
 	//  It may be a decay timer or it might be a trigger timer
+
+	if (iMsecs >= 0)
+	{
+		if (!_CanHoldTimer())
+		{
+			g_Log.EventWarn("Trying to set a TIMER on an object not meant to have one? (UID=0%x)\n", GetUID().GetObjUID());
+			return;
+		}
+	// Negative numbers deletes the timeout. Do not block those kind of cleanup operations.
+	}
 
 	CTimedObject::_SetTimeout(iMsecs);
 }
@@ -2029,7 +2043,7 @@ bool CItem::SetBaseID( ITEMID_TYPE id )
 	CItemBase * pItemDef = CItemBase::FindItemBase( id );
 	if ( pItemDef == nullptr )
 	{
-		DEBUG_ERR(( "SetBaseID 0%x invalid item uid=0%x\n",	id, (dword) GetUID()));
+		DEBUG_ERR(( "SetBaseID 0%x invalid item uid=0%x\n",	id, GetUID().GetObjUID()));
 		return false;
 	}
 	// SetBase sets the type, but only SetType does the components check
@@ -2043,6 +2057,7 @@ void CItem::OnHear( lpctstr pszCmd, CChar * pSrc )
 	// This should never be called directly. Normal items cannot hear. IT_SHIP and IT_COMM_CRYSTAL
 	UNREFERENCED_PARAMETER(pszCmd);
 	UNREFERENCED_PARAMETER(pSrc);
+	ASSERT(false);
 }
 
 CItemBase * CItem::Item_GetDef() const
@@ -4017,16 +4032,6 @@ CObjBaseTemplate* CItem::GetTopLevelObj()
 	return pObj->GetTopLevelObj();
 }
 
-uchar CItem::GetContainedGridIndex() const
-{
-	return m_containedGridIndex;
-}
-
-void CItem::SetContainedGridIndex(uchar index)
-{
-	m_containedGridIndex = index;
-}
-
 void CItem::Update(const CClient * pClientExclude)
 {
 	ADDTOCALLSTACK("CItem::Update");
@@ -4687,6 +4692,7 @@ bool CItem::Armor_IsRepairable() const
 	switch ( m_type )
 	{
 		case IT_CLOTHING:
+		case IT_ARMOR_BONE:
 		case IT_ARMOR_LEATHER:
 			return false;	// Not this way anyhow.
 		case IT_SHIELD:
@@ -5940,50 +5946,101 @@ void CItem::_GoAwake()
 
 void CItem::_GoSleep()
 {
-	ADDTOCALLSTACK("CItem::_GoSleep");
-	CObjBase::_GoSleep();
+    ADDTOCALLSTACK("CItem::_GoSleep");
+    CObjBase::_GoSleep();
 
-	// Items equipped or inside containers don't receive ticks and need to be added to a list of items to be processed separately
-	if (IsTopLevel())
-	{
-		CWorldTickingList::DelObjStatusUpdate(this, false);
-	}
+    // Items equipped or inside containers don't receive ticks and need to be added to a list of items to be processed separately
+    if (IsTopLevel())
+    {
+        CWorldTickingList::DelObjStatusUpdate(this, false);
+    }
 }
+
+bool CItem::_CanHoldTimer() const
+{
+	ADDTOCALLSTACK("CItem::_CanHoldTimer");
+	EXC_TRY("Can have a TIMER?");
+
+	if (_IsIdle())
+	{
+		return true;
+	}
+
+	const CObjBase* pCont = GetContainer();
+	// Is it top level or equipped on a Char?
+	if (pCont != nullptr)
+	{
+		return pCont->IsChar();
+	}
+
+	EXC_CATCH;
+
+	return true;
+}
+
+bool CItem::_CanTick(bool fParentGoingToSleep) const
+{
+	ADDTOCALLSTACK("CItem::_CanTick");
+	EXC_TRY("Can tick?");
+
+	const CObjBase* pCont = GetContainer();
+	// ATTR_DECAY ignores/overrides fParentGoingToSleep
+	if (IsAttr(ATTR_DECAY) && (pCont == nullptr))
+	{
+		return CObjBase::_CanTick(false);
+	}
+
+	// Is it top level or equipped on a Char?
+	if (pCont != nullptr)
+	{
+		if (!pCont->IsChar())
+			return false;
+	}
+
+	return CObjBase::_CanTick(fParentGoingToSleep);
+
+	EXC_CATCH;
+
+	return false;
+}
+
 
 bool CItem::_OnTick()
 {
-	ADDTOCALLSTACK("CItem::_OnTick");
-	// Timer expired. Time to do something.
-	// RETURN: false = delete it.
+    ADDTOCALLSTACK("CItem::_OnTick");
+    // Timer expired. Time to do something.
+    // RETURN: false = delete it.
 
-	EXC_TRY("Tick");
+    EXC_TRY("Tick");
 
     EXC_SET_BLOCK("sleep check");
 
-	const CSector* pSector = GetTopSector();	// It prints an error if it belongs to an invalid sector.
-    if (pSector && pSector->IsSleeping())
-    {
-		//Make it tick after sector's awakening.
-		if (!_IsSleeping())
+	if (!_IsSleeping())
+	{
+		if (!_CanTick())
 		{
-			_GoSleep();
+			const CSector* pSector = GetTopSector();	// It prints an error if it belongs to an invalid sector.
+			if (pSector && pSector->IsSleeping())
+			{
+				//Make it tick after sector's awakening.
+				_GoSleep();
+				_SetTimeout(1);
+				return true;
+			}
 		}
-		_SetTimeout(1);
-        return true;
-    }
-
+	}
 
     EXC_SET_BLOCK("timer trigger");
-	TRIGRET_TYPE iRet = TRIGRET_RET_DEFAULT;
+    TRIGRET_TYPE iRet = TRIGRET_RET_DEFAULT;
 
-	if (( IsTrigUsed(TRIGGER_TIMER) ) || ( IsTrigUsed(TRIGGER_ITEMTIMER) ))
-	{
-		iRet = OnTrigger( ITRIG_TIMER, &g_Serv );
+    if (( IsTrigUsed(TRIGGER_TIMER) ) || ( IsTrigUsed(TRIGGER_ITEMTIMER) ))
+    {
+        iRet = OnTrigger( ITRIG_TIMER, &g_Serv );
         if (iRet == TRIGRET_RET_TRUE)
         {
             return true;
         }
-	}
+    }
 
     EXC_SET_BLOCK("components ticking");
 
@@ -6177,12 +6234,12 @@ bool CItem::_OnTick()
 		return false;
 
 	EXC_SET_BLOCK("default behaviour4");
-	DEBUG_ERR(( "Timer expired without DECAY flag '%s' (UID=0%x)?\n", GetName(), (dword)GetUID()));
+	DEBUG_ERR(( "Timer expired without DECAY flag '%s' (UID=0%x)?\n", GetName(), GetUID().GetObjUID()));
 
     EXC_CATCH;
 
 	EXC_DEBUG_START;
-	g_Log.EventDebug("CItem::_OnTick: '%s' item [0%x]\n", GetName(), (dword)GetUID());
+	g_Log.EventDebug("CItem::_OnTick: '%s' item [0%x]\n", GetName(), GetUID().GetObjUID());
 	//g_Log.EventError("'%s' item [0%x]\n", GetName(), GetUID());
 	EXC_DEBUG_END;
 

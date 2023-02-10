@@ -1785,6 +1785,9 @@ int CChar::ItemPickup(CItem * pItem, word amount)
 		if ( IsPriv(PRIV_ALLMOVE|PRIV_GM) ) ;
 		else if ( pItem->IsAttr(ATTR_STATIC|ATTR_MOVE_NEVER) || pItem->IsType(IT_SPELL) )
 			return -1;
+		CCSpawn* pSpawn = pItem->GetSpawn();
+		if (pSpawn)
+			pSpawn->DelObj(pItem->GetUID());
 	}
 
 	if ( trigger != ITRIG_UNEQUIP )	// unequip is done later.
@@ -3087,7 +3090,16 @@ bool CChar::Death()
 		if ( OnTrigger(CTRIG_Death, this) == TRIGRET_RET_TRUE )
 			return true;
 	}
-
+	//Dismount now. Later is may be too late and cause problems
+	if ( m_pNPC )
+	{
+		if (Skill_GetActive() == NPCACT_RIDDEN) 
+		{
+			CChar* pCRider = Horse_GetMountChar();
+			if (pCRider)
+				pCRider->Horse_UnMount();
+		}
+	}
 	// Look through memories of who I was fighting (make sure they knew they where fighting me)
 	for (CSObjContRec* pObjRec : GetIterationSafeContReverse())
 	{
@@ -3418,13 +3430,24 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 				uiStamReq = 0;
 
 			TRIGRET_TYPE iRet = TRIGRET_RET_DEFAULT;
-			if ( IsTrigUsed(TRIGGER_PERSONALSPACE) && (!fPathFinding)) //You want avoid to trig the trigger if it's only a pathfinding evaluation
+			if (!fPathFinding)  //You want avoid to trig the triggers if it's only a pathfinding evaluation
 			{
-				CScriptTriggerArgs Args(uiStamReq);
-				iRet = pChar->OnTrigger(CTRIG_PersonalSpace, this, &Args);
-				if ( iRet == TRIGRET_RET_TRUE )
-					return nullptr;
-                uiStamReq = (ushort)(Args.m_iN1);
+				if ( IsTrigUsed(TRIGGER_PERSONALSPACE) ) 
+				{
+					CScriptTriggerArgs Args(uiStamReq);
+					iRet = pChar->OnTrigger(CTRIG_PersonalSpace, this, &Args);
+					if ( iRet == TRIGRET_RET_TRUE )
+						return nullptr;
+                			uiStamReq = (ushort)(Args.m_iN1);
+				}
+				if ( IsTrigUsed(TRIGGER_CHARSHOVE) )
+				{
+					CScriptTriggerArgs Args(uiStamReq);
+					iRet = this->OnTrigger(CTRIG_charShove, pChar, &Args);
+					if ( iRet == TRIGRET_RET_TRUE )
+						return nullptr;
+                			uiStamReq = (ushort)(Args.m_iN1);
+				}
 			}
 
 
@@ -3481,7 +3504,7 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 		EXC_SET_BLOCK("Stamina penalty");
         if (iWeight < iMaxWeight) //Normal situation
 		{
-			ushort iWeightLoadPercent = (iWeight * 100) / iMaxWeight;
+			int iWeightLoadPercent = (iWeight * 100) / iMaxWeight;
 			ushort uiStamPenalty = 0;
 
 			CVarDefCont* pVal = GetKey("OVERRIDE.RUNNINGPENALTY", true);
@@ -3489,14 +3512,14 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 			if (IsStatFlag(STATF_FLY | STATF_HOVERING))
 			{
 				//FIXME: Running penality should be a percentage... For now, it adding a flat value take on the ini.
-				iWeightLoadPercent += (pVal ? (int)(pVal->GetValNum()) : g_Cfg.m_iStamRunningPenalty) ;
+				iWeightLoadPercent += (pVal ? (int)pVal->GetValNum() : g_Cfg.m_iStamRunningPenalty);
 			}
-			int iChanceForStamLoss = Calc_GetSCurve(iWeightLoadPercent - (pVal ? (int)(pVal->GetValNum()) : g_Cfg.m_iStaminaLossAtWeight), 10);
+			const int iChanceForStamLoss = Calc_GetSCurve(iWeightLoadPercent - (pVal ? (int)(pVal->GetValNum()) : g_Cfg.m_iStaminaLossAtWeight), 10);
 			if (iChanceForStamLoss > Calc_GetRandVal(1000))
 			{
 
 				pVal = GetKey("OVERRIDE.STAMINAWALKINGPENALTY", true);
-				uiStamPenalty = ushort(pVal ? pVal->GetValNum() : 1);
+				uiStamPenalty = (ushort)std::min(USHRT_MAX, int(pVal ? pVal->GetValNum() : 1));
 				
 			}
 			uiStamReq += uiStamPenalty;
@@ -3504,15 +3527,15 @@ CRegion * CChar::CanMoveWalkTo( CPointMap & ptDst, bool fCheckChars, bool fCheck
 		
 		else //Overweight and lost more stamina each step
         {
-            ushort iWeightPenalty = ushort(g_Cfg.m_iStaminaLossOverweight + ((iWeight - iMaxWeight) / 5));
+            ushort uiWeightPenalty = ushort(g_Cfg.m_iStaminaLossOverweight + ((iWeight - iMaxWeight) / 5));
 
             if (IsStatFlag(STATF_ONHORSE))
-                iWeightPenalty /= 3;
+				uiWeightPenalty /= 3;
 
 			if (IsStatFlag(STATF_FLY | STATF_HOVERING))
-                iWeightPenalty += ushort((iWeightPenalty * g_Cfg.m_iStamRunningPenaltyOverweight) / 100);
+				uiWeightPenalty += ushort((uiWeightPenalty * g_Cfg.m_iStamRunningPenaltyOverweight) / 100);
 
-            uiStamReq += iWeightPenalty;
+            uiStamReq += uiWeightPenalty;
         }
 
 		if ( uiStamReq > 0 )
@@ -3929,15 +3952,17 @@ bool CChar::MoveToChar(const CPointMap& pt, bool fStanding, bool fCheckLocation,
 		return false;
 
 	CClient *pClient = GetClientActive();
-	if ( m_pPlayer && !pClient )	// moving a logged out client !
+	if ( m_pPlayer && !pClient )	// moving a logged out client ! This happens on startup and when moving on a ship and when moving around disconnected characters by other means.
 	{
 		CSector *pSector = pt.GetSector();
 		if ( !pSector )
 			return false;
 
-		// We cannot put this char in non-disconnect state.
-		SetDisconnected(pSector);
-        SetTopPoint(pt);
+		// We cannot put this char in non-disconnect state
+		
+		SetDisconnected(pSector); 
+        SetTopPoint(pt); // This will clear the disconnected UID flag and the set the character position in the world.
+		SetDisconnected(); //Before entering here the player is not considered disconnected anymore, so we need to disconnect it again.
 		return true;
 	}
 
@@ -4434,8 +4459,9 @@ void CChar::OnTickSkill()
     EXC_CATCHSUB("Skill tick");
 }
 
-bool CChar::_CanTick() const
+bool CChar::_CanTick(bool fParentGoingToSleep) const
 {
+	ADDTOCALLSTACK("CChar::_CanTick");
 	EXC_TRY("Can tick?");
 
 	if (IsDisconnected() && (Skill_GetActive() != NPCACT_RIDDEN))
@@ -4444,7 +4470,7 @@ bool CChar::_CanTick() const
 		return false;
 	}
 
-	return CObjBase::_CanTick();
+	return CObjBase::_CanTick(fParentGoingToSleep);
 
 	EXC_CATCH;
 
@@ -4490,13 +4516,17 @@ bool CChar::_OnTick()
 		// mounted horses can still get a tick.
 		return true;
 	}
-    if (GetTopSector()->IsSleeping() && !Calc_GetRandVal(15))
-    {
-        _SetTimeout(1);      //Make it tick after sector's awakening.
-        _GoSleep();
-        return true;
-    }
-
+	if (!_CanTick())
+	{
+		ASSERT(!_IsSleeping());
+		if (GetTopSector()->IsSleeping() && !Calc_GetRandVal(15))
+		{
+			_SetTimeout(1);      //Make it tick after sector's awakening.
+			_GoSleep();
+			return true;
+		}
+	}
+    
 	EXC_SET_BLOCK("Components Tick");
 	/*
 	* CComponent's ticking:
@@ -4602,7 +4632,13 @@ bool CChar::OnTickPeriodic()
         {
             StatFlag_Clear(STATF_FLY);
         }
-
+	// Show returning anim for thowing weapons after throw it
+	if ((pClient->m_timeLastSkillThrowing > 0) && ((iTimeCur - pClient->m_timeLastSkillThrowing) > (2 * MSECS_PER_TENTH)))
+	{
+		pClient->m_timeLastSkillThrowing = 0;
+		if (pClient->m_pSkillThrowingTarg->IsValidUID())
+			Effect(EFFECT_BOLT, pClient->m_SkillThrowingAnimID, pClient->m_pSkillThrowingTarg, 18, 1, false, pClient->m_SkillThrowingAnimHue, pClient->m_SkillThrowingAnimRender);
+	}
         // Check targeting timeout, if set
         if ((pClient->m_Targ_Timeout > 0) && ((iTimeCur - pClient->m_Targ_Timeout) > 0) )
         {

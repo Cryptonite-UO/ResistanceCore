@@ -438,7 +438,16 @@ CChar* CCSpawn::GenerateChar(CResourceIDBase rid)
     }
 
     // Check if the NPC can spawn in this region
+    /*
+    // We don't want this behavior anymore.
     const CRegion *pRegion = pt.GetRegion(REGION_TYPE_AREA);
+    if (!pRegion || (pRegion->IsGuarded() && pChar->Noto_IsEvil()))
+    {
+        g_Log.EventWarn("Spawner UID=0%" PRIx32 " is trying to spawn an evil NPC into a guarded area. Deleting the NPC.\n", (dword)pSpawnItem->GetUID());
+        pChar->Delete();
+        return nullptr;
+    }
+    */
 
     AddObj(pChar->GetUID());
     pChar->NPC_CreateTrigger();		// removed from NPC_LoadScript() and triggered after char placement and attachment to the spawnitem
@@ -503,24 +512,59 @@ void CCSpawn::DelObj(const CUID& uid)
         return;
     }
 
-    CItem *pSpawnItem = static_cast<CItem*>(GetLink());
     auto itObj = std::find(_uidList.begin(), _uidList.end(), uid);
-    if (itObj != _uidList.end())
+
+    if (itObj == _uidList.end())
     {
-        CObjBase *pSpawnedObj = uid.ObjFind();
-        if (pSpawnedObj && !pSpawnedObj->IsDeleted())
-        {
-            pSpawnedObj->SetSpawn(nullptr);
-            const IT_TYPE iSpawnType = pSpawnItem->GetType();
-            if ((iSpawnType == IT_SPAWN_CHAR) || (iSpawnType == IT_SPAWN_CHAMPION))
-            {
-                CChar *pSpawnedChar = dynamic_cast<CChar*>(pSpawnedObj);
-                if (pSpawnedChar)
-                    pSpawnedChar->StatFlag_Clear(STATF_SPAWNED);
-            }
-        }
-        _uidList.erase(itObj);
+        return;
     }
+
+    CItem *pSpawnItem = static_cast<CItem*>(GetLink());
+    pSpawnItem->m_CanMask |= CAN_O_NOSLEEP; //Avoid the spawn point to sleep until job is finish
+
+
+	CObjBase* pSpawnedObj = uid.ObjFind();
+	if (pSpawnedObj && !pSpawnedObj->IsDeleted())
+	{
+		pSpawnedObj->SetSpawn(nullptr);
+		const IT_TYPE iSpawnType = pSpawnItem->GetType();
+		if ((iSpawnType == IT_SPAWN_CHAR) || (iSpawnType == IT_SPAWN_CHAMPION))
+		{
+			CChar* pSpawnedChar = dynamic_cast<CChar*>(pSpawnedObj);
+			if (pSpawnedChar)
+				pSpawnedChar->StatFlag_Clear(STATF_SPAWNED);
+		}
+	}
+
+	if (pSpawnItem->_GetTimerAdjusted() == -1)
+	{
+        int64 iMinutes;
+		if (_iTimeHi <= 0)
+		{
+			iMinutes = Calc_GetRandLLVal(30) + 1;
+		}
+		else
+		{
+			iMinutes = Calc_GetRandVal2(_iTimeLo, _iTimeHi);
+		}
+
+		if (iMinutes <= 0)
+		{
+			iMinutes = 1;
+		}
+		pSpawnItem->_SetTimeoutS(iMinutes * 60);	// set time to check again.
+	}
+	_uidList.erase(itObj);
+
+    if (IsTrigUsed(TRIGGER_DELOBJ))
+    {
+        CScriptTriggerArgs args;
+        args.m_pO1 = pSpawnItem;
+        args.m_iN1 = pSpawnItem->_GetTimerAdjusted() / MSECS_PER_SEC;   
+        pSpawnItem->OnTrigger(ITRIG_DELOBJ, &g_Serv, &args);
+        pSpawnItem->_SetTimeoutS(args.m_iN1);
+    }
+
     pSpawnItem->UpdatePropertyFlag();
 }
 
@@ -582,11 +626,38 @@ void CCSpawn::AddObj(const CUID& uid)
             pChar->m_ptHome = pSpawnItem->GetTopPoint();
             pChar->m_pNPC->m_Home_Dist_Wander = (word)_iMaxDist;
         }
+        
+        bool fSpawnComplete = false;
+        if (GetCurrentSpawned() +1 >= GetAmount()) //Adding one because the item is not yet added at this moment
+        {
+            fSpawnComplete = true;
+        }
+
+        if (IsTrigUsed(TRIGGER_ADDOBJ))
+        {
+            CScriptTriggerArgs args;
+            args.m_pO1 = pSpawnedObj;
+            if (fSpawnComplete)
+                args.m_iN1 = -1;
+            else
+                args.m_iN1 = pSpawnItem->_GetTimerAdjusted()/MSECS_PER_SEC;
+
+            pSpawnItem->OnTrigger(ITRIG_ADDOBJ, &g_Serv, &args);
+            pSpawnItem->_SetTimeoutS(args.m_iN1);
+        }
         pSpawnItem->UpdatePropertyFlag();
     }
 
     // Done with checks, let's add this.
     _uidList.emplace_back(uid); 
+
+    if (GetCurrentSpawned() >= GetAmount())
+    {
+        pSpawnItem->m_CanMask &= ~CAN_O_NOSLEEP;
+
+        if (pSpawnItem->GetTopSector()->IsSleeping())
+            pSpawnItem->_GoSleep();
+    }
 }
 
 CCRET_TYPE CCSpawn::OnTickComponent()
@@ -632,6 +703,11 @@ CCRET_TYPE CCSpawn::OnTickComponent()
 void CCSpawn::KillChildren()
 {
     ADDTOCALLSTACK("CCSpawn::KillChildren");
+
+    CItem* pSpawnItem = static_cast<CItem*>(GetLink());
+    if (pSpawnItem->IsValidUID())
+        pSpawnItem->m_CanMask |= CAN_O_NOSLEEP;
+
     if (_uidList.empty())
     {
         return;

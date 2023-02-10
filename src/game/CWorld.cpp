@@ -393,6 +393,11 @@ void CWorldThread::ScheduleSpecialObjDeletion(CSObjListRec* obj)
 	m_ObjSpecialDelete.InsertContentTail(obj);
 }
 
+bool CWorldThread::IsObjIdle(const CSObjContRec* obj) const noexcept
+{
+	return (obj->GetParent() == &m_ObjNew);
+}
+
 bool CWorldThread::IsScheduledObjDeletion(const CSObjContRec* obj) const noexcept
 {
 	return (obj->GetParent() == &m_ObjDelete);
@@ -559,7 +564,7 @@ void CWorldThread::GarbageCollection_UIDs()
 			if ( iResultCode )
 			{
 				// FixObj directly calls Delete method
-				//if (pObj->IsBeingDeleted() || pObj->IsDeleted())
+				//if (pObj->_IsBeingDeleted() || pObj->IsDeleted())
 				//{
 					// Do an immediate delete here instead of Delete()
 					delete pObj;
@@ -1334,6 +1339,7 @@ bool CWorld::LoadWorld() // Load world from script
 		CWorldTickingList::ClearTickingLists();
 
 		m_Stones.clear();
+		m_Multis.clear();
 		m_Parties.ClearContainer();
 		m_GMPages.ClearContainer();
 
@@ -1650,6 +1656,7 @@ void CWorld::Close()
 		Save(true);
 
 	m_Stones.clear();
+	m_Multis.clear();
 
     {
         std::unique_lock<std::shared_mutex> lock_su(_Ticker._ObjStatusUpdates.THREAD_CMUTEX);
@@ -1756,7 +1763,7 @@ void CWorld::_OnTick()
 		{
 			EXC_SET_BLOCK("f_onserver_timer");
 			_iTimeLastCallUserFunc = iCurTime + g_Cfg._iTimerCall;
-			CScriptTriggerArgs args(g_Cfg._iTimerCall / (60 * MSECS_PER_SEC));
+			CScriptTriggerArgs args(g_Cfg._iTimerCallUnit ? g_Cfg._iTimerCall / (MSECS_PER_SEC) : g_Cfg._iTimerCall / (60 * MSECS_PER_SEC));
 			g_Serv.r_Call("f_onserver_timer", &g_Serv, &args);
 		}
 	}
