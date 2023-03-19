@@ -1180,7 +1180,7 @@ int CItem::FixWeirdness()
         // unreasonably long for a top level item ?
         if (_GetTimerSAdjusted() > 90ll * 24 * 60 * 60)
         {
-            g_Log.EventWarn("FixWeirdness on Item (UID=0%x): timer unreasonably long (> 90 days) on a top level object.\n", GetUID().GetObjUID());
+			g_Log.EventWarn("FixWeirdness on Item (UID=0%x [%s]): timer unreasonably long (> 90 days) on a top level object.\n", GetUID().GetObjUID(), GetName());
             _SetTimeoutS(60 * 60);
         }
     }
@@ -1392,7 +1392,7 @@ void CItem::_SetTimeout( int64 iMsecs )
 	{
 		if (!_CanHoldTimer())
 		{
-			g_Log.EventWarn("Trying to set a TIMER on an object not meant to have one? (UID=0%x)\n", GetUID().GetObjUID());
+			g_Log.EventWarn("Trying to set a TIMER on an object not meant to have one? (UID=0%x [%s])\n", GetUID().GetObjUID(), GetName());
 			return;
 		}
 	// Negative numbers deletes the timeout. Do not block those kind of cleanup operations.
@@ -2821,6 +2821,9 @@ bool CItem::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc, bo
 			break;
 		case IC_TYPE:
 			sVal = g_Cfg.ResourceGetName( CResourceID(RES_TYPEDEF, m_type) );
+			break;
+		case IC_REPAIRPERCENT:
+			sVal.FormatVal(Armor_GetRepairPercent());
 			break;
 		default:
             if (!fNoCallParent)
@@ -5425,7 +5428,7 @@ bool CItem::SetMagicLock( CChar * pCharSrc, int iSkillLevel )
 	return true;
 }
 
-bool CItem::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, CItem * pSourceItem, bool bReflecting )
+bool CItem::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, CItem * pSourceItem, bool bReflecting, int64 iDuration)
 {
 	ADDTOCALLSTACK("CItem::OnSpellEffect");
 	UNREFERENCED_PARAMETER(bReflecting);	// items are not affected by Magic Reflection
