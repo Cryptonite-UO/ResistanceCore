@@ -12,6 +12,8 @@ We decide to fork this branch because some little modification are made for adap
 
 
 #### Here the list of difference between the reel sphere X:
+[Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/39129ca395991d777c51c31391d83eaf82f692a4) 2023-03-23
+1.  It's now possible to hide and detect hidden during battle. This action will result to reset all actual action.
 
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/c7bfa85ffd2362b472d70754764c87f4c982fa93) 2023-01-18
 1.  MOREY on weapon have 2x more impact than before and impact is 50% on min damage. ATTRMAGIC no more require.
