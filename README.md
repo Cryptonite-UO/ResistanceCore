@@ -12,6 +12,12 @@ We decide to fork this branch because some little modification are made for adap
 
 
 #### Here the list of difference between the reel sphere X:
+[Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/d5058e6ad5665c282cfb287a9b0653d721aacc3a) 2023-03-23
+1.  It's now possible to hide and detect hidden during battle. This action will result to reset all actual action.
+
+[Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/ee5efa6ec1f80fdb12bb503e0165c78d54607e85) 2023-03-14
+1.  Str damage boost is now 2% instead of 10%
+
 [Commit](https://github.com/Cryptonite-UO/CryptoCore/commit/940a70dfbf07d5d713b1b8afff5738ad8af95b00) 2021-01-10
 1.  Insubtantial flags is use on some class (CL) you can now pass trought him. (partial Revert of commit of december)
 
@@ -19,3 +25,4 @@ We decide to fork this branch because some little modification are made for adap
 1.  Cryptonite use c_gargoyle_male and female as custom dwarf. We need to avoid the gargoyle anim and force human anim.
 2.  Insubtantial flags is use on some class (CL) during a small period. We must modify  that the player is see like a death player.
 3.  Emote message over NPC/player head is crap and long. "YOU SEE NAME" is useless. We remove all name and pronom. (important to modify msg.scp in script too)
+

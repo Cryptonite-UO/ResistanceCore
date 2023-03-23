@@ -3849,6 +3849,12 @@ bool CChar::Skill_Wait( SKILL_TYPE skilltry )
 		return true;
 	}
 
+	if (IsStatFlag(STATF_WAR) && !(skilltry == SKILL_STEALTH || skilltry == SKILL_HIDING || skilltry == SKILL_DETECTINGHIDDEN) )
+	{
+		SysMessageDefault(DEFMSG_SKILLWAIT_2);
+		return true;
+	}
+
 	if ( skill == SKILL_NONE )	// not currently doing anything.
 	{
 		if ((skilltry == SKILL_STEALTH) || ((skilltry == SKILL_SNOOPING) && (g_Cfg.m_iRevealFlags & REVEALF_SNOOPING)) || ((skilltry == SKILL_STEALING) && (g_Cfg.m_iRevealFlags & REVEALF_STEALING)))
@@ -3858,16 +3864,10 @@ bool CChar::Skill_Wait( SKILL_TYPE skilltry )
 		return false;
 	}
 
-	if ( IsStatFlag(STATF_WAR) )
-	{
-		SysMessageDefault(DEFMSG_SKILLWAIT_2);
-		return true;
-	}
-
 	// Cancel passive actions
 	if ( skilltry != skill )
 	{
-		if ( skill == SKILL_MEDITATION || skill == SKILL_HIDING || skill == SKILL_STEALTH )		// SKILL_SPIRITSPEAK ?
+		if ( skill == SKILL_MEDITATION || skill == SKILL_HIDING || skill == SKILL_STEALTH || skill == SKILL_STEALTH || skilltry == SKILL_DETECTINGHIDDEN )		// SKILL_SPIRITSPEAK ?
 		{
 			Skill_Fail(true);
 			return false;
