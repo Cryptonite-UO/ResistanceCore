@@ -279,6 +279,7 @@ bool CAccounts::Cmd_AddNew( CTextConsole * pSrc, lpctstr pszName, lpctstr ptcArg
 
 	pAccount = new CAccount(szName);
 	ASSERT(pAccount);
+	pSrc->SysMessagef("Account '%s' created\n", pszName);
 	pAccount->_dateConnectedFirst = pAccount->_dateConnectedLast = CSTime::GetCurrentTime();
 
 	pAccount->SetPassword(ptcArg, md5);
@@ -1626,7 +1627,7 @@ bool CAccount::r_Verb( CScript &s, CTextConsole * pSrc )
 				}
 				else
 				{
-					snprintf(z, STR_TEMPLENGTH, "Cannot delete account %s.\n", sCurrentName);
+					snprintf(z, STR_TEMPLENGTH, "Account '%s' deletion blocked by script.\n", sCurrentName);
 				}
 
 				g_Log.EventStr(0, z);
