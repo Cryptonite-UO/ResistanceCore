@@ -231,7 +231,7 @@ bool CPartyDef::SendRemoveList( CChar *pCharRemove, bool bFor )
 }
 
 // ---------------------------------------------------------
-bool CPartyDef::MessageEvent( CUID uidDst, CUID uidSrc, const nchar *pText, int ilenmsg )
+bool CPartyDef::MessageEvent( CUID uidDst, CUID uidSrc, const nachar *pText, int ilenmsg )
 {
 	ADDTOCALLSTACK("CPartyDef::MessageEvent");
 	UNREFERENCED_PARAMETER(ilenmsg);
@@ -244,9 +244,11 @@ bool CPartyDef::MessageEvent( CUID uidDst, CUID uidSrc, const nchar *pText, int 
 	CChar *pTo = nullptr;
 	if ( uidDst != (dword)0 )
 		pTo = uidDst.CharFind();
+    ASSERT(pFrom);
+    ASSERT(pTo);
 
 	tchar *szText = Str_GetTemp();
-	CvtNUNICODEToSystem(szText, MAX_TALK_BUFFER, pText, MAX_TALK_BUFFER);
+	CvtNETUTF16ToSystem(szText, MAX_TALK_BUFFER, pText, MAX_TALK_BUFFER);
 
 	if ( !m_pSpeechFunction.IsEmpty() )
 	{
@@ -267,7 +269,6 @@ bool CPartyDef::MessageEvent( CUID uidDst, CUID uidSrc, const nchar *pText, int 
 	if ( g_Log.IsLoggedMask(LOGM_PLAYER_SPEAK) )
 		g_Log.Event(LOGM_PLAYER_SPEAK|LOGM_NOCONTEXT, "%x:'%s' Says '%s' in party to '%s'\n", pFrom->GetClientActive()->GetSocketID(), pFrom->GetName(), szText, pTo ? pTo->GetName() : "all");
 
-	snprintf(szText, STR_TEMPLENGTH, g_Cfg.GetDefaultMsg(DEFMSG_PARTY_MSG), pText);
 	PacketPartyChat cmd(pFrom, pText);
 
 	if ( pTo )
@@ -302,11 +303,11 @@ bool CPartyDef::RemoveMember( CUID uidRemove, CUID uidCommand )
 	if ( m_Chars.GetCharCount() <= 0 )
 		return false;
 
-	CUID uidMaster = GetMaster();
+	CUID uidMaster(GetMaster());
 	if ( (uidRemove != uidCommand) && (uidCommand != uidMaster) )
 		return false;
 
-	CChar *pCharRemove = uidRemove.CharFind();
+	CChar *pCharRemove(uidRemove.CharFind());
 	if ( !pCharRemove )
 		return false;
 	if ( !IsInParty(pCharRemove) )

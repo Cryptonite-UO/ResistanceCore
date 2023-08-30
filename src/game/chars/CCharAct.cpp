@@ -1,4 +1,4 @@
-#include "../../common/flat_containers/flat_set.hpp"
+#include "../../../lib/flat_containers/flat_set.hpp"
 #include "../../common/resource/CResourceLock.h"
 #include "../../common/CException.h"
 #include "../../network/CClientIterator.h"
@@ -2376,7 +2376,7 @@ void CChar::SpeakUTF8( lpctstr pszText, HUE_TYPE wHue, TALKMODE_TYPE mode, FONT_
 // Ignore the font argument here !
 // Unicode packet
 // Difference with SpeakUTF8: this method accepts as text input an nword, which is a unicode character if sphere is compiled with UNICODE macro)
-void CChar::SpeakUTF8Ex( const nword * pszText, HUE_TYPE wHue, TALKMODE_TYPE mode, FONT_TYPE font, CLanguageID lang )
+void CChar::SpeakUTF8Ex( const nachar * pszText, HUE_TYPE wHue, TALKMODE_TYPE mode, FONT_TYPE font, CLanguageID lang )
 {
 	ADDTOCALLSTACK("CChar::SpeakUTF8Ex");
 
@@ -4197,7 +4197,7 @@ TRIGRET_TYPE CChar::OnTrigger( lpctstr pszTrigName, CTextConsole * pSrc, CScript
     const CTRIG_TYPE iAction = (CTRIG_TYPE)_iRunningTriggerId;
     // Attach some trigger to the cchar. (PC or NPC)
     // RETURN: true = block further action.
-    TRIGRET_TYPE iRet = TRIGRET_RET_DEFAULT;
+    TRIGRET_TYPE iRet = TRIGRET_RET_ABORTED;
 
 	EXC_TRY("Trigger");
 
@@ -4461,7 +4461,7 @@ void CChar::OnTickSkill()
 
 bool CChar::_CanTick(bool fParentGoingToSleep) const
 {
-	ADDTOCALLSTACK("CChar::_CanTick");
+	ADDTOCALLSTACK_INTENSIVE("CChar::_CanTick");
 	EXC_TRY("Can tick?");
 
 	if (IsDisconnected() && (Skill_GetActive() != NPCACT_RIDDEN))

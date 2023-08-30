@@ -1,15 +1,16 @@
 // An item is targetted.
 
 #include "../../network/send.h"
-#include "../resource/sections/CItemTypeDef.h"
+#include "../../common/resource/sections/CItemTypeDef.h"
+#include "../../common/CLog.h"
 #include "../chars/CChar.h"
 #include "../items/CItemMulti.h"
 #include "../items/CItemVendable.h"
-#include "../CLog.h"
 #include "../CWorldGameTime.h"
 #include "../CWorldMap.h"
 #include "../triggers.h"
 #include "CClient.h"
+
 
 ////////////////////////////////////////////////////////
 // Targetted GM functions.
@@ -966,23 +967,11 @@ int CClient::OnSkill_EvalInt( CUID uid, int iSkillLevel, bool fTest )
 
 	return iSkillLevel;
 }
-static lpctstr const sm_szPoisonMessages[] =
-{
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_1 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_2 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_3 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_4 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_5 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_6 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_7 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_8 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_9 ),
-	g_Cfg.GetDefaultMsg( DEFMSG_ARMSLORE_PSN_10 )
-};
 
 int CClient::OnSkill_ArmsLore( CUID uid, int iSkillLevel, bool fTest )
 {
 	ADDTOCALLSTACK("CClient::OnSkill_ArmsLore");
+
 	// SKILL_ARMSLORE
 	CItem * pItem = uid.ItemFind();
 	if ( pItem == nullptr || ! pItem->IsTypeArmorWeapon())
@@ -1061,12 +1050,29 @@ int CClient::OnSkill_ArmsLore( CUID uid, int iSkillLevel, bool fTest )
 		len += Str_CopyLimitNull( pszTemp+len, g_Cfg.GetDefaultMsg( DEFMSG_ITEM_REPAIR ), STR_TEMPLENGTH - len);
 	}
 
+	static const lpctstr sm_szPoisonMessages[] =
+	{
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_1),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_2),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_3),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_4),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_5),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_6),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_7),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_8),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_9),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_10)
+	};
+
 	// Poisoned ?
 	if ( fWeapon && pItem->m_itWeapon.m_poison_skill )
 	{
-		uint iLevel = (uint)IMulDiv( pItem->m_itWeapon.m_poison_skill, CountOf(sm_szPoisonMessages), 100 );
+		uint iLevel = (uint)IMulDiv( 
+			i_promote32(pItem->m_itWeapon.m_poison_skill),
+			i_narrow32(CountOf(sm_szPoisonMessages)),
+			100);
 		if ( iLevel >= CountOf(sm_szPoisonMessages))
-			iLevel = CountOf(sm_szPoisonMessages) - 1;
+			iLevel = i_narrow32(CountOf(sm_szPoisonMessages)) - 1;
 		len += snprintf( pszTemp+len, STR_TEMPLENGTH - len, " %s", sm_szPoisonMessages[iLevel] );
 	}
 
@@ -1260,12 +1266,27 @@ int CClient::OnSkill_TasteID( CUID uid, int iSkillLevel, bool fTest )
 	if ( fTest )
 		return Calc_GetRandVal(60);
 
+
+	static const lpctstr sm_szPoisonMessages[] =
+	{
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_1),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_2),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_3),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_4),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_5),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_6),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_7),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_8),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_9),
+			g_Cfg.GetDefaultMsg(DEFMSG_ARMSLORE_PSN_10)
+	};
+
 	if ( iPoisonLevel )
 	{
 		uint iLevel = (uint)IMulDiv( iPoisonLevel, CountOf(sm_szPoisonMessages), 1000 );
 		if ( iLevel >= CountOf(sm_szPoisonMessages))
-			iLevel = CountOf(sm_szPoisonMessages) - 1;
-		SysMessage( sm_szPoisonMessages[iLevel] );
+			iLevel = i_narrow32(CountOf(sm_szPoisonMessages) - 1);
+		SysMessage(sm_szPoisonMessages[iLevel] );
 	}
 	else
 		SysMessagef( g_Cfg.GetDefaultMsg( DEFMSG_TASTEID_RESULT ), static_cast<lpctstr>(pItem->GetNameFull(false)));
@@ -1465,7 +1486,7 @@ bool CClient::OnTarg_Skill_Magery( CObjBase * pObj, const CPointMap & pt )
 	m_pChar->m_atMagery.m_iSummonID		= m_tmSkillMagery.m_iSummonID;
 
 	m_pChar->m_Act_Prv_UID				= m_Targ_Prv_UID;	// Source (wand or you?)
-	m_pChar->m_Act_UID					= pObj ? pObj->GetUID() : CUID(UID_CLEAR);
+	m_pChar->m_Act_UID					= pObj ? pObj->GetUID() : CUID(UID_PLAIN_CLEAR);
 	m_pChar->m_Act_p					= pt;
 	m_Targ_p							= pt;
 
@@ -1915,7 +1936,7 @@ bool CClient::OnTarg_Use_Item( CObjBase * pObjTarg, CPointMap & pt, ITEMID_TYPE 
 		case IT_FRUIT:
 		case IT_REAGENT_RAW:
 			// turn the fruit into a seed.
-			if ( ! m_pChar->CanUse( pItemTarg, true ))
+			if ( !pItemTarg || !m_pChar->CanUse( pItemTarg, true ))
 				return false;
 			{
 				CResourceID defaultseed = g_Cfg.ResourceGetIDType( RES_ITEMDEF, "DEFAULTSEED" );

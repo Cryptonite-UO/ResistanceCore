@@ -59,7 +59,7 @@ llong CSTime::GetPreciseSysTimeMilli() noexcept // static
 #endif
 }
 
-CSTime CSTime::GetCurrentTime()	// static
+CSTime CSTime::GetCurrentTime()	noexcept // static
 {
 	// return the current system time
 	return CSTime(::time(nullptr));
@@ -67,7 +67,7 @@ CSTime CSTime::GetCurrentTime()	// static
 
 
 CSTime::CSTime(int nYear, int nMonth, int nDay, int nHour, int nMin, int nSec,
-			   int nDST)
+			   int nDST) noexcept
 {
 	struct tm atm;
 	atm.tm_sec = nSec;
@@ -264,6 +264,8 @@ bool CSTime::operator!=( time_t t ) const noexcept
 
 time_t CSTime::GetTime() const noexcept
 {
+	// Although not defined by the C standard, this is almost always an integral value holding the number of seconds 
+	//  (not counting leap seconds) since 00:00, Jan 1 1970 UTC, corresponding to UNIX time.
 	return m_time;
 }
 

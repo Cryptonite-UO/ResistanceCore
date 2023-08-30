@@ -11,14 +11,13 @@ function (toolchain_exe_stuff_common)
 	#SET (C_ARCH_OPTS	) # set in parent toolchain
 	#SET (CXX_ARCH_OPTS	) # set in parent toolchain
 	SET (C_OPTS		"-std=c11   -pthread -fexceptions -fnon-call-exceptions")
-	SET (CXX_OPTS		"-std=c++17 -pthread -fexceptions -fnon-call-exceptions -mno-ms-bitfields")
+	SET (CXX_OPTS	"-std=c++17 -pthread -fexceptions -fnon-call-exceptions -mno-ms-bitfields")
 	 # -mno-ms-bitfields is needed to fix structure packing;
 	 # -mwindows: specify the subsystem, avoiding the opening of a console when launching the application.
 	SET (C_SPECIAL		"-pipe -mwindows -fno-expensive-optimizations")
 	SET (CXX_SPECIAL	"-pipe -mwindows -ffast-math")
 
-	SET (CMAKE_RC_FLAGS	"--target=pe-i386"							PARENT_SCOPE)
-	SET (CMAKE_C_FLAGS	"${C_WARNING_OPTS} ${C_OPTS} ${C_SPECIAL} ${C_FLAGS_EXTRA}"		PARENT_SCOPE)
+	SET (CMAKE_C_FLAGS		"${C_WARNING_OPTS} ${C_OPTS} ${C_SPECIAL} ${C_FLAGS_EXTRA}"			PARENT_SCOPE)
 	SET (CMAKE_CXX_FLAGS	"${CXX_WARNING_OPTS} ${CXX_OPTS} ${CXX_SPECIAL} ${CXX_FLAGS_EXTRA}"	PARENT_SCOPE)
 
 
@@ -26,8 +25,11 @@ function (toolchain_exe_stuff_common)
 
 	 # Force dynamic linking but include into exe libstdc++ and libgcc.
 	 # -pthread, -s and -g need to be added/removed also to/from linker flags!
-	SET (CMAKE_EXE_LINKER_FLAGS	"-pthread -dynamic -static-libstdc++ -static-libgcc"		PARENT_SCOPE)
+	SET (CMAKE_EXE_LINKER_FLAGS	"-pthread -dynamic -static-libstdc++ -static-libgcc"			PARENT_SCOPE)
 
+	IF (${ENABLE_SANITIZERS})
+		SET (SANITIZER_OPTS "-fno-inline -fsanitize=address,undefined,leak -fsanitize-address-use-after-scope -fstack-protector-strong -fvtable-verify=preinit")
+	ENDIF ()
 
 	#-- Adding compiler flags per build.
 
@@ -36,30 +38,31 @@ function (toolchain_exe_stuff_common)
 	 # -s: strips debug info (remove it when debugging); -g: adds debug informations;
 	 # -fno-omit-frame-pointer disables a good optimization which may corrupt the debugger stack trace.
 	IF (TARGET spheresvr_release)
-		TARGET_COMPILE_OPTIONS ( spheresvr_release	PUBLIC -s -O3 	)
+		TARGET_COMPILE_OPTIONS ( spheresvr_release	PUBLIC -s -O3 )
 	ENDIF (TARGET spheresvr_release)
 	IF (TARGET spheresvr_nightly)
-		TARGET_COMPILE_OPTIONS ( spheresvr_nightly	PUBLIC -s -O3    )
+		TARGET_COMPILE_OPTIONS ( spheresvr_nightly	PUBLIC -s -O3 )
+		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZERS_OPTS}")
 	ENDIF (TARGET spheresvr_nightly)
 	IF (TARGET spheresvr_debug)
-		TARGET_COMPILE_OPTIONS ( spheresvr_debug	PUBLIC -ggdb3 -Og -fno-omit-frame-pointer	)
+		TARGET_COMPILE_OPTIONS ( spheresvr_debug	PUBLIC -ggdb3 -Og -fno-omit-frame-pointer )
+		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZERS_OPTS}")
 	ENDIF (TARGET spheresvr_debug)
 
 
-	#-- Setting per-build linker flags.
+	#-- Setting per-build linker options.
 
-	 # Linking Unix (MinGW) libs.
-	 # same here, do not use " " to delimitate these flags!
-	IF (TARGET spheresvr_release)
-		TARGET_LINK_LIBRARIES ( spheresvr_release	mysql ws2_32 )
+	 # Linking libs the MinGW way.
+	 IF (TARGET spheresvr_release)
+		TARGET_LINK_LIBRARIES ( spheresvr_release	mariadb ws2_32 )
 	ENDIF (TARGET spheresvr_release)
 	IF (TARGET spheresvr_nightly)
-		TARGET_LINK_LIBRARIES ( spheresvr_nightly	mysql ws2_32 )
+		TARGET_LINK_LIBRARIES ( spheresvr_nightly	mariadb ws2_32 )
 	ENDIF (TARGET spheresvr_nightly)
 	IF (TARGET spheresvr_debug)
-		TARGET_LINK_LIBRARIES ( spheresvr_debug		mysql ws2_32 )
+		TARGET_LINK_LIBRARIES ( spheresvr_debug		mariadb ws2_32 )
 	ENDIF (TARGET spheresvr_debug)
-
+	
 
 	#-- Set common define macros.
 

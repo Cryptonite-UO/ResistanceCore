@@ -1,6 +1,6 @@
 #ifdef _WIN32
 	#include "../sphere/ntservice.h"	// g_Service
-	#include <process.h>	// getpid()
+	#include <process.h>				// getpid()
 #else
 	#include "../sphere/UnixTerminal.h"
 #endif
@@ -22,15 +22,15 @@
 #include "../sphere/asyncdb.h"
 #include "../sphere/ntwindow.h"
 #include "clients/CAccount.h"
-#include "items/CItemMap.h"
-#include "items/CItemMessage.h"
-#include "components/CCChampion.h"
 #include "CScriptProfiler.h"
 #include "CSector.h"
 #include "CServer.h"
 #include "CWorld.h"
 #include "spheresvr.h"
 #include <sstream>
+
+// Headers for InitRuntimeStaticMembers
+#include "clients/CClient.h"
 
 
 // Dynamic allocation of some global stuff
@@ -49,8 +49,8 @@ GlobalInitializer::GlobalInitializer()
 	// The order of the instructions is important!
 
 	std::stringstream ssServerDescription;
-	ssServerDescription << SPHERE_TITLE << " Version " << SPHERE_VERSION;
-	ssServerDescription << " [" << SPHERE_VER_FILEOS_STR << '-' << g_ptcArchBits << "]";
+	ssServerDescription << SPHERE_TITLE << " Version " << SPHERE_BUILD_NAME;
+	ssServerDescription << " [" << get_target_os_str() << '-' << get_target_arch_str() << "]";
 	ssServerDescription << " by www.spherecommunity.net";
 	g_sServerDescription = ssServerDescription.str();
 
@@ -82,17 +82,20 @@ GlobalInitializer::GlobalInitializer()
 	constexpr const char* m_sClassName = "GlobalInitializer";
 	EXC_TRY("Pre-startup Init");
 
-	ASSERT(MAX_BUFFER >= sizeof(CCommand));
-	ASSERT(MAX_BUFFER >= sizeof(CEvent));
-	ASSERT(sizeof(int) == sizeof(dword));	// make this assumption often.
-	ASSERT(sizeof(ITEMID_TYPE) == sizeof(dword));
-	ASSERT(sizeof(word) == 2);
-	ASSERT(sizeof(dword) == 4);
-	ASSERT(sizeof(nword) == 2);
-	ASSERT(sizeof(ndword) == 4);
-	ASSERT(sizeof(CUOItemTypeRec) == 37);	// is byte packing working ?
+	static_assert(MAX_BUFFER >= sizeof(CCommand));
+	static_assert(MAX_BUFFER >= sizeof(CEvent));
+	static_assert(sizeof(int) == sizeof(dword));	// make this assumption often.
+	static_assert(sizeof(ITEMID_TYPE) == sizeof(dword));
+	static_assert(sizeof(word) == 2);
+	static_assert(sizeof(dword) == 4);
+	static_assert(sizeof(nword) == 2);
+	static_assert(sizeof(ndword) == 4);
+	static_assert(sizeof(wchar) == 2);	// 16 bits
+	static_assert(sizeof(CUOItemTypeRec) == 37);	// is byte packing working ?
 
-    EXC_CATCH;
+	CPointBase::InitRuntimeStaticMembers();
+
+	EXC_CATCH;
 }
 
 GlobalInitializer g_GlobalInitializer;
@@ -108,15 +111,18 @@ CWorld			g_World;			// the world. (we save this stuff)
 #endif
 	CNetworkManager g_NetworkManager;
 
-// Again, game servers stuff.
+// Config data from sphere.ini is needed from the beginning.
 CServerConfig	g_Cfg;
-CServer			g_Serv;				// current state, stuff not saved.
 
 #ifdef _WIN32
-	CNTWindow g_NTWindow;
+CNTWindow g_NTWindow;
 #else
-	UnixTerminal g_UnixTerminal;
+UnixTerminal g_UnixTerminal;
 #endif
+
+// Again, game servers stuff.
+CServer			g_Serv;				// current state, stuff not saved.
+
 
 CUOInstall		g_Install;
 CVerDataMul		g_VerData;
