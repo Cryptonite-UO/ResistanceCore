@@ -213,7 +213,7 @@ void CItem::DeleteCleanup(bool fForce)
 	CUID uidTest(GetComponentOfMulti());
     if (uidTest.IsValidUID())
     {
-        if (auto* pMulti = static_cast<CItemMulti*>(uidTest.ItemFind(true)))
+        if (auto* pMulti = dynamic_cast<CItemMulti*>(uidTest.ItemFind(true)))
         {
             pMulti->DeleteComponent(GetUID(), true);
         }
@@ -221,7 +221,7 @@ void CItem::DeleteCleanup(bool fForce)
 	uidTest = GetLockDownOfMulti();
     if (uidTest.IsValidUID())
     {
-		if (auto* pMulti = static_cast<CItemMulti*>(uidTest.ItemFind(true)))
+		if (auto* pMulti = dynamic_cast<CItemMulti*>(uidTest.ItemFind(true)))
         {
             pMulti->UnlockItem(GetUID(), true);
         }
@@ -777,7 +777,7 @@ int CItem::FixWeirdness()
 
     if (IsType(IT_EQ_MEMORY_OBJ) && !IsValidUID())
     {
-        SetUID(UID_CLEAR, true);	// some cases we don't get our UID because we are created during load.
+        SetUID(UID_PLAIN_CLEAR, true);	// some cases we don't get our UID because we are created during load.
     }
 
     int iResultCode = CObjBase::IsWeird();
@@ -1410,8 +1410,10 @@ bool CItem::MoveToUpdate(const CPointMap& pt, bool fForceFix)
 
 bool CItem::MoveToDecay(const CPointMap & pt, int64 iMsecsTimeout, bool fForceFix)
 {
+	if (!MoveToUpdate(pt, fForceFix))
+		return false;
 	SetDecayTime(iMsecsTimeout);
-	return MoveToUpdate(pt, fForceFix);
+	return true;
 }
 
 void CItem::SetDecayTime(int64 iMsecsTimeout, bool fOverrideAlways)
@@ -3562,7 +3564,7 @@ TRIGRET_TYPE CItem::OnTrigger( lpctstr pszTrigName, CTextConsole * pSrc, CScript
 	ADDTOCALLSTACK("CItem::OnTrigger");
 
 	if (IsTriggerActive(pszTrigName)) //This should protect any item trigger from infinite loop
-		return TRIGRET_RET_DEFAULT;
+		return TRIGRET_RET_ABORTED;
 
 	if ( !pSrc )
 		pSrc = &g_Serv;
@@ -5432,6 +5434,7 @@ bool CItem::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 {
 	ADDTOCALLSTACK("CItem::OnSpellEffect");
 	UNREFERENCED_PARAMETER(bReflecting);	// items are not affected by Magic Reflection
+	UNREFERENCED_PARAMETER(iDuration);
     // A spell is cast on this item.
     // ARGS:
     //  iSkillLevel = 0-1000 = difficulty. may be slightly larger . how advanced is this spell (might be from a wand)
@@ -5990,7 +5993,7 @@ bool CItem::_CanHoldTimer() const
 
 bool CItem::_CanTick(bool fParentGoingToSleep) const
 {
-	ADDTOCALLSTACK("CItem::_CanTick");
+	ADDTOCALLSTACK_INTENSIVE("CItem::_CanTick");
 	EXC_TRY("Can tick?");
 
 	const CObjBase* pCont = GetContainer();

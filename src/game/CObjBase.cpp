@@ -92,7 +92,7 @@ CObjBase::CObjBase( bool fItem )  // PROFILE_TIME_QTY is unused, CObjBase is not
 	else
 	{
 		// Find a free UID slot for this.
-		SetUID(UID_CLEAR, fItem);
+		SetUID(UID_PLAIN_CLEAR, fItem);
 		ASSERT(IsValidUID());
 		SetUIDContainerFlags(UID_O_DISCONNECT);	// it is no place for now
 	}
@@ -669,16 +669,16 @@ void CObjBase::Speak( lpctstr pText, HUE_TYPE wHue, TALKMODE_TYPE mode, FONT_TYP
 void CObjBase::SpeakUTF8( lpctstr pText, HUE_TYPE wHue, TALKMODE_TYPE mode, FONT_TYPE font, CLanguageID lang )
 {
 	ADDTOCALLSTACK_INTENSIVE("CObjBase::SpeakUTF8");
-	// convert UTF8 to UNICODE.
-	nchar szBuffer[ MAX_TALK_BUFFER ];
-	CvtSystemToNUNICODE( szBuffer, CountOf(szBuffer), pText, -1 );
+	// convert UTF8 to UTF16 UNICODE.
+	nachar szBuffer[ MAX_TALK_BUFFER ];
+	CvtSystemToNETUTF16( szBuffer, CountOf(szBuffer), pText, -1 );
 	CWorldComm::SpeakUNICODE( this, szBuffer, wHue, mode, font, lang );
 }
 
 // Speak to all clients in the area.
 // Unicode packet
-// Difference with SpeakUTF8: this method accepts as text input an nword, which is unicode if sphere is compiled with UNICODE macro)
-void CObjBase::SpeakUTF8Ex( const nword * pText, HUE_TYPE wHue, TALKMODE_TYPE mode, FONT_TYPE font, CLanguageID lang )
+// Difference with SpeakUTF8: this method accepts as text input an nachar, which is a network aligned utf16 unicode characters array
+void CObjBase::SpeakUTF8Ex( const nachar * pText, HUE_TYPE wHue, TALKMODE_TYPE mode, FONT_TYPE font, CLanguageID lang )
 {
 	ADDTOCALLSTACK_INTENSIVE("CObjBase::SpeakUTF8Ex");
 	CWorldComm::SpeakUNICODE( this, pText, wHue, mode, font, lang );
@@ -1564,7 +1564,7 @@ bool CObjBase::r_WriteVal( lpctstr ptcKey, CSString &sVal, CTextConsole * pSrc, 
 			sVal.FormatLLVal( GetTimeStamp() / MSECS_PER_TENTH ); // in tenths of second.
 			break;
 		case OC_VERSION:
-			sVal = SPHERE_VERSION;
+			sVal = SPHERE_BUILD_NAME;
 			break;
 		case OC_WEIGHT:
 			sVal.FormatVal( GetWeight() );
@@ -2303,13 +2303,13 @@ bool CObjBase::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command fro
 					break;	// We show the message only to players
 
 				tchar * pszArgs[5];
-				nchar ncBuffer[ MAX_TALK_BUFFER ];
+				nachar ncBuffer[ MAX_TALK_BUFFER ];
 
 				int iArgQty = Str_ParseCmds( s.GetArgRaw(), pszArgs, CountOf(pszArgs) );
 				if ( iArgQty < 5 )
 					break;
 
-				CvtSystemToNUNICODE( ncBuffer, CountOf( ncBuffer ), pszArgs[4], -1 );
+				CvtSystemToNETUTF16( ncBuffer, CountOf( ncBuffer ), pszArgs[4], -1 );
 				pClientSrc->addBarkUNICODE( ncBuffer, this,
 					(HUE_TYPE)( pszArgs[0][0] ? Exp_GetVal(pszArgs[0]) : HUE_TEXT_DEF ),
 					(TALKMODE_TYPE)( pszArgs[1][0] ? Exp_GetVal(pszArgs[1]) : TALKMODE_SAY ),
@@ -3134,7 +3134,7 @@ void CObjBase::_GoSleep()
 
 bool CObjBase::_CanTick(bool fParentGoingToSleep) const
 {
-	ADDTOCALLSTACK("CObjBase::_CanTick");
+	ADDTOCALLSTACK_INTENSIVE("CObjBase::_CanTick");
 	// This doesn't check the sector sleeping status, it's only about this object.
     EXC_TRY("Can tick?");
 

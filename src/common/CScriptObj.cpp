@@ -298,6 +298,9 @@ bool CScriptObj::r_Call( size_t uiFunctionIndex, CTextConsole * pSrc, CScriptTri
 
         if ( piRet )
             *piRet	= iRet;
+
+        if (iRet == TRIGRET_RET_ABORTED)
+            return false;
     }
 	EXC_CATCH;
     return true;
@@ -1465,7 +1468,7 @@ bool CScriptObj::r_Load( CScript & s )
 }
 
 
-bool CScriptObj::_Evaluate_Conditional_EvalSingle(const SubexprData& sdata, CTextConsole* pSrc, CScriptTriggerArgs* pArgs, std::shared_ptr<ScriptedExprContext> pContext)
+bool CScriptObj::_Evaluate_Conditional_EvalSingle(SubexprData& sdata, CTextConsole* pSrc, CScriptTriggerArgs* pArgs, std::shared_ptr<ScriptedExprContext> pContext)
 {
 	ADDTOCALLSTACK("CScriptObj::_Evaluate_Conditional_EvalSingle");
 	ASSERT(sdata.ptcStart);
@@ -1482,20 +1485,47 @@ bool CScriptObj::_Evaluate_Conditional_EvalSingle(const SubexprData& sdata, CTex
 	}
 	++ pContext->_iEvaluate_Conditional_Reentrant;
 
-	// Length to copy: +1 to include the last valid char (i'm not copying the subsequent char, which can be another char or '\0'
-	const size_t len = std::min(STR_TEMPLENGTH - 1U, size_t(sdata.ptcEnd - sdata.ptcStart + 1U));
+    // Is this conditional expression is fully enclosed by brackets ?
+    const bool fFullyEnclosed = (sdata.uiType & SType::TopParenthesizedExpr);
 
+	// Length to copy: include the last valid char (i'm not copying the subsequent char, which can be another char or '\0'
+    ASSERT(sdata.ptcEnd >= sdata.ptcStart);
+	size_t len = std::min(STR_TEMPLENGTH - 1U, size_t(sdata.ptcEnd - sdata.ptcStart));
+    if (len == 0)
+    {
+        g_Log.EventError("Empty subexpression. Defaulting its value to false.\n");
+        return false;
+    }
+
+    lptstr ptcParsingStart = sdata.ptcStart;
+    if (fFullyEnclosed)
+    {
+        -- len;     // Exclude the closing bracket ')'.
+        ASSERT(len > 0);
+
+        // In this case, we need to start parsing after the opening parenthesis '('; if we start before it and the subexpr is marked with MaybeNestedSubexpr,
+        //  Evaluate_Conditional will again return the same subexpression fully enclosed by parenthesis, and we'll have a deadlock.
+        // Remember that sdata.uiNonAssociativeOffset is the distance between the open bracket '(' and the non-associative operator (negation operator '!').
+        // The string might start with said non-associative operator.
+        ptcParsingStart += 1;
+        len -= 1;
+    }
+
+    ASSERT(len < STR_TEMPLENGTH);
 	ptcSubexpr = Str_GetTemp();
-	memcpy(ptcSubexpr, sdata.ptcStart, len);
+	memcpy(ptcSubexpr, ptcParsingStart, len);
 	ptcSubexpr[len] = '\0';
 
 	const bool fNested = (sdata.uiType & SType::MaybeNestedSubexpr);
 	if (fNested)
 	{
+        // Probably this subexpression has other conditional subexpressions inside.
 		fVal = Evaluate_Conditional(ptcSubexpr, pSrc, pArgs);
 	}
 	else
 	{
+        // If an expression is enclosed by parentheses, ParseScriptText needs to read both the open and the closed one, we cannot
+        //  pass the string starting with the character after the '('.
 		ParseScriptText(ptcSubexpr, pSrc, 0, pArgs);
 		fVal = bool(Exp_GetVal(ptcSubexpr));
 	}
@@ -1527,8 +1557,16 @@ bool CScriptObj::Evaluate_Conditional(lptstr ptcExpr, CTextConsole* pSrc, CScrip
 {
 	ADDTOCALLSTACK("CScriptObj::Evaluate_Conditional");
 
+    //g_Log.EventDebug("\nEvaluating conditional expression: \"%s\"\n", ptcExpr);
+
 	SubexprData psSubexprData[32]{};
-	const int iQty = CExpression::GetConditionalSubexpressions(ptcExpr, psSubexprData, CountOf(psSubexprData));	// number of arguments
+	lptstr ptcExprDbg = ptcExpr;
+	const int iQty = CExpression::GetConditionalSubexpressions(ptcExprDbg, psSubexprData, CountOf(psSubexprData));	// number of arguments
+
+    /*g_Log.EventDebug("---Qty: %d\n", iQty);
+    for (int i = 0; i < iQty; ++i)
+        g_Log.EventDebug("---Subexpr %d: \"%.*s\"\n", i, (psSubexprData[i].ptcEnd - psSubexprData[i].ptcStart), psSubexprData[i].ptcStart);
+    */
 
 	if (iQty == 0)
 		return 0;
@@ -1538,8 +1576,8 @@ bool CScriptObj::Evaluate_Conditional(lptstr ptcExpr, CTextConsole* pSrc, CScrip
 	if (iQty == 1)
 	{
 		// We don't have subexpressions, but only a simple expression.
-		const SubexprData& sCur = psSubexprData[0];
-		ASSERT(sCur.uiType & SType::None);
+		SubexprData& sCur = psSubexprData[0];
+		ASSERT((sCur.uiType & SType::None) ||  (sCur.uiType & SType::BinaryNonLogical));
 
 		const bool fVal = _Evaluate_Conditional_EvalSingle(sCur, pSrc, pArgs, pContext);
 		return fVal;
@@ -1550,7 +1588,7 @@ bool CScriptObj::Evaluate_Conditional(lptstr ptcExpr, CTextConsole* pSrc, CScrip
 	bool fWholeExprVal = false;
 	for (int i = 0; i < iQty; ++i)
 	{
-		const SubexprData& sCur = psSubexprData[i];
+		SubexprData& sCur = psSubexprData[i];
 		ASSERT(sCur.uiType != SType::Unknown);
 
 		if (i == 0)
@@ -1559,7 +1597,7 @@ bool CScriptObj::Evaluate_Conditional(lptstr ptcExpr, CTextConsole* pSrc, CScrip
 			continue;
 		}
 
-		const SubexprData& sPrev = psSubexprData[i - 1];
+		SubexprData& sPrev = psSubexprData[i - 1];
 		if (sPrev.uiType & SType::Or)
 		{
 			if (fWholeExprVal)
@@ -1576,23 +1614,12 @@ bool CScriptObj::Evaluate_Conditional(lptstr ptcExpr, CTextConsole* pSrc, CScrip
 			const bool fVal = _Evaluate_Conditional_EvalSingle(sCur, pSrc, pArgs, pContext);
 			fWholeExprVal = (i == 1) ? fVal : (fWholeExprVal && fVal);
 		}
+
 		
 		if (sCur.uiType & SType::None)
 		{
 			ASSERT(i == iQty - 1);	// It should be the last subexpression
-
-			const bool fVal = _Evaluate_Conditional_EvalSingle(sCur, pSrc, pArgs, pContext);
-
-			if (sPrev.uiType & SType::Or)
-			{
-				fWholeExprVal = fWholeExprVal || fVal;
-			}
-			else
-			{
-				ASSERT(sPrev.uiType & SType::And);
-				ASSERT(iQty > 1);
-				fWholeExprVal = (fWholeExprVal && fVal);
-			}
+			ASSERT((sPrev.uiType & SType::Or) || (sPrev.uiType & SType::And));
 		}
 		
 	}
@@ -2792,6 +2819,20 @@ TRIGRET_TYPE CScriptObj::OnTriggerRun( CScript &s, TRIGRUN_TYPE trigrun, CTextCo
 		pArgs = argsEmpty.get();
     }
 
+    static constexpr uint g_reentrant_OnTriggerRun_limit = 75;
+    static thread_local size_t g_reentrant_OnTriggerRun = 0;
+    auto clean_return = [](const TRIGRET_TYPE ret) -> TRIGRET_TYPE {
+        g_reentrant_OnTriggerRun -= 1;
+        return ret;
+    };
+
+    g_reentrant_OnTriggerRun += 1;
+    if (g_reentrant_OnTriggerRun >= g_reentrant_OnTriggerRun_limit)
+    {
+        g_Log.Event(LOGL_CRIT, "Parsing of the current script is HALTED. Some code is calling itself recursively.\n");
+        return clean_return(TRIGRET_RET_ABORTED);
+    }
+
 	//	Script execution is always not threaded action
 	EXC_TRY("TriggerRun");
 
@@ -2819,14 +2860,14 @@ jump_in:
 			case SK_ENDRAND:
 			case SK_ENDSWITCH:
 			case SK_ENDWHILE:
-				return( TRIGRET_ENDIF );
+				return clean_return(TRIGRET_ENDIF);
 
 			case SK_ELIF:
 			case SK_ELSEIF:
-				return( TRIGRET_ELSEIF );
+				return clean_return(TRIGRET_ELSEIF);
 
 			case SK_ELSE:
-				return( TRIGRET_ELSE );
+				return clean_return(TRIGRET_ELSE);
 
 			default:
 				break;
@@ -2868,7 +2909,7 @@ jump_in:
 					break;
 			}
 			if ( trigrun >= TRIGRUN_SINGLE_EXEC )
-				return( TRIGRET_RET_DEFAULT );
+				return clean_return(TRIGRET_RET_DEFAULT);
 			continue;	// just ignore it.
 		}
 
@@ -2877,10 +2918,10 @@ jump_in:
 		switch ( iCmd )
 		{
 			case SK_BREAK:
-				return TRIGRET_BREAK;
+				return clean_return(TRIGRET_BREAK);
 
 			case SK_CONTINUE:
-				return TRIGRET_CONTINUE;
+				return clean_return(TRIGRET_CONTINUE);
 
 			case SK_FORITEM:	EXC_SET_BLOCK("foritem");		iRet = OnTriggerLoopGeneric(s, 1,    pSrc, pArgs, pResult); break;
 			case SK_FORCHAR:	EXC_SET_BLOCK("forchar");		iRet = OnTriggerLoopGeneric(s, 2,    pSrc, pArgs, pResult);	break;
@@ -2940,6 +2981,10 @@ jump_in:
 				}
 		}
 
+        // Logical block ended. What should i do?
+        if (iRet == TRIGRET_RET_ABORTED)
+            return clean_return(iRet);
+
 		switch ( iCmd )
 		{
 			case SK_FORITEM:
@@ -2957,7 +3002,7 @@ jump_in:
 			case SK_FOR:
 			case SK_WHILE:
 				if ( iRet != TRIGRET_ENDIF )
-					return iRet;
+					return clean_return(iRet);
 				break;
 
 			case SK_DORAND:	// Do a random line in here.
@@ -2974,7 +3019,7 @@ jump_in:
 							continue;
 						if ( iRet == TRIGRET_ENDIF )
 							break;
-						return iRet;
+						return clean_return(iRet);
 					}
 				}
 				break;
@@ -2984,21 +3029,22 @@ jump_in:
 				if ( pResult )
 				{
 					pResult->Copy( s.GetArgStr() );
-					return TRIGRET_RET_TRUE;
+					return clean_return(TRIGRET_RET_TRUE);
 				}
-				return TRIGRET_TYPE(s.GetArgVal());
+				return clean_return(TRIGRET_TYPE(s.GetArgVal()));
 
 			case SK_IF:
 				{
 					EXC_SET_BLOCK("if statement");
 					// At this point, we have to parse the conditional expression
-					bool fTrigger = Evaluate_Conditional(s.GetArgStr(), pSrc, pArgs);
+                    const lptstr ptcArg = s.GetArgStr();
+					bool fTrigger = Evaluate_Conditional(ptcArg, pSrc, pArgs);
 					bool fBeenTrue = false;
 					for (;;)
 					{
 						iRet = OnTriggerRun( s, fTrigger ? TRIGRUN_SECTION_TRUE : TRIGRUN_SECTION_FALSE, pSrc, pArgs, pResult );
 						if (( iRet < TRIGRET_ENDIF ) || ( iRet >= TRIGRET_RET_HALFBAKED ))
-							return iRet;
+							return clean_return(iRet);
 						if ( iRet == TRIGRET_ENDIF )
 							break;
 
@@ -3008,9 +3054,7 @@ jump_in:
 						else if ( iRet == TRIGRET_ELSE )
 							fTrigger = true;
 						else if ( iRet == TRIGRET_ELSEIF )
-						{
 							fTrigger = Evaluate_Conditional(s.GetArgStr(), pSrc, pArgs);
-						}
 					}
 				}
 				break;
@@ -3021,7 +3065,7 @@ jump_in:
 					EXC_SET_BLOCK("begin/loop cycle");
 					iRet = OnTriggerRun( s, TRIGRUN_SECTION_TRUE, pSrc, pArgs, pResult );
 					if ( iRet != TRIGRET_ENDIF )
-						return iRet;
+						return clean_return(iRet);
 				}
 				break;
 
@@ -3053,7 +3097,7 @@ jump_in:
 		}
 
 		if ( trigrun >= TRIGRUN_SINGLE_EXEC )
-			return TRIGRET_RET_DEFAULT;
+			return clean_return(TRIGRET_RET_DEFAULT);
 	}
 	EXC_CATCH;
 
@@ -3061,7 +3105,7 @@ jump_in:
 	g_Log.EventDebug("key '%s' runtype '%d' pargs '%p' ret '%s' [%p]\n",
 		s.GetKey(), trigrun, static_cast<void *>(pArgs), (pResult == nullptr ? "" : pResult->GetBuffer()), static_cast<void *>(pSrc));
 	EXC_DEBUG_END;
-	return TRIGRET_RET_DEFAULT;
+	return clean_return(TRIGRET_RET_DEFAULT);
 }
 
 TRIGRET_TYPE CScriptObj::OnTriggerRunVal( CScript &s, TRIGRUN_TYPE trigrun, CTextConsole * pSrc, CScriptTriggerArgs * pArgs )

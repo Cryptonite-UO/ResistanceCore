@@ -20,11 +20,15 @@ function (toolchain_exe_stuff_common)
 
 	 # -s and -g need to be added/removed also to/from linker flags!
 	SET (CMAKE_EXE_LINKER_FLAGS	"-pthread -dynamic\
-					-I/usr/local/opt/mysql-client/include\
-					-L/usr/local/opt/mysql-client/lib -lmysqlclient\
+					-I/usr/local/opt/mariadb-connector-c/include/mariadb\
+					-L/usr/local/opt/mariadb-connector-c/lib/mariadb\
+					-lmariadb\
 					${CMAKE_EXE_LINKER_FLAGS_EXTRA}"
 					PARENT_SCOPE)
 
+	IF (${ENABLE_SANITIZERS})
+		SET (SANITIZER_OPTS "-fno-inline -fsanitize=address,undefined,leak -fsanitize-address-use-after-scope -fstack-protector-strong -fvtable-verify=preinit")
+	ENDIF ()
 
 	#-- Adding compiler flags per build.
 
@@ -37,12 +41,11 @@ function (toolchain_exe_stuff_common)
 	ENDIF (TARGET spheresvr_release)
 	IF (TARGET spheresvr_nightly)
 		TARGET_COMPILE_OPTIONS ( spheresvr_nightly	PUBLIC -O3    )
+		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZERS_OPTS}")
 	ENDIF (TARGET spheresvr_nightly)
 	IF (TARGET spheresvr_debug)
-		IF (${ENABLE_SANITIZERS})
-			SET (SANITIZERS "-fsanitize=address,undefined")
-		ENDIF (${ENABLE_SANITIZERS})
-		TARGET_COMPILE_OPTIONS ( spheresvr_debug	PUBLIC -ggdb3 -Og -fno-omit-frame-pointer ${SANITIZERS} )
+		TARGET_COMPILE_OPTIONS ( spheresvr_debug	PUBLIC -ggdb3 -Og -fno-omit-frame-pointer )
+		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZERS_OPTS}")
 	ENDIF (TARGET spheresvr_debug)
 
 
@@ -51,13 +54,13 @@ function (toolchain_exe_stuff_common)
 	 # Linking Unix libs.
 	 # same here, do not use " " to delimitate these flags!
 	IF (TARGET spheresvr_release)
-		TARGET_LINK_LIBRARIES ( spheresvr_release	mysqlclient rt dl )
+		TARGET_LINK_LIBRARIES ( spheresvr_release	mariadb dl )
 	ENDIF (TARGET spheresvr_release)
 	IF (TARGET spheresvr_nightly)
-		TARGET_LINK_LIBRARIES ( spheresvr_nightly	mysqlclient rt dl )
+		TARGET_LINK_LIBRARIES ( spheresvr_nightly	mariadb dl )
 	ENDIF (TARGET spheresvr_nightly)
 	IF (TARGET spheresvr_debug)
-		TARGET_LINK_LIBRARIES ( spheresvr_debug		mysqlclient rt dl )
+		TARGET_LINK_LIBRARIES ( spheresvr_debug		mariadb dl )
 	ENDIF (TARGET spheresvr_debug)
 
 	#-- Set common define macros.

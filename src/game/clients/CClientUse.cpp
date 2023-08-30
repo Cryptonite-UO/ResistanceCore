@@ -1,10 +1,10 @@
 
 #include "../../common/resource/CResourceLock.h"
+#include "../../common/CLog.h"
 #include "../../network/send.h"
 #include "../chars/CChar.h"
 #include "../items/CItemMap.h"
 #include "../components/CCSpawn.h"
-#include "../CLog.h"
 #include "../CWorldMap.h"
 #include "../triggers.h"
 #include "CClient.h"
@@ -277,13 +277,6 @@ bool CClient::Cmd_Use_Item( CItem *pItem, bool fTestTouch, bool fScript )
 			{
 				SysMessageDefault(DEFMSG_ITEMUSE_POTION_FAIL);
 				return false;
-			}
-			if ( RES_GET_INDEX(pItem->m_itPotion.m_Type) == SPELL_Poison )
-			{
-				// If we click directly on poison potion, we will drink poison and get ill.
-				// To use it on Poisoning skill, the skill will request to target the potion.
-				m_pChar->OnSpellEffect(SPELL_Poison, m_pChar, pItem->m_itSpell.m_spelllevel, nullptr);
-				return true;
 			}
 			if ( RES_GET_INDEX(pItem->m_itPotion.m_Type) == SPELL_Explosion )
 			{

@@ -14,7 +14,9 @@
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-#include "../regex/deelx.h"
+
+#include "../../../lib/regex/deelx.h"
+
 #ifdef _MSC_VER
     #pragma warning( pop )
 #elif defined(__GNUC__)
@@ -389,8 +391,6 @@ size_t Str_CopyLimitNull(tchar * pDst, lpctstr pSrc, size_t uiMaxSize)
 size_t Str_CopyLen(tchar * pDst, lpctstr pSrc)
 {
     strcpy(pDst, pSrc);
-    // Remember: strlen returns the number of bytes before the terminator (if the string contains utf-8 characters,
-    //  strlen will return a value != than the actual number of characters, because some of them are codified with more than a byte).
     return strlen(pDst);
 }
 
@@ -474,6 +474,30 @@ size_t Str_ConcatLimitNull(tchar *dst, const tchar *src, size_t siz)
     *d = '\0';
 
     return (dlen + (s - src));	/* count does not include '\0' */
+}
+
+tchar* Str_FindSubstring(tchar* str, const tchar* substr, size_t str_len, size_t substr_len)
+{
+    tchar c, sc;
+    if ((c = *substr++) != '\0')
+    {
+        do
+        {
+            do
+            {
+                if (str_len-- < 1 || (sc = *str++) == '\0')
+                {
+                    return nullptr;
+                }
+            } while (sc != c);
+            if (substr_len > str_len)
+            {
+                return nullptr;
+            }
+        } while (0 != strncmp(str, substr, substr_len));
+        --str;
+    }
+    return str;
 }
 
 lpctstr Str_GetArticleAndSpace(lpctstr pszWord)
@@ -634,7 +658,7 @@ void Str_EatEndWhitespace(const tchar* const pStrBegin, tchar*& pStrEnd) noexcep
         return;
 
     tchar* ptcPrev = pStrEnd - 1;
-    while ((ptcPrev != pStrBegin) && ISWHITESPACE(*pStrEnd))
+    while ((ptcPrev != pStrBegin) && ISWHITESPACE(*ptcPrev))
     {
         if (*ptcPrev == '\0')
             return;

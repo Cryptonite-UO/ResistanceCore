@@ -6,14 +6,14 @@
 #ifndef _INC_CITEM_H
 #define _INC_CITEM_H
 
-#include "../resource/CResourceBase.h"
+#include "../../common/resource/CResourceBase.h"
+#include "../../common/CServerMap.h"
+#include "../../common/CRect.h"
 #include "../components/CCFaction.h"
 #include "../CServerTime.h"
 #include "../CBase.h"
-#include "../CRect.h"
 #include "../CObjBase.h"
 #include "../CObjBaseTemplate.h"
-#include "../CServerMap.h"
 #include "../game_enums.h"
 #include "../game_macros.h"
 #include "../CServerConfig.h"
@@ -722,8 +722,8 @@ public:
 		m_containedGridIndex = index;
 	}
 
-	void Update( const CClient * pClientExclude = nullptr );		// send this new item to everyone.
-	void Flip();
+	virtual void Update( const CClient * pClientExclude = nullptr ) override;	// send this new item to everyone.
+	virtual void Flip() override;
 	bool LoadSetContainer( const CUID& uid, LAYER_TYPE layer );
 
 	void WriteUOX( CScript & s, int index );
@@ -813,7 +813,7 @@ public:
 	bool IsBookSystem() const;
 
 	void OnExplosion();
-	bool OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, CItem * pSourceItem, bool bReflecting = false, int64 iDuration = 0);
+	virtual bool OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, CItem * pSourceItem, bool bReflecting = false, int64 iDuration = 0) override;
 	int OnTakeDamage( int iDmg, CChar * pSrc, DAMAGE_TYPE uType = DAMAGE_HIT_BLUNT );
 
 	int Armor_GetRepairPercent() const;

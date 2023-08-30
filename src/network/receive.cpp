@@ -2109,8 +2109,8 @@ bool PacketSpeakReqUNICODE::onReceive(CNetState* net)
 	}
 	else
 	{
-		nchar text[MAX_TALK_BUFFER];
-		readStringUNICODE(reinterpret_cast<wchar *>(text), packetLength, false);
+		nachar text[MAX_TALK_BUFFER];
+		readStringUTF16(reinterpret_cast<wchar *>(text), packetLength, false);
 		client->Event_TalkUNICODE(text, (int)(packetLength), hue, mode, font, language);
 	}
 
@@ -2238,7 +2238,7 @@ bool PacketGumpDialogRet::onReceive(CNetState* net)
 		word id = readInt16();
 		word length = readInt16();
 		length = minimum(length, THREAD_STRING_LENGTH);
-		readStringNUNICODE(text, THREAD_STRING_LENGTH, length, false);
+		readStringNETUTF16(text, THREAD_STRING_LENGTH, length, false);
 
 		tchar* fix;
 		if ((fix = strpbrk(text, "\n\r")) != nullptr)
@@ -2304,8 +2304,8 @@ bool PacketChatCommand::onReceive(CNetState* net)
 	if (textLength >= MAX_TALK_BUFFER)
 		textLength = MAX_TALK_BUFFER - 1;
 
-	nchar text[MAX_TALK_BUFFER];
-	readStringUNICODE(reinterpret_cast<wchar *>(text), textLength, false);
+	nachar text[MAX_TALK_BUFFER];
+	readStringUTF16(reinterpret_cast<wchar *>(text), textLength, false);
 
 	client->Event_ChatText(text, (int)(textLength), CLanguageID(language));
 	return true;
@@ -2331,8 +2331,8 @@ bool PacketChatButton::onReceive(CNetState* net)
 	ASSERT(client);
 
 	skip(1); // 0x00
-	nchar name[MAX_NAME_SIZE+1];
-	readStringUNICODE(reinterpret_cast<wchar *>(name), CountOf(name));
+	nachar name[MAX_NAME_SIZE+1];
+	readStringUTF16(reinterpret_cast<wchar *>(name), CountOf(name));
 
 	client->Event_ChatButton(name);
 	return true;
@@ -2394,7 +2394,7 @@ bool PacketProfileReq::onReceive(CNetState* net)
 
 		textLength = readInt16();
 		text = Str_GetTemp();
-		readStringNUNICODE(text, STR_TEMPLENGTH, textLength+1, false);
+		readStringNETUTF16(text, STR_TEMPLENGTH, textLength+1, false);
 	}
 
 	client->Event_Profile(write, serial, text, textLength);
@@ -2633,8 +2633,8 @@ bool PacketPartyMessage::onReceive(CNetState* net)
 				return false;
 
 			CUID serial(readInt32());
-			nword * text = reinterpret_cast<nword *>(Str_GetTemp());
-			int length = (int)readStringNullUNICODE(reinterpret_cast<wchar *>(text), MAX_TALK_BUFFER);
+			nachar * text = reinterpret_cast<nachar *>(Str_GetTemp());
+			int length = (int)readStringNullUTF16(reinterpret_cast<wchar *>(text), MAX_TALK_BUFFER);
 			character->m_pParty->MessageEvent(serial, character->GetUID(), text, length);
 		} break;
 
@@ -2644,8 +2644,8 @@ bool PacketPartyMessage::onReceive(CNetState* net)
 			if (character->m_pParty == nullptr)
 				return false;
 
-			nword * text = reinterpret_cast<nword *>(Str_GetTemp());
-			int length = (int)readStringNullUNICODE(reinterpret_cast<wchar *>(text), MAX_TALK_BUFFER);
+			nachar * text = reinterpret_cast<nachar *>(Str_GetTemp());
+			int length = (int)readStringNullUTF16(reinterpret_cast<wchar *>(text), MAX_TALK_BUFFER);
 			character->m_pParty->MessageEvent(CUID(0), character->GetUID(), text, length);
 		} break;
 
@@ -3410,7 +3410,7 @@ bool PacketPromptResponseUnicode::onReceive(CNetState* net)
 
 	length = (length - getPosition()) / 2;
 	tchar* text = Str_GetTemp();
-	readStringUNICODE(text, THREAD_STRING_LENGTH, length+1);
+	readStringUTF16(text, THREAD_STRING_LENGTH, length+1);
 
 	net->getClient()->Event_PromptResp(text, length, context1, context2, type);
 	return true;
@@ -4214,7 +4214,7 @@ bool PacketBugReport::onReceive(CNetState* net)
 	BUGREPORT_TYPE type = static_cast<BUGREPORT_TYPE>(readInt16());
 
 	tchar text[MAX_TALK_BUFFER];
-	int textLength = (int)readStringNullNUNICODE(text, MAX_TALK_BUFFER, MAX_TALK_BUFFER-1);
+	int textLength = (int)readStringNullNETUTF16(text, MAX_TALK_BUFFER, MAX_TALK_BUFFER-1);
 
 	net->getClient()->Event_BugReport(text, textLength, type, CLanguageID(language));
 	return true;

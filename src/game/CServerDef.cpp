@@ -31,7 +31,7 @@
 	} PROCESS_MEMORY_COUNTERS, *PPROCESS_MEMORY_COUNTERS;
 
 	//	PSAPI external definitions
-	typedef	BOOL (WINAPI *pfnGetProcessMemoryInfo)(HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD);
+	typedef	intptr_t (WINAPI *pfnGetProcessMemoryInfo)(HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD);
 	HMODULE	m_hmPsapiDll = nullptr;
 	pfnGetProcessMemoryInfo m_GetProcessMemoryInfo = nullptr;
 	PROCESS_MEMORY_COUNTERS	pcnt;
@@ -80,7 +80,16 @@ size_t CServerDef::StatGet(SERV_STAT_TYPE i) const
 					g_Log.EventError(("Unable to load process information PSAPI.DLL library. Memory information will be not available.\n"));
 				}
 				else
-					m_GetProcessMemoryInfo = reinterpret_cast<pfnGetProcessMemoryInfo>(::GetProcAddress(m_hmPsapiDll,"GetProcessMemoryInfo"));
+                {
+#ifndef _MSC_VER
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+                    m_GetProcessMemoryInfo = reinterpret_cast<pfnGetProcessMemoryInfo>(::GetProcAddress(m_hmPsapiDll,"GetProcessMemoryInfo"));
+#ifndef _MSC_VER
+#pragma GCC diagnostic pop
+#endif
+                }
 			}
 
 			if ( m_GetProcessMemoryInfo )
@@ -456,7 +465,7 @@ bool CServerDef::r_WriteVal( lpctstr ptcKey, CSString &sVal, CTextConsole * pSrc
 		sVal.Format("<a href=\"http://%s\">%s</a>", static_cast<lpctstr>(m_sURL), GetName());
 		break;
 	case SC_VERSION:
-		sVal = SPHERE_VERSION;
+		sVal = SPHERE_BUILD_NAME;
 		break;
 	default:
         if (!fNoCallChildren)
