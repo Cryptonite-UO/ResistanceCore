@@ -1,8 +1,14 @@
 #	Main config	#
 
-CMAKE_MINIMUM_REQUIRED (VERSION 3.1)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.13)
 SET (CMAKE_SUPPRESS_REGENERATION true)	# Supress the ZERO_CHECK generation
-SET (USE_SANITIZERS false CACHE BOOL "")
+
+SET (CMAKE_NO_GIT_REVISION	false CACHE BOOL "Do not try to retrieve the current git revision. Useful for building source not git-cloned from Github.")
+
+SET (WIN32_SPAWN_CONSOLE	false CACHE BOOL "Spawn an additional console, useful for debugging.")
+SET (USE_ASAN			false CACHE BOOL "Enable AddressSanitizer.")
+SET (USE_LSAN			false CACHE BOOL "Enable LeakSanitizer.")
+SET (USE_UBSAN			false CACHE BOOL "Enable Undefined Behavior Sanitizer.")
 
 FUNCTION (booleanize_str_find VAR)
 	IF (${VAR} EQUAL -1)
@@ -13,30 +19,31 @@ FUNCTION (booleanize_str_find VAR)
 ENDFUNCTION ()
 
 
-MESSAGE (STATUS "Scanning system for compilers...")
+IF ((NOT TOOLCHAIN) AND (NOT ${CMAKE_TOOLCHAIN_FILE} STREQUAL ""))
+	INCLUDE (${CMAKE_TOOLCHAIN_FILE})
+	toolchain_force_compiler ()
+ENDIF ()
+
+MESSAGE (STATUS "Scanning system build tools...")
 PROJECT (SphereServer)	# does a scan for C++ and C compilers
 
 
 # Determine system arch
-INCLUDE ("src/cmake/CMakeDetectArch.cmake")
+INCLUDE ("cmake/CMakeDetectArch.cmake")
 determine_target_architecture(ARCH_DETECTED)
 STRING (FIND "${ARCH_DETECTED}" "x86_64" 	ARCH_HAS_x86_64)
 STRING (FIND "${ARCH_DETECTED}" "x86" 		ARCH_HAS_x86)
 booleanize_str_find(ARCH_HAS_x86_64)
 booleanize_str_find(ARCH_HAS_x86)
 
-# If we have not specified a toolchain, let's detect which one we should use
+# If we have not specified a toolchain, let's detect which one we should use, using the detected arch.
 IF (NOT TOOLCHAIN)
-	INCLUDE ("src/cmake/CMakeDefaultToolchain.cmake")
+	INCLUDE ("cmake/CMakeDefaultToolchain.cmake")
 ENDIF ()
 
-toolchain_after_project()   # stuff that need to be executed before ADD_EXECUTABLE
 
-# Need to clear shared library flags. If not, cmake sets -rdynamic and this
-# add to the executable the full symbol table (included unused symbols).
-# This is a problem because the binary is ~700 KB bigger.
-SET (CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
-SET (CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS)
+# Stuff that needs to be executed after PROJECT but before ADD_EXECUTABLE
+toolchain_after_project()
 
 
 STRING (FIND "${CMAKE_GENERATOR}" "Makefiles" GEN_IS_MAKEFILE)
@@ -48,32 +55,35 @@ IF ( (GEN_IS_MAKEFILE OR GEN_IS_NINJA) AND (NOT MSVC) )
 	SET (SINGLE_TARGET 1)
 ENDIF ()
 
+# TODO: check if Ninja can handle different targets.
 IF (SINGLE_TARGET)
 	# If you want to manually specify the build type, call cmake with parameter: -DCMAKE_BUILD_TYPE=something
 
 	MESSAGE (STATUS "Single-target build system (${CMAKE_GENERATOR}) detected: generating multiple projects!")
 	IF (NOT ${CMAKE_BUILD_TYPE} STREQUAL "")
 		IF ((NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release") AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug") AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Nightly"))
-			MESSAGE (WARNING "Invalid parameter -DCMAKE_BUILD_TYPE, defaulting to Release.")
+			MESSAGE (WARNING "Invalid parameter -DCMAKE_BUILD_TYPE, defaulting to Nightly.")
 			# -> needed only for MAKEFILE-STYLE generators, which can't switch between different configs
-			SET (CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
-		ELSE ((NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release") AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug") AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Nightly"))
+			SET (CMAKE_BUILD_TYPE "Nightly" CACHE STRING "" FORCE)
+		ELSE ()
 			MESSAGE (STATUS "Generating only specified project: ${CMAKE_BUILD_TYPE}.")
-		ENDIF ((NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release") AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug") AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Nightly"))
-	ELSE (NOT ${CMAKE_BUILD_TYPE} STREQUAL "")
+		ENDIF ()
+	ELSE ()
 		MESSAGE (STATUS "No target specified: building all the projects (Release, Debug, Nightly).")
 		# The only situation supported here is using MSVC, and /MP (multi-core) is set in its compiler flags.
-	ENDIF (NOT ${CMAKE_BUILD_TYPE} STREQUAL "")
+	ENDIF ()
 
-	# Setting parallel make
-	INCLUDE (ProcessorCount)
-	ProcessorCount (MAKE_THREADS)
-	IF (NOT MAKE_THREADS EQUAL 0)
-		MATH (EXPR MAKE_THREADS "${MAKE_THREADS} + (${MAKE_THREADS}/2)")		# Suggested number of threads: cores * 1.5
-		SET (CMAKE_MAKE_PROGRAM "${CMAKE_MAKE_PROGRAM} -j${MAKE_THREADS}")
-	ELSE (NOT MAKE_THREADS EQUAL 0)
-		MESSAGE (STATUS "Can't determine CPU cores number. Parallel compilation turned off.")
-	ENDIF (NOT MAKE_THREADS EQUAL 0)
+	IF (GEN_IS_MAKEFILE)
+		# Setting parallel make; ninja does that by default.
+		INCLUDE (ProcessorCount)
+		ProcessorCount (MAKE_THREADS)
+		IF (NOT MAKE_THREADS EQUAL 0)
+			MATH (EXPR MAKE_THREADS "${MAKE_THREADS} + (${MAKE_THREADS}/2)")		# Suggested number of threads: cores * 1.5
+			SET (CMAKE_MAKE_PROGRAM "${CMAKE_MAKE_PROGRAM} -j${MAKE_THREADS}")
+		ELSE ()
+			MESSAGE (STATUS "Can't determine CPU cores number. Parallel compilation turned off.")
+		ENDIF ()
+	ENDIF ()
 
 ELSE (SINGLE_TARGET)
 
@@ -145,19 +155,25 @@ ELSE (SINGLE_TARGET)
 		)
 	SET_TARGET_PROPERTIES (spheresvr PROPERTIES OUTPUT_NAME_RELEASE SphereSvrX${ARCH_BITS}_release)
 	SET_TARGET_PROPERTIES (spheresvr PROPERTIES OUTPUT_NAME_NIGHTLY SphereSvrX${ARCH_BITS}_nightly)
-	SET_TARGET_PROPERTIES (spheresvr PROPERTIES OUTPUT_NAME_DEBUG SphereSvrX${ARCH_BITS}_debug)
+	SET_TARGET_PROPERTIES (spheresvr PROPERTIES OUTPUT_NAME_DEBUG   SphereSvrX${ARCH_BITS}_debug)
 
 ENDIF (SINGLE_TARGET)
 
+
+# Need to clear shared library flags. If not, cmake sets -rdynamic and this
+# add to the executable the full symbol table (included unused symbols).
+# This is a problem because the binary is ~700 KB bigger.
+SET (CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
+SET (CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS)
 
 toolchain_exe_stuff()   # stuff to be executed after ADD_EXECUTABLE
 
 
 # Get the Git revision number
-INCLUDE ("src/cmake/CMakeGitStatus.cmake")
+INCLUDE ("cmake/CMakeGitStatus.cmake")
 
 # Generate config.h file for libev (if we are using it)
-INCLUDE ("src/cmake/CMakeConditionalConfigureLibev.cmake")
+INCLUDE ("cmake/CMakeConditionalConfigureLibev.cmake")
 
 # Configure MariaDB C Connector source headers
 INCLUDE ("lib/mariadb/configure.cmake")

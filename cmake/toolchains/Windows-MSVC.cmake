@@ -1,9 +1,42 @@
 SET (TOOLCHAIN 1)
 
+function (toolchain_force_compiler)
+	# Already managed by the generator.
+	#SET (CMAKE_C_COMPILER 	"...cl.exe" 	CACHE STRING "C compiler" 	FORCE)
+	#SET (CMAKE_CXX_COMPILER "...cl.exe" 	CACHE STRING "C++ compiler" FORCE)
+endfunction ()
+
+
 function (toolchain_after_project)
 	MESSAGE (STATUS "Toolchain: Windows-MSVC.cmake.")
 	SET(CMAKE_SYSTEM_NAME	"Windows"	PARENT_SCOPE)
 
+	SET (EXE_LINKER_EXTRA "")
+	IF (${WIN32_SPAWN_CONSOLE} EQUAL TRUE)
+		SET (EXE_LINKER_EXTRA "${EXE_LINKER_EXTRA} /SUBSYSTEM:CONSOLE /ENTRY:WinMainCRTStartup")
+		SET (PREPROCESSOR_DEFS_EXTRA	"_WINDOWS_CONSOLE")
+	ELSE ()
+		SET (EXE_LINKER_EXTRA "${EXE_LINKER_EXTRA} /SUBSYSTEM:WINDOWS")
+	ENDIF ()
+
+	SET (ENABLED_SANITIZER false)
+	IF (${USE_ASAN})
+		IF (${MSVC_TOOLSET_VERSION} LESS_EQUAL 141) # VS 2017
+			MESSAGE (FATAL_ERROR "This MSVC version doesn't yet support LSAN.")
+		ENDIF()
+		SET (C_FLAGS_EXTRA 		"${C_FLAGS_EXTRA}   /fsanitize=address")
+		SET (CXX_FLAGS_EXTRA 	"${CXX_FLAGS_EXTRA} /fsanitize=address")
+		SET (ENABLED_SANITIZER true)
+	ENDIF ()
+	IF (${USE_LSAN})
+		MESSAGE (FATAL_ERROR "MSVC doesn't yet support LSAN.")
+	ENDIF ()
+	IF (${USE_UBSAN})
+		MESSAGE (FATAL_ERROR "MSVC doesn't yet support LSAN.")
+	ENDIF ()
+	IF (${ENABLED_SANITIZER})
+		SET (PREPROCESSOR_DEFS_EXTRA "${PREPROCESSOR_DEFS_EXTRA} _SANITIZERS")
+	ENDIF ()
 
 	#-- Base compiler and linker flags are the same for every build type.
 	 # For vcxproj structure or for cmake generator's fault, CXX flags will be used also for C sources;
@@ -17,9 +50,6 @@ function (toolchain_after_project)
 
 	SET (CXX_FLAGS_COMMON	"${CXX_FLAGS_EXTRA} /W4 /MP /GR /fp:fast /std:c++17\
 							/wd4127 /wd4131 /wd4310 /wd4996 /wd4701 /wd4703 /wd26812")
-
-	 # Setting the exe to be a GUI application and not a console one.
-	SET (LINKER_FLAGS_COMMON	"/SUBSYSTEM:WINDOWS"	)
 
 	# /Zc:__cplusplus is required to make __cplusplus accurate
 	# /Zc:__cplusplus is available starting with Visual Studio 2017 version 15.7
@@ -46,23 +76,21 @@ function (toolchain_after_project)
 	
 	SET (CMAKE_C_FLAGS_RELEASE			"${C_FLAGS_COMMON}   /O2 /EHsc /GL /GA /Gw"			PARENT_SCOPE)
 	SET (CMAKE_CXX_FLAGS_RELEASE		"${CXX_FLAGS_COMMON} /O2 /EHsc /GL /GA /Gw /Gy"		PARENT_SCOPE)
-	SET (CMAKE_EXE_LINKER_FLAGS_RELEASE	"${LINKER_FLAGS_COMMON} ${LINKER_FLAGS_NODEBUG}\
-										/LTCG" PARENT_SCOPE)
-
-
-	#-- Debug compiler and linker flags.
-
-	SET (CMAKE_C_FLAGS_DEBUG			"${C_FLAGS_COMMON}   /Od /EHsc /Oy-"				PARENT_SCOPE)
-	SET (CMAKE_CXX_FLAGS_DEBUG			"${CXX_FLAGS_COMMON} /Od /EHsc /Oy- /MDd /ZI /ob0"	PARENT_SCOPE)
-	SET (CMAKE_EXE_LINKER_FLAGS_DEBUG	"${LINKER_FLAGS_COMMON} /DEBUG /SAFESEH:NO"			PARENT_SCOPE)
-
+	SET (CMAKE_EXE_LINKER_FLAGS_RELEASE	"${LINKER_FLAGS_NODEBUG} ${EXE_LINKER_EXTRA}\
+										 /LTCG" PARENT_SCOPE)
 
 	#-- Nightly compiler and linker flags.
 
 	SET (CMAKE_C_FLAGS_NIGHTLY			"${C_FLAGS_COMMON}   /O2 /EHa /GL /GA /Gw"			PARENT_SCOPE)
 	SET (CMAKE_CXX_FLAGS_NIGHTLY		"${CXX_FLAGS_COMMON} /O2 /EHa /GL /GA /Gw /Gy"		PARENT_SCOPE)
-	SET (CMAKE_EXE_LINKER_FLAGS_NIGHTLY	"${LINKER_FLAGS_COMMON} ${LINKER_FLAGS_NODEBUG}\
-										/LTCG" PARENT_SCOPE)
+	SET (CMAKE_EXE_LINKER_FLAGS_NIGHTLY	"${LINKER_FLAGS_NODEBUG} ${EXE_LINKER_EXTRA}\
+										 /LTCG" PARENT_SCOPE)
+
+	#-- Debug compiler and linker flags.
+
+	SET (CMAKE_C_FLAGS_DEBUG			"${C_FLAGS_COMMON}   /Od /EHsc /Oy-"				PARENT_SCOPE)
+	SET (CMAKE_CXX_FLAGS_DEBUG			"${CXX_FLAGS_COMMON} /Od /EHsc /Oy- /MDd /ZI /ob0"	PARENT_SCOPE)
+	SET (CMAKE_EXE_LINKER_FLAGS_DEBUG	"/DEBUG /SAFESEH:NO ${EXE_LINKER_EXTRA}" PARENT_SCOPE)
 
 
 	#-- Set mysql .lib directory for the linker.
@@ -91,6 +119,7 @@ function (toolchain_exe_stuff)
 
 	 # Common defines
 	TARGET_COMPILE_DEFINITIONS ( spheresvr PUBLIC
+		${PREPROCESSOR_DEFS_EXTRA}
 	  # _WIN32 is always defined, even on 64 bits. Keeping it for compatibility with external code and libraries.
 		_WIN32
 	  # Use the "z_" prefix for the zlib functions
@@ -119,17 +148,17 @@ function (toolchain_exe_stuff)
 	#-- Custom output directory.
 
 	IF (CMAKE_CL_64)
-		SET(OUTDIR "${CMAKE_BINARY_DIR}/bin64/")
-	ELSE (CMAKE_CL_64)
-		SET(OUTDIR "${CMAKE_BINARY_DIR}/bin/")
-	ENDIF (CMAKE_CL_64)
+		SET(OUTDIR "${CMAKE_BINARY_DIR}/bin-x86_64/")
+	ELSE ()
+		SET(OUTDIR "${CMAKE_BINARY_DIR}/bin-x86/")
+	ENDIF ()
 	SET_TARGET_PROPERTIES(spheresvr PROPERTIES RUNTIME_OUTPUT_DIRECTORY	"${OUTDIR}"		)
 	SET_TARGET_PROPERTIES(spheresvr PROPERTIES RUNTIME_OUTPUT_RELEASE	"${OUTDIR}/Release"	)
-	SET_TARGET_PROPERTIES(spheresvr PROPERTIES RUNTIME_OUTPUT_DEBUG		"${OUTDIR}/Debug"	)
 	SET_TARGET_PROPERTIES(spheresvr PROPERTIES RUNTIME_OUTPUT_NIGHTLY	"${OUTDIR}/Nightly"	)
+	SET_TARGET_PROPERTIES(spheresvr PROPERTIES RUNTIME_OUTPUT_DEBUG		"${OUTDIR}/Debug"	)
 
 	#-- Custom .vcxproj settings (for now, it only affects the debugger working directory).
 
 	SET (SRCDIR ${CMAKE_SOURCE_DIR}) # for the sake of shortness
-	CONFIGURE_FILE("src/cmake/spheresvr.vcxproj.user.in" "${CMAKE_BINARY_DIR}/spheresvr.vcxproj.user" @ONLY)
+	CONFIGURE_FILE("${CMAKE_SOURCE_DIR}/cmake/spheresvr.vcxproj.user.in" "${CMAKE_BINARY_DIR}/spheresvr.vcxproj.user" @ONLY)
 endfunction()

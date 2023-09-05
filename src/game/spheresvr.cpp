@@ -33,6 +33,13 @@
 #include "clients/CClient.h"
 
 
+#ifdef _SANITIZERS
+const char* __asan_default_options() {
+    //return "verbosity=1:malloc_context_size=20";
+    return "sleep_before_dying=5";
+}
+#endif
+
 // Dynamic allocation of some global stuff
 std::string g_sServerDescription;
 
@@ -571,8 +578,8 @@ void defragSphere(char *path)
 		while ( inf.ReadString(buf, sizeof(buf)) )
 		{
 			dwIdxUID = (dword)strlen(buf);
-			if (dwIdxUID > (CountOf(buf) - 3))
-				dwIdxUID = CountOf(buf) - 3;
+			if (dwIdxUID > (ARRAY_COUNT(buf) - 3))
+				dwIdxUID = ARRAY_COUNT(buf) - 3;
 
 			buf[dwIdxUID] = buf[dwIdxUID +1] = buf[dwIdxUID +2] = 0;	// just to be sure to be in line always
 							// NOTE: it is much faster than to use memcpy to clear before reading

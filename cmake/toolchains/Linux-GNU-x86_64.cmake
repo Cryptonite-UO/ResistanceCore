@@ -1,17 +1,16 @@
 SET (TOOLCHAIN 1)
+INCLUDE("${CMAKE_CURRENT_LIST_DIR}/Linux-GNU_common.inc.cmake")
 
 function (toolchain_after_project)
 	MESSAGE (STATUS "Toolchain: Linux-GNU-x86_64.cmake.")
 	SET(CMAKE_SYSTEM_NAME	"Linux"		PARENT_SCOPE)
-	SET(ARCH_BITS		64		PARENT_SCOPE)
+	SET(ARCH_BITS			64			PARENT_SCOPE)
 
-	SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY	"${CMAKE_BINARY_DIR}/bin64"	PARENT_SCOPE)
+	SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY	"${CMAKE_BINARY_DIR}/bin-x86_64"	PARENT_SCOPE)
 endfunction()
 
 
 function (toolchain_exe_stuff)
-	INCLUDE("src/cmake/toolchains/Linux-GNU_common.inc.cmake")
-
 	SET (C_ARCH_OPTS	"-march=x86-64 -m64")
 	SET (CXX_ARCH_OPTS	"-march=x86-64 -m64")
 	
