@@ -14,19 +14,27 @@
 #include "CVarDefMap.h"
 #include "ListDefContMap.h"
 
+#undef ISWHITESPACE
+template <typename T>
+bool IsWhitespace(const T ch) noexcept {
+    if constexpr (std::is_same_v<T, char>) {
+        if (static_cast<unsigned char>(ch) == 0xA0)
+            return true;
+    }
+    return IsSpace(ch);
+}
 
-#define ISWHITESPACE(ch)	(IsSpace(ch) || ((ch)==0xa0))     // IsSpace
 #define _IS_SWITCH(ch)		((ch) == '-' || (ch) == '/')	// command line switch.
 #define _ISCSYMF(ch)        (IsAlpha(ch) || (ch)=='_')	    // __iscsymf
-#define _ISCSYM(ch)         (isalnum(IntCharacter(ch)) || (ch)=='_')    // __iscsym
+#define _ISCSYM(ch)         (isalnum(INT_CHARACTER(ch)) || (ch)=='_')    // __iscsym
 
-#define SKIP_SEPARATORS(pStr)		while (*(pStr)=='.') { ++(pStr); }	// || ISWHITESPACE(*(pStr))
+#define SKIP_SEPARATORS(pStr)		while (*(pStr)=='.') { ++(pStr); }	// || IsWhitespace(*(pStr))
 #define SKIP_ARGSEP(pStr)		    while ((*(pStr)==',' || IsSpace( *(pStr)) )) { ++(pStr); }
 #define SKIP_IDENTIFIERSTRING(pStr) while (_ISCSYM(*(pStr))) { ++(pStr); }
-#define SKIP_NONNUM(pStr)           while (*(pStr) && !isdigit( IntCharacter(*(pStr))) ) { ++(pStr); }
+#define SKIP_NONNUM(pStr)           while (*(pStr) && !isdigit( INT_CHARACTER(*(pStr))) ) { ++(pStr); }
 #define SKIP_NONALPHA(pStr)         while (*(pStr) && !IsAlpha( *(pStr)) ) { ++(pStr); }
 
-#define GETNONWHITESPACE(pStr)	    while (ISWHITESPACE(*(pStr))) { ++(pStr); }
+#define GETNONWHITESPACE(pStr)	    while (IsWhitespace(*(pStr))) { ++(pStr); }
 
 #define REMOVE_QUOTES(x)			\
 {									\
@@ -38,7 +46,7 @@
 		*psX = '\0';				\
 }
 
-#ifndef M_PI 
+#ifndef M_PI
 	#define M_PI 3.14159265358979323846
 #endif
 
@@ -176,7 +184,7 @@ public:
 	inline int64 GetRangeNumber(lptstr &pArgs) {
 		return GetRangeNumber(const_cast<lpctstr &>(pArgs));
 	}
-	
+
 
 public:
 	CExpression();
@@ -201,7 +209,7 @@ bool IsStrEmpty( lpctstr pszTest );
 
 // Numeric formulas
 template<typename T> inline T SphereAbs(T x) noexcept
-{	
+{
     static_assert(std::is_arithmetic<T>::value, "Invalid data type.");
     static_assert(std::is_signed<T>::value, "Trying to get the absolute value of an unsigned number?");
 	return (x<0) ? -x : x;

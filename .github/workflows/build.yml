@@ -22,7 +22,7 @@ jobs:
     - name: Create package
       run: |
             mkdir accounts, logs, save, scripts
-            7z a SphereSvrX-win64-nightly.zip accounts\ logs\ save\ scripts\ .\bin64\Nightly\SphereSvrX64_nightly.exe .\src\sphere.ini .\src\sphereCrypt.ini .\lib\bin\x86_64\mariadb\libmariadb.dll
+            7z a SphereSvrX-win64-nightly.zip accounts\ logs\ save\ scripts\ .\bin-x86_64\Nightly\SphereSvrX64_nightly.exe .\src\sphere.ini .\src\sphereCrypt.ini .\lib\bin\x86_64\mariadb\libmariadb.dll
 
     # only upload artifact in pull request or if is main/master branch
     - name: Upload artifact
@@ -32,7 +32,7 @@ jobs:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         name: Builds
-        path: SphereSvrX-win64-nightly.zip
+        path: SphereSvrX-win-x86_64-nightly.zip
 
 
   windows-x86:
@@ -52,7 +52,7 @@ jobs:
     - name: Create package
       run:  |
             mkdir accounts, logs, save, scripts
-            7z a SphereSvrX-win32-nightly.zip accounts\ logs\ save\ scripts\ .\bin\Nightly\SphereSvrX32_nightly.exe .\src\sphere.ini .\src\sphereCrypt.ini .\lib\bin\x86\mariadb\libmariadb.dll
+            7z a SphereSvrX-win32-nightly.zip accounts\ logs\ save\ scripts\ .\bin-x86\Nightly\SphereSvrX32_nightly.exe .\src\sphere.ini .\src\sphereCrypt.ini .\lib\bin\x86\mariadb\libmariadb.dll
 
     # only upload artifact in pull request or if is main/master branch
     - name: Upload artifact
@@ -62,7 +62,7 @@ jobs:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         name: Builds
-        path: SphereSvrX-win32-nightly.zip
+        path: SphereSvrX-win-x86-nightly.zip
 
 
   linux-x86_64:
@@ -90,13 +90,13 @@ jobs:
     - name: CMake
       run: |
             mkdir -p build
-            cmake -G "Ninja" -DCMAKE_BUILD_TYPE="Nightly" -DCMAKE_TOOLCHAIN_FILE=src/cmake/toolchains/Linux-GNU-x86_64.cmake -S ./ -B ./build
+            cmake -G "Ninja" -DCMAKE_BUILD_TYPE="Nightly" -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Linux-GNU-x86_64.cmake -S ./ -B ./build
     - name: Ninja
       run: cd build && ninja && cd ..
     - name: Create package
       run:  |
             mkdir accounts logs save scripts
-            tar -czf SphereSvrX-linux64-nightly.tar.gz accounts/ logs/ save/ scripts/ build/bin64/SphereSvrX64_nightly src/sphere.ini src/sphereCrypt.ini
+            tar -czf SphereSvrX-linux64-nightly.tar.gz accounts/ logs/ save/ scripts/ build/bin-x86_64/SphereSvrX64_nightly src/sphere.ini src/sphereCrypt.ini
 
     # only upload artifact in pull request or if is main/master branch
     - name: Upload artifact
@@ -106,7 +106,7 @@ jobs:
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         name: Builds
-        path: SphereSvrX-linux64-nightly.tar.gz
+        path: SphereSvrX-linux-x86_64-nightly.tar.gz
 
   linux-x86:
     runs-on: ubuntu-22.04
@@ -158,13 +158,13 @@ jobs:
     - name: CMake
       run: |
             mkdir -p build
-            cmake -G "Ninja" -DCMAKE_BUILD_TYPE="Nightly" -DCMAKE_TOOLCHAIN_FILE=src/cmake/toolchains/Linux-GNU-x86.cmake -S ./ -B ./build
+            cmake -G "Ninja" -DCMAKE_BUILD_TYPE="Nightly" -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Linux-GNU-x86.cmake -S ./ -B ./build
     - name: Ninja
       run: cd build && ninja && cd ..
     - name: Create package
       run:  |
             mkdir accounts logs save scripts
-            tar -czf SphereSvrX-linux32-nightly.tar.gz accounts/ logs/ save/ scripts/ build/bin/SphereSvrX32_nightly src/sphere.ini src/sphereCrypt.ini
+            tar -czf SphereSvrX-linux32-nightly.tar.gz accounts/ logs/ save/ scripts/ build/bin-x86/SphereSvrX32_nightly src/sphere.ini src/sphereCrypt.ini
 
     # only upload artifact in pull request or if is main/master branch
     - name: Upload artifact
@@ -174,14 +174,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         name: Builds
-        path: SphereSvrX-linux32-nightly.tar.gz
+        path: SphereSvrX-linux-x86-nightly.tar.gz
 
 
   macos-x86_64:
     runs-on: macos-12
     env:
       CMAKE_GEN: Ninja
-      CMAKE_TCH_64: src/cmake/toolchains/OSX-x86_64.cmake
+      CMAKE_TCH_64: cmake/toolchains/OSX-AppleClang-x86_64.cmake
 
     steps:
     - name: Checkout repository
@@ -213,7 +213,7 @@ jobs:
             pwd
             mkdir accounts logs save scripts
             zip -r SphereSvrX-osx-x86_64-nightly.zip accounts/ logs/ save/ scripts/
-            zip SphereSvrX-osx-x86_64-nightly.zip src/sphere.ini src/sphereCrypt.ini build/bin64/*
+            zip SphereSvrX-osx-x86_64-nightly.zip src/sphere.ini src/sphereCrypt.ini build/bin-x86_64/*
 
     # only upload artifact in pull request or if is main/master branch
     - name: Upload artifact
@@ -251,8 +251,8 @@ jobs:
           prerelease: true
           files: | 
                   Git-Changelog.txt
-                  SphereSvrX-win64-nightly.zip
-                  SphereSvrX-win32-nightly.zip
-                  SphereSvrX-linux32-nightly.tar.gz
-                  SphereSvrX-linux64-nightly.tar.gz
+                  SphereSvrX-win-x86_64-nightly.zip
+                  SphereSvrX-win-x86-nightly.zip
+                  SphereSvrX-linux-x86_64-nightly.tar.gz
+                  SphereSvrX-linux-x86-nightly.tar.gz
                   SphereSvrX-osx-x86_64-nightly.zip
