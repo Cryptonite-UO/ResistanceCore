@@ -18,8 +18,11 @@ We decide to fork this branch because some little modification are made for adap
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/c7bfa85ffd2362b472d70754764c87f4c982fa93) 2023-01-18
 1.  MOREY on weapon have 2x more impact than before and impact is 50% on min damage. ATTRMAGIC no more require.
 
-[Commit1](https://github.com/Cryptonite-UO/ResistanceCore/commit/1b61df4927256bd3a0ffccc8a950fd98e259357b) [Commit2](https://github.com/Cryptonite-UO/ResistanceCore/commit/776269615d6474fd4d637040885972c5f45ee81d) 2023-01-15
+[Commit1](https://github.com/Cryptonite-UO/ResistanceCore/commit/1b61df4927256bd3a0ffccc8a950fd98e259357b) 
+[Commit1] (https://github.com/Cryptonite-UO/ResistanceCore/commit/1a8c02e4deb5e71055cc23f2e34f67ae4b4e005e)
 1.  Now c_vampire_male and c_vampire_female can be use for a 4th race in the game. Using same anim patern than human.
+
+[Commit2](https://github.com/Cryptonite-UO/ResistanceCore/commit/776269615d6474fd4d637040885972c5f45ee81d) 2023-01-15
 2.  Str now contribute in dammage with 1% of value instead of 10%. 
 
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/445181024855e3733d3c79f8f805ec1e46759751) 2022-11-23
