@@ -453,6 +453,13 @@ bool CPartyDef::AcceptEvent( CChar *pCharAccept, CUID uidInviter, bool bForced, 
 		else
 			return false;
 	}
+	
+	if (IsTrigUsed(TRIGGER_PARTYADD))
+	{
+		CScriptTriggerArgs Args;
+		if ( pCharAccept->OnTrigger(CTRIG_PartyAdd, pCharInviter, &Args) == TRIGRET_RET_TRUE )
+			return false;
+	}
 
 	tchar *pszMsg = Str_GetTemp();
 	snprintf(pszMsg, STR_TEMPLENGTH, g_Cfg.GetDefaultMsg(DEFMSG_PARTY_JOINED), pCharAccept->GetName());
@@ -642,12 +649,16 @@ bool CPartyDef::r_WriteVal( lpctstr ptcKey, CSString &sVal, CTextConsole *pSrc, 
 			break;
 
 		case PDC_SPEECHFILTER:
-			sVal = this->m_pSpeechFunction.IsEmpty() ? "" : this->m_pSpeechFunction;
+			if (m_pSpeechFunction.IsEmpty())
+				sVal.Clear();
+			else
+				sVal = m_pSpeechFunction;
 			break;
 
 		case PDC_TAG0:
 			fZero = true;
 			++ptcKey;
+			FALLTHROUGH;
 		case PDC_TAG:
 		{
 			if ( ptcKey[3] != '.' )

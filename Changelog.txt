@@ -2826,7 +2826,7 @@ It will check if distance is > 10, so you don't need to write the distance check
 05-10-2021, Jhobean
 - Added: Ini setting ManaLossAbort / ReagentLossAbort, to make the char lose part of the mana/reag required to cast the spell if the spell is abort. 
 	ManaLossFail / ReagentLossFail are now use only when the spell fizzle because of lacking skill. (Issue #769)
-- Fixed: ManaLossAbort/ManaLossFail consumed the exact amount of man require for the spell. ManaLossPercent will now control the % of mana player loose.
+- Fixed: ManaLossAbort/ManaLossFail consume the exact amount of mana required for the spell. ManaLossPercent will now control the % of mana player lost.
 - Fixed: ARGN1 value from @Hit trigger was sometime negative even if negative damage was impossible
 - Fixed: Revert 2018-03-05 Commit causing WOP no more customisable by ini and broke REVEALF_SPEAK behavior. (Issue #776)
 
@@ -3015,7 +3015,6 @@ Note: The only way the server has to know if the bankself is closed is to store 
 - Changed: Mining @Start/@SkillStart, now ACT is the Worldgem Bit we're mining from. You can modify it easily instead of using workarounds to get the UID.
 - Changed: @UserQuestArrowClick, using return 1 now prevents from showing default message when (left/right)clicking arrow.
 - Changed: Crafting skills now won't display the bounce message when successfully crafting an item, with the skill message is enough.
-
 
 10-08-2022, Drk84
 - Added: PROMPT_CLILOC for Skill Definition. This allow you to set a cliloc number in the aforementioned property and it will be used instead of the PROMPT_MSG text.
@@ -3333,3 +3332,51 @@ Additionally, the problem of zig-zag issue following in the South direction has 
 - Changed: moved /src/cmake folder to /cmake, this WILL require deleting and rebuilding any existing CMake cache.
 - Changed: renamed the compilation output folder to better reflect the target architecture.
 - Added: CMake Clang compilation toolchains for Windows, Linux, MacOS.
+
+13-09-2023, Drk84
+- Fixed: Sphere.ini setting ManaLossPercent not consuming mana unless set to 100. (Issue #1096)
+		Remember that the mana lost depends from the spell Mana base cost and eventually the LowerManaCost property if set.
+		
+14-09-2023, Drk84
+- Fixed: Using ATTACKER.TARGET on a fighting NPC will return always -1. (Issue #1098)
+		
+15-09-2023, Drk84
+- Fixed: Ship plank not remaining open when turning the ship around. ( Issue #1089)
+	   The ship plank will now autoclose after 5 seconds.
+- Fixed: Client Linger Timer is 3600 seconds on stoned players. (Issue #1081) 
+
+23-09-2023 / 1-10-2023 (2 commits), Jhobean 
+- Fixed: When deleting account, f_onchar_delete was not call on char and char's item was not remove causing warning on next server boot. ( Issue #1029)
+- Changed: Optimisation how f_onchar_delete is launch and avoid dual launch when delete char on login screen.
+
+26-09-2023, Drk84
+- Fixed: Ship plank disappearing when closed before its timer expires or after a save is performed.
+
+02-10-2023, xwerswoodx
+- Fixed: Re-Coded @KarmaChange and @FameChange triggers not setting variables correctly. (Issue #1118)
+	ARGN1 now return as the amount of Karma/Fame being added.
+	ARGN2 is now return oldKarma. (ARGN2 + ARGN1 == New Karma)
+	LOCAL.NEW removed, while ARGN1 is writeable, it's impossible to track it inside the trigger.
+	ARGO now return the source of karma/fame income if exists.
+- Fixed: f_onchar_create_init is not called. (Issue: #1117)
+- Fixed: IF and QVAL statements cannot evaluate correctly 32bit+ bitwise conditions. (Issue: #1078)
+- Added: @PartyAdd trigger. (Feature Request: #1054)
+	I: The player who is joining to the party.
+	SRC: The player who is inviting.
+	Return 1: Cancels the action.
+- Added: LOCAL.SOUND and LOCAL.ANIM under @Start (Skill) and @SkillStart triggers to override sound and animations before start crafting or gathering.
+- Fixed: FACTION property not saved and load correctly under [CHARDEF] definition. (Issue: #1059 and #1083)
+- Added: Added COMBAT_PARALYZE_CANSWING (080000) to combat flags to let characters continue attack while paralyzed like old behaviour. (Issue: #1124)
+- Fixed: ATTACK command causes the player getting criminal without checking AttackingIsACrime value in sphere.ini (Issue: #1123)
+- Added: Added CAN_I_EQUIPONCAST (08000000) flag for items to let scripters customize allowed items while EquippedCast disabled.
+- Fixed: Spells can trigger @Success triggers and play animations if they paralyzed after selected skill.
+- Fixed: Motivation < 0 causes STATF_WAR flag stay infinitely on characters. (Issue: #517)
+- Fixed: The issue where characters can spawn out of the rooms. (Issue: #1084)
+- Fixed: More1 and More2 values readn as integer instead of dword (unsigned integer) (Issue: #784)
+
+07-10-2023, Nolok
+- Added: FUNC keyword to item templates and template-triggers with special parsing (@Create, @CreateLoot, @NPCRestock). It allows to call a function with arguments on the last created ITEM.
+	Default object: the item. SRC: the character holding it.
+
+08-10-2023, Nolok & xwerswoodx
+- Fixed: Setting P inside the @Click trigger made it being called endlessly.
