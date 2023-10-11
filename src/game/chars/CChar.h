@@ -322,7 +322,7 @@ protected:
 	void DeleteCleanup(bool fForce);	// Not virtual!
 	virtual void DeletePrepare() override;
 public:
-	bool NotifyDelete();
+	bool NotifyDelete(bool fForce);
 	virtual bool Delete(bool fForce = false) override;
 
 	// Status and attributes ------------------------------------
@@ -444,9 +444,9 @@ public:
 	SKILLLOCK_TYPE Stat_GetLock(STAT_TYPE stat);
 	void Stat_SetLock(STAT_TYPE stat, SKILLLOCK_TYPE state);
     short GetKarma() const;
-    void SetKarma(short iNewKarma);
+    void SetKarma(short iNewKarma, CChar* pNPC = nullptr);
     ushort GetFame() const;
-    void SetFame(ushort uiNewFame);
+    void SetFame(ushort uiNewFame, CChar* pNPC = nullptr);
 
 	void Stat_StrCheckEquip();
 
@@ -607,7 +607,7 @@ private:
 	* @param iBottom is the lower value you can have for this execution.
 	* @param bMessage show message to the char or not.
 	*/
-	void Noto_Karma( int iKarmaChange, int iBottom = INT32_MIN, bool fMessage = false );
+	void Noto_Karma( int iKarmaChange, int iBottom = INT32_MIN, bool fMessage = false, CChar* pNPC = nullptr );
 
 	/**
 	* @brief Update Fame with the given value.
@@ -616,7 +616,7 @@ private:
 	* Can't never exceed g_Cfg.m_iMaxFame and can't never be lower than 0.
 	* @param iFameChange is the amount of fame to change over the current one.
 	*/
-	void Noto_Fame( int iFameChange );
+	void Noto_Fame( int iFameChange, CChar* pNPC = nullptr );
 
 	/**
 	* @brief I have a new notoriety Level? check it and show a message if so.
@@ -1257,7 +1257,7 @@ private:
 	void NPC_Act_Fight();
 	void NPC_Act_Idle();
 	void NPC_Act_Looting();
-	void NPC_Act_Flee();
+	bool NPC_Act_Flee();
 	void NPC_Act_Goto(int iDist = 30);
 	void NPC_Act_Runto(int iDist = 30);
 	bool NPC_Act_Food();

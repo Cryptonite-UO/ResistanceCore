@@ -6,7 +6,7 @@
 #ifndef _INC_UOFILES_ENUMS_CREID_H
 #define _INC_UOFILES_ENUMS_CREID_H
 
-enum CREID_TYPE	// enum the creature animations. (dont allow any others !) also know as "model number"
+enum CREID_TYPE	: uint32_t // enum the creature animations. (dont allow any others !) also know as "model number"
 {
 	CREID_INVALID = 0,
 
@@ -378,7 +378,7 @@ enum CREID_TYPE	// enum the creature animations. (dont allow any others !) also 
 
 	//CREID_ENERGY_VORTEX_NEW= 0x23D, // slot which was supposed to contain the new energy vortex animation, but actually it's broken
 	CREID_BLADE_SPIRIT		= 0x23E, // blade spirits (in human range? not sure why)
-		 
+
 	CREID_ELFMAN			= 0x25D, // 605 decimal
 	CREID_ELFWOMAN			= 0x25E,
 	CREID_ELFGHOSTMAN		= 0x25F,
@@ -395,7 +395,7 @@ enum CREID_TYPE	// enum the creature animations. (dont allow any others !) also 
 	CREID_VAMPGHOSTWOMAN = 0x2EF,
 
 	//..
-	
+
 	CREID_MAN_PALADIN		= 0x8D,
 	CREID_EQUIP_GM_ROBE		= 0x3DB,
 
