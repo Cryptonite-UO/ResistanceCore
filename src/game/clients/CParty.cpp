@@ -46,7 +46,7 @@ size_t CPartyDef::DetachChar( CChar *pChar )
 	// RETURN:
 	//  index of the char in the group. BadIndex = not in group.
 	size_t i = m_Chars.DetachChar(pChar);
-	if ( i != SCONT_BADINDEX )
+	if ( i != sl::scont_bad_index() )
 	{
         UpdateWaypointAll(pChar, MAPWAYPOINT_Remove);
 		pChar->m_pParty = nullptr;
@@ -153,7 +153,7 @@ bool CPartyDef::SendMemberMsg( CChar *pCharDest, PacketSend *pPacket )
 	// Weirdness check.
 	if ( pCharDest->m_pParty != this )
 	{
-		if ( DetachChar(pCharDest) != SCONT_BADINDEX )	// this is bad!
+		if ( DetachChar(pCharDest) != sl::scont_bad_index() )	// this is bad!
 			return false;
 		return true;
 	}
@@ -469,7 +469,7 @@ bool CPartyDef::AcceptEvent( CChar *pCharAccept, CUID uidInviter, bool bForced, 
 		// Create the party now.
 		pParty = new CPartyDef(pCharInviter, pCharAccept);
 		ASSERT(pParty);
-		g_World.m_Parties.InsertContentHead(pParty);
+		g_World.m_Parties.emplace_front(std::unique_ptr<CPartyDef>(pParty));
 		if (bSendMessages)
 			pCharInviter->SysMessage(pszMsg);
 	}
@@ -569,7 +569,7 @@ bool CPartyDef::r_LoadVal( CScript &s )
 			else
 			{
 				lpctstr ptcArg = s.GetArgStr();
-				CResourceLink *m_pTestEvent = dynamic_cast<CResourceLink *>(g_Cfg.ResourceGetDefByName(RES_FUNCTION, ptcArg));
+				CResourceLink *m_pTestEvent = dynamic_cast<CResourceLink *>(g_Cfg.RegisteredResourceGetDefByName(RES_FUNCTION, ptcArg));
 
 				if ( !m_pTestEvent )
 					return false;

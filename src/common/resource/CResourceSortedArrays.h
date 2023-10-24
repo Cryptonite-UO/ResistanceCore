@@ -6,6 +6,7 @@
 #ifndef _INC_CRESOURCESORTEDARRAYS_H
 #define _INC_CRESOURCESORTEDARRAYS_H
 
+#include "../../common/sphere_library/sptr_containers.h"
 #include "../CServerMap.h"
 
 struct CValStr;
@@ -66,27 +67,27 @@ struct CMultiDefArray : public CSObjSortArray< CUOMulti*, MULTI_TYPE >
 };
 
 
-struct CObjNameSorter
+template <typename _ObjType>
+struct CObjUniquePtrNameVectorSorter
 {
-    inline bool operator()(const CScriptObj * s1, const CScriptObj * s2) const noexcept
+    inline bool operator()(std::unique_ptr<_ObjType> const& s1, std::unique_ptr<_ObjType> const& s2) const noexcept
     {
         //return (Str_CmpHeadI(s1->GetName(), s2->GetName()) < 0); // not needed, since the compared strings don't contain whitespaces (arguments or whatsoever)
         // Current strcmpi implementation internally converts to lowerCASE the strings, so this will work until Str_CmpHeadI checks with tolower, instead of toupper
         return (strcmpi(s1->GetName(), s2->GetName()) < 0);
     }
-};
-class CObjNameSortVector : public CSSortedVector< CScriptObj*, CObjNameSorter >
-{
-    inline static int _compare(const CScriptObj* pObj, lpctstr ptcKey)
+    inline static int _compare(std::unique_ptr<_ObjType> const& pObj, lpctstr ptcKey)
     {
         return -Str_CmpHeadI(ptcKey, pObj->GetName());  // We use Str_CmpHeadI to ignore '_' and whitespaces (args to the function or whatever) in ptcKey
     }
-
+};
+template <typename _ObjType>
+class CObjUniquePtrNameSortVector : public sl::unique_ptr_sorted_vector<_ObjType, CObjUniquePtrNameVectorSorter<_ObjType>>
+{
 public:
     //static const char *m_sClassName;  
-
-    inline size_t find_sorted(lpctstr ptcKey) const noexcept { return this->find_predicate(ptcKey, _compare);        }
-    inline bool   ContainsKey(lpctstr ptcKey) const noexcept { return (SCONT_BADINDEX != this->find_sorted(ptcKey)); }
+    inline size_t find_sorted(lpctstr ptcKey) const noexcept { return this->find_predicate(ptcKey, CObjUniquePtrNameVectorSorter<_ObjType>::_compare);        }
+    inline bool   ContainsKey(lpctstr ptcKey) const noexcept { return (sl::scont_bad_index() != this->find_sorted(ptcKey)); }
 };
 
 #endif // _INC_CRESOURCESORTEDARRAYS_H

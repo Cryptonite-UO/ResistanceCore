@@ -2,6 +2,7 @@
 #define _WIN32_DCOM
 
 #include <algorithm>
+#include <atomic>
 #include "../common/CException.h"
 #include "../common/common.h"
 #include "../common/CLog.h"
@@ -28,12 +29,12 @@
 
 // Normal Buffer
 SimpleMutex g_tmpStringMutex;
-volatile int g_tmpStringIndex = 0;
+std::atomic<int> g_tmpStringIndex = 0;
 char g_tmpStrings[THREAD_TSTRING_STORAGE][THREAD_STRING_LENGTH];
 
 // TemporaryString Buffer
 SimpleMutex g_tmpTemporaryStringMutex;
-volatile int g_tmpTemporaryStringIndex = 0;
+std::atomic<int> g_tmpTemporaryStringIndex = 0;
 
 struct TemporaryStringStorage
 {
@@ -96,11 +97,12 @@ void IThread::setThreadName(const char* name)
 /**
  * ThreadHolder
 **/
-spherethreadlist_t ThreadHolder::m_threads;
-size_t ThreadHolder::m_threadCount = 0;
-bool ThreadHolder::m_inited = false;
-SimpleMutex ThreadHolder::m_mutex;
-TlsValue<IThread *> ThreadHolder::m_currentThread;
+
+ThreadHolder* ThreadHolder::get() noexcept
+{
+	static ThreadHolder instance;
+	return &instance;
+}
 
 IThread *ThreadHolder::current() noexcept
 {
@@ -234,7 +236,7 @@ void AbstractThread::start()
 #endif
 
 	m_terminateEvent.reset();
-	ThreadHolder::push(this);
+	ThreadHolder::get()->push(this);
 }
 
 void AbstractThread::terminate(bool ended)
@@ -259,7 +261,7 @@ void AbstractThread::terminate(bool ended)
 		}
 
 		// Common things
-		ThreadHolder::pop(this);
+		ThreadHolder::get()->pop(this);
 		m_id = 0;
 		m_handle = 0;
 
@@ -394,7 +396,7 @@ bool AbstractThread::isActive() const
 
 void AbstractThread::waitForClose()
 {
-    // Another thread has requested us to close and it's waiting for us to complete the current tick, 
+    // Another thread has requested us to close and it's waiting for us to complete the current tick,
     //  or to forcefully be forcefully terminated after a THREADJOIN_TIMEOUT, which of the two happens first.
 
     // TODO? add a mutex here to protect at least the changes to m_terminateRequested?
@@ -472,7 +474,7 @@ void AbstractThread::onStart()
 	// a small delay when setting it from AbstractThread::start and it's possible for the id
 	// to not be set fast enough (particular when using pthreads)
 	m_id = getCurrentThreadId();
-	ThreadHolder::m_currentThread = this;
+	ThreadHolder::get()->m_currentThread = this;
 
 	if (isActive())		// This thread has actually been spawned and the code is executing on a different thread
 		setThreadName(getName());
@@ -545,7 +547,7 @@ char *AbstractSphereThread::allocateBuffer()
 
 	if( g_tmpStringIndex >= THREAD_TSTRING_STORAGE )
 	{
-		g_tmpStringIndex %= THREAD_TSTRING_STORAGE;
+		g_tmpStringIndex = g_tmpStringIndex % THREAD_TSTRING_STORAGE;
 	}
 
 	buffer = g_tmpStrings[g_tmpStringIndex];
@@ -563,7 +565,9 @@ TemporaryStringStorage *AbstractSphereThread::allocateStringBuffer()
 		index = ++g_tmpTemporaryStringIndex;
 		if( g_tmpTemporaryStringIndex >= THREAD_STRING_STORAGE )
 		{
-			index = g_tmpTemporaryStringIndex %= THREAD_STRING_STORAGE;
+			const int inc = g_tmpTemporaryStringIndex % THREAD_STRING_STORAGE;
+			g_tmpTemporaryStringIndex = inc;
+			index = inc;
 		}
 
 		if( g_tmpTemporaryStringStorage[index].m_state == 0 )
@@ -637,7 +641,7 @@ void AbstractSphereThread::printStackTrace()
 {
 	// don't allow call stack to be modified whilst we're printing it
 	freezeCallStack(true);
-    
+
     const uint64_t threadId = static_cast<uint64_t>(getId());
     const lpctstr threadName = getName();
 
@@ -704,7 +708,7 @@ void DummySphereThread::tick()
 
 StackDebugInformation::StackDebugInformation(const char *name) noexcept
 {
-    m_context = static_cast<AbstractSphereThread *>(ThreadHolder::current());
+    m_context = static_cast<AbstractSphereThread *>(ThreadHolder::get()->current());
 	if (m_context != nullptr)
 	{
 		m_context->pushStackCall(name);

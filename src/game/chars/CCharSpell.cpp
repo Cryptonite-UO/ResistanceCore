@@ -2431,11 +2431,11 @@ bool CChar::Spell_CanCast( SPELL_TYPE &spellRef, bool fTest, CObjBase * pSrc, bo
 
 			// check for reagents
 			const size_t iMissingReagents = g_Cfg.Calc_SpellReagentsConsume(this, pSpellDef, pSrc, fTest);
-			if ( iMissingReagents != SCONT_BADINDEX )
+			if ( iMissingReagents != sl::scont_bad_index() )
 			{
 				if ( fFailMsg )
 				{
-					const CResourceDef * pReagDef = g_Cfg.ResourceGetDef((pSpellDef->m_Reags)[iMissingReagents].GetResourceID() );
+					const CResourceDef * pReagDef = g_Cfg.RegisteredResourceGetDef((pSpellDef->m_Reags)[iMissingReagents].GetResourceID() );
 					SysMessagef( g_Cfg.GetDefaultMsg( DEFMSG_SPELL_TRY_NOREGS ), pReagDef ? pReagDef->GetName() : g_Cfg.GetDefaultMsg( DEFMSG_SPELL_TRY_THEREG ) );
 				}
 				return false;
@@ -2729,6 +2729,34 @@ bool CChar::Spell_TargCheck()
 			SysMessageDefault( DEFMSG_SPELL_TARG_LOS );
 			return false;
 		}
+
+		//Check if the pos for tp is valid to make sure spellsuccess trigger not trigger unnecessarily.
+		SPELL_TYPE spell = m_atMagery.m_iSpell;
+		if (spell == SPELL_Teleport && !IsPriv(PRIV_GM))
+		{
+			if (g_Cfg.m_iMountHeight)
+			{
+				if (!IsVerticalSpace(m_Act_p, false))
+				{
+					SysMessageDefault(DEFMSG_MSG_MOUNT_CEILING);
+					return false;
+				}
+			}
+			
+			// Is it a valid teleport location that allows this ?
+			CRegion* pArea = CheckValidMove(m_Act_p, nullptr, DIR_QTY, nullptr);
+			if (!pArea)
+			{
+				SysMessageDefault(DEFMSG_SPELL_TELE_CANT);
+				return false;
+			}
+			if (pArea->IsFlag(REGION_ANTIMAGIC_TELEPORT))
+			{
+				SysMessageDefault(DEFMSG_SPELL_TELE_AM);
+				return false;
+			}
+		}
+
 		if ( ! Spell_TargCheck_Face() )
 			return false;
 	}

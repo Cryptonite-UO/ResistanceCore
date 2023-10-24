@@ -1,4 +1,4 @@
-
+#include "../../common/resource/sections/CResourceNamedDef.h"
 #include "../../common/CLog.h"
 #include "../../common/CException.h"
 #include "../../network/CClientIterator.h"
@@ -78,6 +78,7 @@ CClient::CClient(CNetState* state)
 	m_SkillThrowingAnimID = ITEMID_NOTHING;
 	m_SkillThrowingAnimHue = 0;
 	m_SkillThrowingAnimRender = 0;
+	m_fUseNewChatSystem = false;
 }
 
 
@@ -618,7 +619,7 @@ bool CClient::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc, 
     UnreferencedParameter(fNoCallChildren);
 	ADDTOCALLSTACK("CClient::r_WriteVal");
 	EXC_TRY("WriteVal");
-	
+
 	if ( !strnicmp("CTAG", ptcKey, 4) )
 	{
         bool fCtag = false;
@@ -1376,7 +1377,7 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 			CChar *pChar = m_pChar;
 			if ( s.HasArgs() )
 				pChar = CUID::CharFindFromUID(s.GetArgVal());
-			
+
 			if ( pChar )
 				addCharPaperdoll(pChar);
 			break;
@@ -1441,6 +1442,9 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 			break;
 		case CV_SKILLSELECT:
 			Event_Skill_Use( g_Cfg.FindSkillKey( s.GetArgStr() ) );
+			break;
+		case CV_SKILLUPDATE:
+			addSkillWindow(g_Cfg.FindSkillKey(s.GetArgStr()));
 			break;
 		case CV_SUMMON:
 		{

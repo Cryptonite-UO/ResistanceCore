@@ -206,7 +206,7 @@ size_t CScriptObj::r_GetFunctionIndex(lpctstr pszFunction) // static
 bool CScriptObj::r_CanCall(size_t uiFunctionIndex) // static
 {
     ADDTOCALLSTACK_INTENSIVE("CScriptObj::r_CanCall");
-    if (uiFunctionIndex == SCONT_BADINDEX)
+    if (uiFunctionIndex == sl::scont_bad_index())
         return false;
     ASSERT(uiFunctionIndex < g_Cfg.m_Functions.size());
     return true;
@@ -229,7 +229,7 @@ bool CScriptObj::r_Call( size_t uiFunctionIndex, CTextConsole * pSrc, CScriptTri
 	EXC_TRY("Call by index");
     ASSERT(r_CanCall(uiFunctionIndex));
 
-    CResourceNamedDef * pFunction = static_cast <CResourceNamedDef *>( g_Cfg.m_Functions[uiFunctionIndex] );
+    CResourceNamedDef * pFunction = g_Cfg.m_Functions[uiFunctionIndex].get();
     ASSERT(pFunction);
     CResourceLock sFunction;
     if ( pFunction->ResourceLock(sFunction) )
