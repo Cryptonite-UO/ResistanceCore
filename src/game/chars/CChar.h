@@ -341,7 +341,7 @@ public:		void  StatFlag_Clear(uint64 uiStatFlag) noexcept;
 //protected:	void _StatFlag_Mod(uint64 uiStatFlag, bool fMod) noexcept;
 public:		void  StatFlag_Mod(uint64 uiStatFlag, bool fMod) noexcept;
 
-	char GetFixZ(const CPointMap& pt, dword dwBlockFlags = 0);
+	char GetFixZ(const CPointMap& pt, uint64 uiBlockFlags = 0);
 	bool IsPriv( word flag ) const;
 	virtual PLEVEL_TYPE GetPrivLevel() const override;
 
@@ -457,7 +457,7 @@ private:
 	bool TeleportToCli( int iType, int iArgs );
 	bool TeleportToObj( int iType, tchar * pszArgs );
 private:
-	CRegion * CheckValidMove( CPointMap & ptDest, dword * pdwBlockFlags, DIR_TYPE dir, height_t * ClimbHeight, bool fPathFinding = false ) const;
+	CRegion * CheckValidMove( CPointMap & ptDest, uint64 * uiBlockFlags, DIR_TYPE dir, height_t * ClimbHeight, bool fPathFinding = false ) const;
 	void FixClimbHeight();
 	bool MoveToRoom( CRegion * pNewRoom, bool fAllowReject);
 	bool IsVerticalSpace( const CPointMap& ptDest, bool fForceMount = false ) const;
@@ -534,7 +534,7 @@ public:
 	lpctstr GetPossessPronoun() const;	// his
 	byte GetModeFlag( const CClient *pViewer = nullptr ) const;
 	byte GetDirFlag(bool fSquelchForwardStep = false) const;
-	dword GetCanMoveFlags(dword dwCanFlags, bool fIgnoreGM = false) const;
+	uint64 GetCanMoveFlags(uint64 uiCanFlags, bool fIgnoreGM = false) const;
 
 	virtual int FixWeirdness() override;
 	void CreateNewCharCheck();
@@ -838,6 +838,16 @@ public:
 	void ChangeExperience(llong delta = 0, CChar *pCharDead = nullptr);
 	uint GetSkillTotal(int what = 0, bool how = true);
 
+    /*
+    * @brief Check the pItem stack has amount more than iQty. If not, searches character's backpack to check if character has enough item to consume.
+    */
+    bool CanConsume(CItem* pItem, word iQty);
+
+    /*
+    * @brief Consumes iQty amount of the item from your stack. If the stack has less amount than iQty, searches character's backpack to consume from other stacks.
+    */
+    bool ConsumeFromPack(CItem* pItem, word iQty);
+
 	// skills and actions. -------------------------------------------
 	static bool IsSkillBase( SKILL_TYPE skill ) noexcept;
 	static bool IsSkillNPC( SKILL_TYPE skill ) noexcept;
@@ -873,7 +883,7 @@ public:
 	bool Skill_Wait( SKILL_TYPE skilltry );
 	bool Skill_Start( SKILL_TYPE skill, int iDifficultyIncrease = 0 ); // calc skill progress.
 	void Skill_Fail( bool fCancel = false );
-	int Skill_Stroke( bool fResource);				// Strokes in crafting skills, calling for SkillStroke trig
+	int Skill_Stroke();				// Strokes in crafting skills, calling for SkillStroke trig
 	ANIM_TYPE Skill_GetAnim( SKILL_TYPE skill);
 	SOUND_TYPE Skill_GetSound( SKILL_TYPE skill);
 	int Skill_Stage( SKTRIG_TYPE stage );
@@ -1110,6 +1120,7 @@ private:
     CChar* Horse_GetValidMountChar();
 
 public:
+    bool CanDress(const CChar* pChar) const;
 	bool IsOwnedBy( const CChar * pChar, bool fAllowGM = true ) const;
 	CChar * GetOwner() const;
 	CChar * Use_Figurine( CItem * pItem, bool fCheckFollowerSlots = true );
@@ -1135,7 +1146,7 @@ public:
 	bool Death();
 	bool Reveal( uint64 iFlags = 0 );
 	void Jail( CTextConsole * pSrc, bool fSet, int iCell );
-	void EatAnim( lpctstr pszName, ushort uiQty );
+	void EatAnim(CItem* pItem, ushort uiQty);
 	/**
 	* @Brief I'm calling guards (Player speech)
 	*
@@ -1165,7 +1176,7 @@ public:
 	bool OnFreezeCheck() const;
     bool IsStuck(bool fFreezeCheck);
 
-	void DropAll( CItemContainer * pCorpse = nullptr, uint64 dwAttr = 0 );
+	void DropAll(CItemContainer * pCorpse = nullptr, uint64 uiAttr = 0);
 	void UnEquipAllItems( CItemContainer * pCorpse = nullptr, bool fLeaveHands = false );
 	void Wake();
 	void SleepStart( bool fFrontFall );
@@ -1301,6 +1312,7 @@ public:
 
 	// Outside events that occur to us.
 	int  OnTakeDamage( int iDmg, CChar * pSrc, DAMAGE_TYPE uType, int iDmgPhysical = 0, int iDmgFire = 0, int iDmgCold = 0, int iDmgPoison = 0, int iDmgEnergy = 0, SPELL_TYPE spell = SPELL_NONE );
+	void OnTakeDamageInflictArea(int iDmg, CChar* pSrc, DAMAGE_TYPE uType, int iDmgPhysical = 0, int iDmgFire = 0, int iDmgCold = 0, int iDmgPoison = 0, int iDmgEnergy = 0, HUE_TYPE effectHue = HUE_DEFAULT, SOUND_TYPE effectSound = SOUND_NONE);
 	void OnHarmedBy( CChar * pCharSrc );
 	bool OnAttackedBy( CChar * pCharSrc, bool fPetsCommand = false, bool fShouldReveal = true );
 
