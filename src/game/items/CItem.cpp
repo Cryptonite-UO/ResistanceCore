@@ -4841,15 +4841,9 @@ int CItem::Weapon_GetAttack(bool fGetRange) const
 		int iRepairPercent = 50 + ((50 * m_itArmor.m_dwHitsCur) / m_itArmor.m_wHitsMax);
 		iVal = (int)IMulDivLL( iVal, iRepairPercent, 100 );
 	}
-	int ivalTemp=0;
 	if ( ! IsType(IT_WAND)) //IsAttr(ATTR_MAGIC) && 
-		//Formule custom afin de donner 2x plus d'impact au moreY et diminuer de moitié l'impact sur dommage min
 		//De plus on ne tient plus compte si l'objet est magique ou pas.
-		ivalTemp = g_Cfg.GetSpellEffect(SPELL_Enchant, m_itArmor.m_spelllevel)*2;
-		if (fGetRange) //max damage
-			iVal += g_Cfg.GetSpellEffect(SPELL_Enchant, m_itArmor.m_spelllevel);
-		else//Min damage
-			iVal += (g_Cfg.GetSpellEffect(SPELL_Enchant, m_itArmor.m_spelllevel))/2;
+		iVal += g_Cfg.GetSpellEffect(SPELL_Enchant, m_itArmor.m_spelllevel); //Formule pour ajouter la valeur de MOREY au max damage Pour min damage utiliser modar
 	if ( iVal < 0 )
 		iVal = 0;
 	return iVal;
