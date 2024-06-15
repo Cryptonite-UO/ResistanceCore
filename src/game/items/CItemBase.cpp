@@ -56,7 +56,7 @@ CItemBase::CItemBase( ITEMID_TYPE id ) :
 	{
 		if ( ! CItemBase::GetItemData( id, &tiledata ) )	// some valid items don't show up here !
 		{
-			// warn? ignore? // return nullptr;
+			// TODO: warn? ignore? // return nullptr;
 		}
 	}
 	else
@@ -635,7 +635,7 @@ bool CItemBase::IsID_Chair( ITEMID_TYPE id ) noexcept // static
 	}
 }
 
-bool CItemBase::GetItemData( ITEMID_TYPE id, CUOItemTypeRec_HS * pData ) // static
+bool CItemBase::GetItemData( ITEMID_TYPE id, CUOItemTypeRec_HS * pData, bool fNameNotNeeded) // static
 {
 	ADDTOCALLSTACK("CItemBase::GetItemData");
 	// Read from g_Install.m_fTileData
@@ -653,24 +653,24 @@ bool CItemBase::GetItemData( ITEMID_TYPE id, CUOItemTypeRec_HS * pData ) // stat
 
 	try
 	{
-		*pData = CUOItemInfo(id);
+		*pData = CUOItemInfo(id, fNameNotNeeded);
 	}
     catch (const std::exception& e)
     {
         g_Log.CatchStdException(&e, "GetItemData");
-        CurrentProfileData.Count(PROFILE_STAT_FAULTS, 1);
+        GetCurrentProfileData().Count(PROFILE_STAT_FAULTS, 1);
         return false;
     }
 	catch ( const CSError& e )
 	{
 		g_Log.CatchEvent( &e, "GetItemData" );
-		CurrentProfileData.Count(PROFILE_STAT_FAULTS, 1);
+		GetCurrentProfileData().Count(PROFILE_STAT_FAULTS, 1);
 		return false;
 	}
 	catch (...)
 	{
 		g_Log.CatchEvent(nullptr, "GetItemData" );
-		CurrentProfileData.Count(PROFILE_STAT_FAULTS, 1);
+		GetCurrentProfileData().Count(PROFILE_STAT_FAULTS, 1);
 		return false;
 	}
 
@@ -722,7 +722,7 @@ void CItemBase::GetItemTiledataFlags( uint64 *uiCanFlags, ITEMID_TYPE id ) // st
 	ADDTOCALLSTACK("CItemBase::GetItemTiledataFlags");
 
     CUOItemTypeRec_HS tiledata{};
-	if ( ! CItemBase::GetItemData( id, &tiledata ))
+	if ( ! CItemBase::GetItemData( id, &tiledata, true ))
 	{
         *uiCanFlags = 0;
 		return;
@@ -811,7 +811,7 @@ height_t CItemBase::GetItemHeight( ITEMID_TYPE id, uint64 *uiBlockFlags ) // sta
 
 	// Not already loaded.
     CUOItemTypeRec_HS tiledata = {};
-	if ( ! GetItemData( id, &tiledata ))
+	if ( ! GetItemData( id, &tiledata, true ))
 	{
 		*uiBlockFlags = CAN_I_MOVEMASK;
 		return UO_SIZE_Z;
@@ -1295,9 +1295,9 @@ bool CItemBase::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc
 
 					tchar *pszTmp = Str_GetTemp();
 					if ( fKeyOnly || fQtyOnly )
-						m_SkillMake.WriteKeys( pszTmp, index, fQtyOnly, fKeyOnly );
+						m_SkillMake.WriteKeys( pszTmp, Str_TempLength(), index, fQtyOnly, fKeyOnly );
 					else
-						m_SkillMake.WriteNames( pszTmp, index );
+						m_SkillMake.WriteNames( pszTmp, Str_TempLength(), index );
 					if ( fQtyOnly && pszTmp[0] == '\0' )
 						strcpy( pszTmp, "0" );
 					sVal = pszTmp;
@@ -1305,7 +1305,7 @@ bool CItemBase::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc
 				else
 				{
 					tchar *pszTmp = Str_GetTemp();
-					m_SkillMake.WriteNames( pszTmp );
+					m_SkillMake.WriteNames( pszTmp, Str_TempLength() );
 					sVal = pszTmp;
 				}
 			}
@@ -1317,7 +1317,7 @@ bool CItemBase::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc
 			// Print the resources need to make in nice format.
 			{
 				tchar *pszTmp = Str_GetTemp();
-				m_BaseResources.WriteNames( pszTmp );
+				m_BaseResources.WriteNames( pszTmp, Str_TempLength() );
 				sVal = pszTmp;
 			}
 			break;

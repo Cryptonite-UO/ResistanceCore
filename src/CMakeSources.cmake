@@ -62,21 +62,16 @@ src/common/crypto/CBCrypt.h
 src/common/crypto/CCrypto.cpp
 src/common/crypto/CCrypto.h
 src/common/crypto/CCryptoBlowFish.cpp
-src/common/crypto/CCryptoHuffman.cpp
 src/common/crypto/CCryptoLogin.cpp
+src/common/crypto/CCryptoKeyCalc.cpp
+src/common/crypto/CCryptoKeyCalc.h
 src/common/crypto/CCryptoMD5Interface.cpp
 src/common/crypto/CCryptoTwoFishInterface.cpp
+src/common/crypto/CHuffman.cpp
+src/common/crypto/CHuffman.h
 src/common/crypto/CMD5.cpp
 src/common/crypto/CMD5.h
-src/common/crypto/bcrypt/crypt_blowfish.c
-src/common/crypto/bcrypt/crypt_blowfish.h
-src/common/crypto/bcrypt/crypt_gensalt.c
-src/common/crypto/bcrypt/crypt_gensalt.h
-src/common/crypto/bcrypt/ow-crypt.h
-src/common/crypto/bcrypt/wrapper.c
-src/common/crypto/twofish/twofish.cpp
-src/common/crypto/twofish/twofish.h
-src/common/crypto/twofish/twofish_aux.h
+src/common/crypto/crypto_common.h
 )
 SOURCE_GROUP (common\\crypto FILES ${crypto_SRCS})
 
@@ -159,6 +154,8 @@ src/common/CSVFile.cpp
 src/common/CSVFile.h
 src/common/CTextConsole.cpp
 src/common/CTextConsole.h
+src/common/CUOClientVersion.cpp
+src/common/CUOClientVersion.h
 src/common/CUOInstall.cpp
 src/common/CUOInstall.h
 src/common/CVarDefMap.cpp
@@ -523,7 +520,7 @@ src/tables/triggers.tbl
 )
 SOURCE_GROUP (tables FILES ${tables_SRCS})
 
-SET (app_resources_SRCS 
+SET (app_resources_SRCS
 src/resources/SphereSvr.rc
 )
 
@@ -532,4 +529,24 @@ SET (docs_TEXT
 Changelog.txt
 src/sphere.ini
 src/sphereCrypt.ini
+)
+
+
+SET (SPHERE_SOURCES
+	${game_SRCS}
+	${items_SRCS}
+	${chars_SRCS}
+	${clients_SRCS}
+	${components_SRCS}
+	${uofiles_SRCS}
+	${common_SRCS}
+	${resource_SRCS}
+	${resourcesections_SRCS}
+	${network_SRCS}
+	${crypto_SRCS}
+	${sphere_SRCS}
+	${crashdump_SRCS}
+	${spherelibrary_SRCS}
+	${tables_SRCS}
+	${app_resources_SRCS}
 )

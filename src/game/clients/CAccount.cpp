@@ -631,18 +631,43 @@ void CAccount::DeleteChars()
 	}
 }
 
-
 CAccount::~CAccount()
 {
 	g_Serv.StatDec( SERV_STAT_ACCOUNTS );
 
 	DeleteChars();
+    if (CClient * pClient = FindClient())
+    {
+        pClient->m_pAccount = nullptr;
+    }
+
 	ClearPasswordTries(true);
+}
+
+lpctstr CAccount::GetDefStr( lpctstr ptcKey, bool fZero ) const
+{
+    return m_BaseDefs.GetKeyStr( ptcKey, fZero );
+}
+int64 CAccount::GetDefNum( lpctstr ptcKey ) const
+{
+    return m_BaseDefs.GetKeyNum( ptcKey );
+}
+void CAccount::SetDefNum(lpctstr ptcKey, int64 iVal, bool fZero)
+{
+    CAccount::m_BaseDefs.SetNum(ptcKey, iVal, fZero);
+}
+void CAccount::SetDefStr(lpctstr ptcKey, lpctstr pszVal, bool fQuoted, bool fZero)
+{
+    m_BaseDefs.SetStr(ptcKey, fQuoted, pszVal, fZero);
+}
+
+void CAccount::DeleteDef(lpctstr ptcKey)
+{
+    m_BaseDefs.DeleteKey(ptcKey);
 }
 
 void CAccount::SetPrivLevel( PLEVEL_TYPE plevel )
 {
-	ADDTOCALLSTACK("CAccount::SetPrivLevel");
 	m_PrivLevel = plevel;	// PLEVEL_Counsel
 }
 
@@ -1039,13 +1064,13 @@ void CAccount::SetNewPassword( lpctstr pszPassword )
 	{
 		static tchar const passwdChars[] = "ABCDEFGHJKLMNPQRTUVWXYZ2346789";
 		int len = (int)strlen(passwdChars);
-		int charsCnt = Calc_GetRandVal(4) + 6;	// 6 - 10 chars
+		int charsCnt = g_Rand.GetVal(4) + 6;	// 6 - 10 chars
 		if ( charsCnt > (MAX_ACCOUNT_PASSWORD_ENTER - 1) )
 			charsCnt = MAX_ACCOUNT_PASSWORD_ENTER - 1;
 
 		tchar szTmp[MAX_ACCOUNT_PASSWORD_ENTER + 1];
 		for ( int i = 0; i < charsCnt; ++i )
-			szTmp[i] = passwdChars[Calc_GetRandVal(len)];
+			szTmp[i] = passwdChars[g_Rand.GetVal(len)];
 
 		szTmp[charsCnt] = '\0';
 		m_sNewPassword = szTmp;
@@ -1082,19 +1107,19 @@ bool CAccount::SetAutoResDisp(CClient *pClient)
 		return false;
 
 	const CNetState* pNS = pClient->GetNetState();
-	if (pNS->isClientVersion(MINCLIVER_TOL))
+	if (pNS->isClientVersionNumber(MINCLIVER_TOL))
 		return SetResDisp(RDS_TOL);
-	else if (pNS->isClientVersion(MINCLIVER_HS))
+	else if (pNS->isClientVersionNumber(MINCLIVER_HS))
 		return SetResDisp(RDS_HS);
-	else if (pNS->isClientVersion(MINCLIVER_SA))
+	else if (pNS->isClientVersionNumber(MINCLIVER_SA))
 		return SetResDisp(RDS_SA);
-	else if (pNS->isClientVersion(MINCLIVER_ML))
+	else if (pNS->isClientVersionNumber(MINCLIVER_ML))
 		return SetResDisp(RDS_ML);
-	else if (pNS->isClientVersion(MINCLIVER_SE))
+	else if (pNS->isClientVersionNumber(MINCLIVER_SE))
 		return SetResDisp(RDS_SE);
-	else if (pNS->isClientVersion(MINCLIVER_AOS))
+	else if (pNS->isClientVersionNumber(MINCLIVER_AOS))
 		return SetResDisp(RDS_AOS);
-	else if (pNS->isClientVersion(MINCLIVER_LBR))
+	else if (pNS->isClientVersionNumber(MINCLIVER_LBR))
 		return SetResDisp(RDS_LBR);
 	else
 		return SetResDisp(RDS_T2A);

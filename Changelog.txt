@@ -3717,3 +3717,65 @@ Added: 'H' shortcut for variables to get the value as hexadecimal.
 	SUGGESTION: Always use <hTAG.NAME> for hexadecimal returns, and <dTAG.NAME> for decimal returns to avoid any future issues,
 		     when you switch this setting.
 - Fixed: SPELLFLAG_NOUNPARALYZE flag wasn't working as intended.
+
+03-06-2024, Nolok
+- Added ini settings:
+	// Maximum number of connection requests before rejecting/blocking IP. Reset after <NetTTL> seconds elapsed after last connection attempt.
+	MaxConnectRequestsPerIP=5
+	// Maximum time in milliseconds to wait before closing a connection request wich did not make it into a successful login (classic DDoS just asks to connect without doing anything else, or sends garbage data).
+	TimeoutIncompleteConn=5 * 1000  // 5 seconds
+- Added serv_trig function f_onserver_connectreq_ex, called after an IP exceeds MaxConnectRequestsPerIP:
+	ARGS (RO): IP address.
+	ARGN1 (RO): System time in milliseconds since the last connection.
+	ARGN2 (RO): System time in milliseconds of this connection attempt.
+	ARGN3 (RO): Number of connection attempts since the IP History entry for this IP was (re)created.
+	LOCAL.BAN_TIMEOUT (RW): 5 * 60 (default), seconds to keep banned the ip from new connections to the server (permanent if negative).
+	RETURN 1: Only reject the connection.
+	RETURN 2: Reject and ban the IP for <LOCAL.BAN_TIMEOUT> seconds.
+- Added serv_trig function f_onserver_connection_acquired, called after an IP successifully establishes a connection with the server and passess the security checks:
+	ARGS (RO): IP address.
+	ARGN1 (RO): System time in milliseconds since the last connection.
+	ARGN2 (RO): System time in milliseconds of this connection attempt.
+
+04-06-2024, Nolok
+- Added: client commands ADDITEM and ADDCHAR, to be used in place of .ADD when there's the need to force the argument to be an item or a char.
+	This can be useful when using raw IDs (like 01, 0bd1, etc) instead of defnames.
+
+08-06-2024, Nolok
+- Changed: how the client versions are handled internally, since newest clients have a revision number > 100 and it broke compatibility with previous internal representations.
+- Added: SERV.CALCCRYPT <client version string>, <optional: client type id>, <optional: force crypt type/algorithm>.
+	Returns the line for the given client version to be added to SphereCrypt.ini.
+	Client type id:
+		0	// Standard client (Classic, default)
+		1	// Old 3D client
+		2	// KR client
+		3	// Enhanced Client
+	Force crypt type:
+		0	// None (default: auto detect)
+		1	// Blowfish
+		2	// Blowfish + Twofish
+		3	// Twofish
+		4	// Login (old cypher used for some 1.x clients)
+
+09-06-2024, Nolok
+- Added: DistanceFormula ini setting, it selects the method use to calculate distance between two object/points.
+	DISTANCE_FORMULA_NODIAGONAL_NOZ 0	(linear/integer distance, considering the span this results in a "square" area with the object at the center; do not consider z)
+	DISTANCE_FORMULA_DIAGONAL_NOZ	1	(as if we could traverse diagonally each tile, this results in a "circular" area with the object at the center; do not consider z))
+	DISTANCE_FORMULA_DIAGONAL_Z		2	(same as above, but FORCE every distance check to consider z) --> BEWARE! Not thoroughly tested, it MIGHT cause unexpected behaviors.
+	Sphere X defaults to DISTANCE_FORMULA_NODIAGONAL_NOZ, older Sphere versions used DISTANCE_FORMULA_DIAGONAL_NOZ.
+
+12-06-2024, Nolok
+- Fixed: negative value hex representation in scripts, now it should match the expected one (like in v0.56b).
+- Fixed: script files caching discarding the last line of the file.
+- Fixed: dialog data buffer not emptied after the dialog packet is sent (resulting in displaying a garbled dialog).
+- Fixed: << operator parsing (without hopefully breaking something else). Remember that you MUST leave a whitespace between the operator and the operands.
+- Added: error message if trying to open a non existant script file (example: from spheretables.scp).
+- Added: SERV.BUILDNUM (alias for BUILD, returning the git revision number or -1 for special builds, not linked to git).
+- Added: SERV.BUILDBRANCH and SERV.BUILDSTR (the latter showing both branch name and build number, or the compilation date if the build is not linked to git).
+
+13-06-2024, Nolok
+- Added: ini flag ItemTimers to define global rules for item timers.
+	// ITEM_CANTIMER_BASE			0	// Items cannot have an active timer nor a timer can be set for them if are placed inside a item container. Items placed on the map or equipped can have a timer.
+	// ITEM_CANTIMER_IN_CONTAINER	1	// Items can hold a timer even if equipped.
+- Added: item CAN flag (Issue #1180):
+	CAN_I_TIMER_CONTAINED   0x40000000  // This item (if not "sleeping") can have a timer even if inside a container (overrides global default behavior).

@@ -528,7 +528,7 @@ void CClient::addWeather( WEATHER_TYPE weather ) // Send new weather to player
 		return;
 
 	m_Env.m_Weather = weather;
-	new PacketWeather(this, weather, Calc_GetRandVal2(10, 70), 0x10);
+	new PacketWeather(this, weather, g_Rand.GetVal2(10, 70), 0x10);
 }
 
 void CClient::addLight() const
@@ -570,7 +570,7 @@ void CClient::addArrowQuest( int x, int y, int id ) const
 	ADDTOCALLSTACK("CClient::addArrowQuest");
 
     CScriptTriggerArgs args(x, y);
-    if (this->GetNetState()->isClientVersion(MINCLIVER_HS) || this->GetNetState()->isClientEnhanced())
+    if (this->GetNetState()->isClientVersionNumber(MINCLIVER_HS) || this->GetNetState()->isClientEnhanced())
         args.m_iN3 = id;
     else
         args.m_iN3 = 0;
@@ -1022,7 +1022,7 @@ void CClient::GetAdjustedItemID( const CChar * pChar, const CItem * pItem, ITEMI
 	}
 
 	if ( m_pChar->IsStatFlag( STATF_HALLUCINATING ))
-		wHue = (HUE_TYPE)(Calc_GetRandVal( HUE_DYE_HIGH ));
+		wHue = (HUE_TYPE)(g_Rand.GetVal( HUE_DYE_HIGH ));
 
 	else if ( pChar->IsStatFlag(STATF_STONE)) //Client do not have stone state. So we must send the hue we want. (Affect the paperdoll hue as well)
 		wHue = HUE_STONE;
@@ -1080,13 +1080,13 @@ void CClient::GetAdjustedCharID( const CChar * pChar, CREID_TYPE &id, HUE_TYPE &
 			pCharDef = nullptr;
 			while ( pCharDef == nullptr )
 			{
-				id = (CREID_TYPE)(Calc_GetRandVal(CREID_EQUIP_GM_ROBE));
+				id = (CREID_TYPE)(g_Rand.GetVal(CREID_EQUIP_GM_ROBE));
 				if ( id != CREID_SEA_CREATURE )		// skip this chardef, it can crash many clients
 					pCharDef = CCharBase::FindCharBase(id);
 			}
 		}
 
-		wHue = (HUE_TYPE)(Calc_GetRandVal(HUE_DYE_HIGH));
+		wHue = (HUE_TYPE)(g_Rand.GetVal(HUE_DYE_HIGH));
 	}
 	else
 	{
@@ -1598,7 +1598,7 @@ uint CClient::Setup_FillCharList(Packet* pPacket, const CChar * pCharFirst)
 	// always show max count for some stupid reason. (client bug)
 	// pad out the rest of the chars.
 	uint iClientMin = 5;
-	if (GetNetState()->isClientVersion(MINCLIVER_PADCHARLIST) || !GetNetState()->getCryptVersion())
+	if (GetNetState()->isClientVersionNumber(MINCLIVER_PADCHARLIST) || !GetNetState()->getCryptVersion())
 		iClientMin = maximum(iQty, 5);
 
 	for ( ; count < iClientMin; ++count)
@@ -2576,12 +2576,13 @@ void CClient::addGlobalChatConnect()
 
 	// Set Jabber ID (syntax: CharName_CharUID@ServerID)
 	tchar* pszJID = Str_GetTemp();
-	sprintf(pszJID, "%.6s_%.7lu@%.2hhu", m_pChar->GetName(), static_cast<dword>(m_pChar->GetUID()), 0);
+	sprintf(pszJID, "%.6s_%.7u@%.2hhu", m_pChar->GetName(), static_cast<dword>(m_pChar->GetUID()), 0);
 	CGlobalChatChanMember::SetJID(pszJID);
 
 	// Send xml to client
 	tchar* pszXML = Str_GetTemp();
-	sprintf(pszXML, "<iq to=\"%s\" id=\"iq_%.10lu\" type=\"6\" version=\"1\" jid=\"%s\" />", CGlobalChatChanMember::GetJID(), static_cast<dword>(CSTime::GetCurrentTime().GetTime()), CGlobalChatChanMember::GetJID());
+	sprintf(pszXML, "<iq to=\"%s\" id=\"iq_%.10u\" type=\"6\" version=\"1\" jid=\"%s\" />",
+			CGlobalChatChanMember::GetJID(), static_cast<dword>(CSTime::GetCurrentTime().GetTime()), CGlobalChatChanMember::GetJID());
 
 	CGlobalChatChanMember::SetVisible(false);
 	new PacketGlobalChat(this, 0, PacketGlobalChat::Connect, PacketGlobalChat::InfoQuery, pszXML);
@@ -2609,7 +2610,8 @@ void CClient::addGlobalChatStatusToggle()
 	}
 
 	tchar* pszXML = Str_GetTemp();
-	sprintf(pszXML, "<presence from=\"%s\" id=\"pres_%.10lu\" name=\"%.6s\" show=\"%d\" version=\"1\" />", CGlobalChatChanMember::GetJID(), static_cast<dword>(CSTime::GetCurrentTime().GetTime()), m_pChar->GetName(), iShow);
+	sprintf(pszXML, "<presence from=\"%s\" id=\"pres_%.10u\" name=\"%.6s\" show=\"%d\" version=\"1\" />", 
+			CGlobalChatChanMember::GetJID(), static_cast<dword>(CSTime::GetCurrentTime().GetTime()), m_pChar->GetName(), iShow);
 
 	CGlobalChatChanMember::SetVisible(static_cast<bool>(iShow));
 	new PacketGlobalChat(this, 0, PacketGlobalChat::Connect, PacketGlobalChat::Presence, pszXML);
@@ -2995,7 +2997,7 @@ byte CClient::Setup_ListReq( const char * pszAccName, const char * pszPassword, 
 	}*/
 
     dword dwFeatureFlags;
-    dword dwCliVer = m_Crypt.GetClientVer();
+    dword dwCliVer = m_Crypt.GetClientVerNumber();
     if ( dwCliVer && (dwCliVer < 1260000) )
     {
         dwFeatureFlags = 0x03;
@@ -3134,16 +3136,14 @@ byte CClient::LogIn( lpctstr ptcAccName, lpctstr ptcPassword, CSString & sMsg )
 	size_t iLen3 = Str_GetBare( szTmp, ptcAccName, MAX_NAME_SIZE );
 	if ( (iLen1 == 0) || (iLen1 != iLen3) || (iLen1 > MAX_NAME_SIZE) )	// a corrupt message.
 	{
-		char pcVersion[ 256 ];
-		sMsg.Format( g_Cfg.GetDefaultMsg( DEFMSG_MSG_ACC_WCLI ), m_Crypt.WriteClientVer(pcVersion, sizeof(pcVersion)));
+		sMsg.Format( g_Cfg.GetDefaultMsg( DEFMSG_MSG_ACC_WCLI ), m_Crypt.GetClientVer().c_str());
 		return( PacketLoginError::BadAccount );
 	}
 
 	iLen3 = Str_GetBare( szTmp, ptcPassword, MAX_NAME_SIZE );
 	if ( iLen2 != iLen3 )	// a corrupt message.
 	{
-		char pcVersion[ 256 ];
-		sMsg.Format( g_Cfg.GetDefaultMsg( DEFMSG_MSG_ACC_WCLI ), m_Crypt.WriteClientVer(pcVersion, sizeof(pcVersion)));
+		sMsg.Format( g_Cfg.GetDefaultMsg( DEFMSG_MSG_ACC_WCLI ), m_Crypt.GetClientVer().c_str());
 		return( PacketLoginError::BadPassword );
 	}
 

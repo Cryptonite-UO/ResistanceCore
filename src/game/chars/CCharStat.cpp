@@ -193,7 +193,7 @@ void CChar::Stat_AddVal( STAT_TYPE i, int iVal )
 
 ushort CChar::Stat_GetVal( STAT_TYPE i ) const
 {
-	ADDTOCALLSTACK("CChar::Stat_GetVal");
+	//ADDTOCALLSTACK("CChar::Stat_GetVal"); // Called very frequently.
 	if ( i > STAT_BASE_QTY || i == STAT_FOOD ) // Food must trigger Statchange. Redirect to Base value
 		return Stat_GetBase(i);
 
@@ -205,6 +205,8 @@ void CChar::Stat_SetMax( STAT_TYPE i, ushort uiVal )
 {
 	ADDTOCALLSTACK("CChar::Stat_SetMax");
 	ASSERT((i > STAT_NONE) && (i < STAT_QTY)); // allow for food
+    if ((i <= STAT_NONE) || (i >= STAT_QTY))
+        return; // Warnings wouldn't shut up otherwise...
 
 	if ( g_Cfg._uiStatFlag &&
      ((g_Cfg._uiStatFlag & STAT_FLAG_DENYMAX) || (m_pPlayer && (g_Cfg._uiStatFlag & STAT_FLAG_DENYMAXP)) || (m_pNPC && (g_Cfg._uiStatFlag & STAT_FLAG_DENYMAXN))) )
@@ -539,7 +541,7 @@ bool CChar::Stats_Regen()
 
 int64 CChar::Stats_GetRegenRate(STAT_TYPE iStat)
 {
-    ADDTOCALLSTACK("CChar::Stats_GetRegenRate");
+    //ADDTOCALLSTACK("CChar::Stats_GetRegenRate");  // Called very frequently.
     // Return regen rate for the given stat.
 
     ASSERT ( (iStat >= STAT_STR) && (iStat <= STAT_FOOD) );
@@ -705,7 +707,7 @@ bool CChar::Stat_Decrease(STAT_TYPE stat, SKILL_TYPE skill)
 	// We are at a point where our skills can degrade a bit.
 	uint uiStatSumMax = uiStatSumLimit + uiStatSumLimit / 4;
 	const int iChanceForLoss = Calc_GetSCurve(uiStatSumMax - uiStatSumLimit, (uiStatSumMax - uiStatSumLimit) / 4);
-	if ( iChanceForLoss > Calc_GetRandVal(1000) )
+	if ( iChanceForLoss > g_Rand.GetVal(1000) )
 	{
 		// Find the stat that was used least recently and degrade it.
 		int iMin = -1;

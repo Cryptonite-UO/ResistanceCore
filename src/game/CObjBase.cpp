@@ -372,7 +372,7 @@ bool CObjBase::SetNamePool( lpctstr pszName )
 			SetNamePool_Fail( ppTitles[0] );
 			return false;
 		}
-		int iCount = Calc_GetRandVal2( 1, atoi( s.GetKey()) );
+		int iCount = g_Rand.GetVal2( 1, atoi( s.GetKey()) );
 		while ( iCount > 0 )
 		{
 			if ( ! s.ReadKey())
@@ -446,12 +446,12 @@ void CObjBase::r_WriteSafe( CScript & s )
 	catch ( const CSError& e )
 	{
 		g_Log.CatchEvent(&e, "Write Object 0%x", uid);
-		CurrentProfileData.Count(PROFILE_STAT_FAULTS, 1);
+		GetCurrentProfileData().Count(PROFILE_STAT_FAULTS, 1);
 	}
 	catch (...)	// catch all
 	{
 		g_Log.CatchEvent(nullptr, "Write Object 0%x", uid);
-		CurrentProfileData.Count(PROFILE_STAT_FAULTS, 1);
+		GetCurrentProfileData().Count(PROFILE_STAT_FAULTS, 1);
 	}
 }
 
@@ -693,8 +693,8 @@ bool CObjBase::MoveNear(CPointMap pt, ushort iSteps )
 	for ( uint i = 0; i < iSteps; ++i )
 	{
 		pt = ptOld;
-		pt.m_x += (short)Calc_GetRandVal2(-iSteps, iSteps);
-		pt.m_y += (short)Calc_GetRandVal2(-iSteps, iSteps);
+		pt.m_x += (short)g_Rand.GetVal2(-iSteps, iSteps);
+		pt.m_y += (short)g_Rand.GetVal2(-iSteps, iSteps);
 
 		if ( !pt.IsValidPoint() )	// hit the edge of the world, so go back to the previous valid position
 		{
@@ -1995,7 +1995,7 @@ void CObjBase::r_Write( CScript & s )
 	{
 		dword dUID = (dword)uid;
 		char* pszTag = Str_GetTemp();
-		sprintf(pszTag, "FOLLOWER.%d", dUID);
+		snprintf(pszTag, Str_TempLength(), "FOLLOWER.%d", dUID);
 		s.WriteKeyHex(pszTag, dUID);
 	}
 }
@@ -3111,8 +3111,10 @@ dword CObjBase::GetPropertyHash() const
 
 void CObjBase::OnTickStatusUpdate()
 {
-	ADDTOCALLSTACK("CObjBase::OnTickStatusUpdate");
-	// process m_fStatusUpdate flags
+    // process m_fStatusUpdate flags
+    
+	//ADDTOCALLSTACK("CObjBase::OnTickStatusUpdate"); // Called very frequently.
+    EXC_TRY("CObjBase::OnTickStatusUpdate");
 
 	if (m_fStatusUpdate & SU_UPDATE_TOOLTIP)
 	{
@@ -3126,6 +3128,8 @@ void CObjBase::OnTickStatusUpdate()
 			pItemDmg->OnTickStatsUpdate();
 		}
 	}
+
+    EXC_CATCH;
 }
 
 void CObjBase::_GoAwake()
@@ -3158,12 +3162,13 @@ void CObjBase::_GoSleep()
 
 bool CObjBase::_CanTick(bool fParentGoingToSleep) const
 {
-	ADDTOCALLSTACK_INTENSIVE("CObjBase::_CanTick");
+	//ADDTOCALLSTACK_INTENSIVE("CObjBase::_CanTick");   // Called very frequently.
 	// This doesn't check the sector sleeping status, it's only about this object.
     EXC_TRY("Can tick?");
 
     // Directly call the method specifying the belonging class, to avoid the overhead of vtable lookup under the hood.
     bool fCanTick = fParentGoingToSleep ? false : !CTimedObject::_IsSleeping();
+    const bool fIgnoreCont = (HAS_FLAG(g_Cfg.m_uiItemTimers, ITEM_CANTIMER_IN_CONTAINER) || Can(CAN_I_TIMER_CONTAINED));
 
     if (fCanTick)
     {
@@ -3175,7 +3180,7 @@ bool CObjBase::_CanTick(bool fParentGoingToSleep) const
 			{
 				if (fParentGoingToSleep)
 					fCanTick = false;
-				else
+				else if (!fIgnoreCont)
 					fCanTick = pObjParent->CanTick(fParentGoingToSleep);
 			}
 

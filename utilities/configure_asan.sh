@@ -1,3 +1,4 @@
+#!/bin/sh
 function export_flags { 
 	local _SAN_COMMON_FLAGS=handle_abort=true:abort_on_error=false
 	#ASAN_MORE=check_initialization_order=1
@@ -8,5 +9,6 @@ function export_flags {
 	export TSAN_OPTIONS='${_SAN_COMMON_FLAGS}'
 }
 
+export ASAN_SYMBOLIZER_PATH='/usr/bin/addr2line'
 export_flags
 

@@ -1,5 +1,5 @@
-
 #include "../sphere/threads.h"
+#include "CLog.h"
 #include "CCacheableScriptFile.h"
 
 #ifdef _WIN32
@@ -45,8 +45,13 @@ bool CCacheableScriptFile::_Open(lpctstr ptcFilename, uint uiModeFlags)
     _strFileName = ptcFilename;
     lpctstr ptcModeStr = _GetModeStr();
     _pStream = fopen(ptcFilename, ptcModeStr);
-    if ( _pStream == nullptr ) 
+    if (_pStream == nullptr)
+    {
+#ifdef _DEBUG
+        g_Log.EventDebug("Can't open script file '%s'. Errno: %d, strerr: %s.\n", ptcFilename, errno, strerror(errno));
+#endif
         return false;
+    }
 
     _fileDescriptor = (file_descriptor_t)STDFUNC_FILENO(_pStream);
     _fClosed = false;
@@ -68,49 +73,68 @@ bool CCacheableScriptFile::_Open(lpctstr ptcFilename, uint uiModeFlags)
     }
     else
     {
-        TemporaryString tsBuf;
-        tchar* ptcBuf = tsBuf.buffer();
-        size_t uiStrLen;
-        bool fUTF = false, fFirstLine = true;
+        static constexpr int iMaxFileLength = 5 * 1'000'000;
         const int iFileLength = _GetLength();
-        _fileContent = new std::vector<std::string>;
-        _fileContent->reserve(iFileLength / 20);
-
-        while ( !feof(_pStream) ) 
+        ASSERT(iFileLength >= 0);
+        bool fUTF = false, fFirstLine = true;
+        if (iFileLength > iMaxFileLength)
         {
-            tsBuf.setAt(0, '\0');
-            fgets(ptcBuf, SCRIPT_MAX_LINE_LEN, _pStream);
-            uiStrLen = strlen(ptcBuf);
-            ASSERT(SCRIPT_MAX_LINE_LEN < INT_MAX);
-            if (uiStrLen > SCRIPT_MAX_LINE_LEN)
-                uiStrLen = SCRIPT_MAX_LINE_LEN;
-
-            // first line may contain utf marker (byte order mark)
-            if (fFirstLine && uiStrLen >= 3 &&
-                (uchar)(ptcBuf[0]) == 0xEF &&
-                (uchar)(ptcBuf[1]) == 0xBB &&
-                (uchar)(ptcBuf[2]) == 0xBF)
-            {
-                fUTF = true;
-            }
-
-            const lpctstr str_start = (fUTF ? &ptcBuf[3] : ptcBuf);
-            size_t len_to_copy = uiStrLen - (fUTF ? 3 : 0);
-            while (len_to_copy > 0)
-            {
-                const int ch = str_start[len_to_copy - 1];
-                if (ch == '\n' || ch == '\r')
-                    len_to_copy -= 1;
-                else
-                    break;
-            }
-            if (len_to_copy == 0)
-                _fileContent->emplace_back();
-            else
-                _fileContent->emplace_back(str_start, len_to_copy);
-            fFirstLine = false;
-            fUTF = false;
+            g_Log.EventError("Single script file bigger than %d MB? Size is %d MB. Skipping.\n", iMaxFileLength / 1'000'000, iFileLength / 1'000'000);
         }
+        else
+        {
+            // Fastest method: read the script file all at once.
+            auto fileContentCopy = std::make_unique<char[]>((size_t)iFileLength + 1u);
+            fread(fileContentCopy.get(), sizeof(char), (size_t)iFileLength, _pStream);
+
+            // Allocate string vectors for each script line.
+            _fileContent = new std::vector<std::string>;
+            _fileContent->reserve(iFileLength / 25);
+
+            ssize_t iStrLen;
+            for (const char *fileCursor = fileContentCopy.get();; fileCursor += (size_t)iStrLen)
+            {
+                iStrLen = sGetLine_StaticBuf(fileCursor, SCRIPT_MAX_LINE_LEN);
+                if (iStrLen < 0)
+                    break;
+                if (iStrLen < 1 /*|| (fileCursor[iStrLen] != '\n') It can also be a '\0' value, but it might not be necessary to check for either of the two...*/)
+                {
+                    ++ iStrLen; // Skip \n
+                    continue;
+                }
+
+                // first line may contain utf marker (byte order mark)
+                if (fFirstLine && iStrLen >= 3 &&
+                    (uchar)(fileCursor[0]) == 0xEF &&
+                    (uchar)(fileCursor[1]) == 0xBB &&
+                    (uchar)(fileCursor[2]) == 0xBF)
+                {
+                    fUTF = true;
+                }
+
+                const lpctstr str_start = (fUTF ? &fileCursor[3] : fileCursor);
+                size_t len_to_copy = (size_t)iStrLen - (fUTF ? 3 : 0);
+                while (len_to_copy > 0)
+                {
+                    const int ch = str_start[len_to_copy - 1];
+                    if (ch == '\n' || ch == '\r')
+                    {
+                        // Do not copy that, but skip it.
+                        len_to_copy -= 1;
+                        iStrLen += 1;
+                    }
+                    else
+                        break;
+                }
+
+                if (len_to_copy == 0)
+                    _fileContent->emplace_back();
+                else
+                    _fileContent->emplace_back(str_start, len_to_copy);
+                fFirstLine = false;
+                fUTF = false;
+            }   // closes while
+        }   // closes else
 
         fclose(_pStream);
         _pStream = nullptr;
@@ -239,7 +263,7 @@ void CCacheableScriptFile::dupeFrom(CCacheableScriptFile *other)
 
 bool CCacheableScriptFile::_HasCache() const
 {
-    if ((_fileContent == nullptr) || _fileContent->empty())
+    if ((_fileContent == nullptr) /* || _fileContent->empty()  Exclude this: might just be an empty file!*/)
         return false;
     return true;
 }

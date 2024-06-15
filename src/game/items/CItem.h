@@ -6,6 +6,7 @@
 #ifndef _INC_CITEM_H
 #define _INC_CITEM_H
 
+#include "../../common/sphere_library/CSObjCont.h"
 #include "../../common/resource/CResourceHolder.h"
 #include "../../common/CServerMap.h"
 #include "../../common/CRect.h"
@@ -626,29 +627,34 @@ public:
   */
 	HUE_TYPE GetHueVisible() const;
 
-	void SetAttr(uint64 uiAttr)
+	void SetAttr(uint64 uiAttr) noexcept
 	{
 		m_Attr |= uiAttr;
 	}
-	void ClrAttr(uint64 uiAttr)
+	void ClrAttr(uint64 uiAttr) noexcept
 	{
 		m_Attr &= ~uiAttr;
 	}
-	bool IsAttr(uint64 uiAttr) const	// ATTR_DECAY
+	bool IsAttr(uint64 uiAttr) const noexcept
 	{
-		return((m_Attr & uiAttr) ? true : false);
+        // true even if only one flag among those passed is present
+		return (m_Attr & uiAttr);
 	}
-	void SetCanUse(uint64 uiCanUse)
+	void SetCanUse(uint64 uiCanUse) noexcept
 	{
 		m_CanUse |= uiCanUse;
 	}
-	void ClrCanUse(uint64 uiCanUse)
+	void ClrCanUse(uint64 uiCanUse) noexcept
 	{
 		m_CanUse &= ~uiCanUse;
 	}
-	bool IsCanUse(uint64 uiCanUse) const	// CanUse_None
+	bool IsCanUse(uint64 uiCanUse) const noexcept
 	{
-		return ((m_CanUse & uiCanUse) ? true : false);
+        // true even if only one flag among those passed is present
+        return (m_CanUse & uiCanUse);
+
+        // true only if m_CanUse has every one of the passed flags.
+		//return ((m_CanUse & uiCanUse) == uiCanUse);
 	}
 
 	height_t GetHeight() const;
@@ -715,14 +721,19 @@ public:
 	virtual CObjBaseTemplate* GetTopLevelObj() override;
 	virtual const CObjBaseTemplate* GetTopLevelObj() const override;
 
-	CObjBase * GetContainer() const;
+    inline CObjBase * GetContainer() const noexcept {
+        // What is this CItem contained in ?
+        // Container should be a CChar or CItemContainer
+        return (dynamic_cast <CObjBase*> (GetParent()));
+        // Called very frequently, worth inlining.
+    }
 	CItem * GetTopContainer();
 	const CItem* GetTopContainer() const;
 
-	uchar GetContainedGridIndex() const {
+	uchar GetContainedGridIndex() const noexcept {
 		return m_containedGridIndex;
 	}
-	void SetContainedGridIndex(uchar index) {
+	void SetContainedGridIndex(uchar index) noexcept {
 		m_containedGridIndex = index;
 	}
 
@@ -737,8 +748,8 @@ public:
     void r_LoadMore1(dword dwVal);
     void r_LoadMore2(dword dwVal);
 
-    const lpctstr ResourceGetName(const CResourceID& rid);
-    const lpctstr ResourceGetName(const CResourceIDBase& rid, RES_TYPE iExpectedType);
+    lpctstr ResourceGetName(const CResourceID& rid);
+    lpctstr ResourceGetName(const CResourceIDBase& rid, RES_TYPE iExpectedType);
 
 	virtual bool r_GetRef( lpctstr & ptcKey, CScriptObj * & pRef ) override;
 	virtual void r_Write( CScript & s ) override;

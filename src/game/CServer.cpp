@@ -10,12 +10,14 @@
 	#include "../common/crashdump/crashdump.h"
 #endif
 
+#include "../common/crypto/CCryptoKeyCalc.h"
 #include "../common/sphere_library/CSAssoc.h"
-#include "../common/CException.h"
 #include "../common/sphere_library/CSFileList.h"
-#include "../common/CTextConsole.h"
+#include "../common/CException.h"
 #include "../common/CLog.h"
-#include "../common/sphereversion.h"	// sphere version
+#include "../common/CTextConsole.h"
+#include "../common/CUOClientVersion.h"
+#include "../common/sphereversion.h"
 #include "../network/CClientIterator.h"
 #include "../network/CIPHistoryManager.h"
 #include "../network/CNetworkManager.h"
@@ -270,7 +272,7 @@ ssize_t CServer::PrintPercent( ssize_t iCount, ssize_t iTotal ) const
 
 	int iPercent = (int)IMulDivLL( iCount, 100, iTotal );
 	tchar *pszTemp = Str_GetTemp();
-	sprintf(pszTemp, "%d%%", iPercent);
+	snprintf(pszTemp, Str_TempLength(), "%d%%", iPercent);
 	size_t len = strlen(pszTemp);
 
 	PrintTelnet(pszTemp);
@@ -321,10 +323,9 @@ lpctstr CServer::GetStatusString( byte iIndex ) const
 		case 0x21:	// '!'
 			// typical (first time) poll response.
 			{
-				char szVersion[128];
-				m_ClientVersion.WriteClientVer(szVersion, sizeof(szVersion));
+				std::string cliver = m_ClientVersion.GetClientVer();
 				snprintf(pTemp, Str_TempLength(), SPHERE_TITLE ", Name=%s, Port=%d, Ver=" SPHERE_BUILD_INFO_STR ", TZ=%d, EMail=%s, URL=%s, Lang=%s, CliVer=%s\n",
-					GetName(), m_ip.GetPort(), m_TimeZone, m_sEMail.GetBuffer(), m_sURL.GetBuffer(), m_sLang.GetBuffer(), szVersion);
+					GetName(), m_ip.GetPort(), m_TimeZone, m_sEMail.GetBuffer(), m_sURL.GetBuffer(), m_sLang.GetBuffer(), cliver.c_str());
 			}
 			break;
 		case 0x22: // '"'
@@ -447,7 +448,7 @@ bool CServer::OnConsoleCmd( CSString & sText, CTextConsole * pSrc )
 				"#         Immediate save world (## to save both world and statics)\n"
 				"A         Update pending changes on Accounts file\n"
 				"B [msg]   Broadcast message to all clients\n"
-				"C         List of online Clients (%lu)\n"
+				"C         List of online Clients (%" PRIuSIZE_T ")\n"
 				"DA        Dump Areas to external file\n"
 				"DUI       Dump Unscripted Items to external file\n"
 				"E         Clear internal variables (like script profile)\n"
@@ -467,7 +468,7 @@ bool CServer::OnConsoleCmd( CSString & sText, CTextConsole * pSrc )
 				StatGet(SERV_STAT_CLIENTS),
 				g_Log.IsLoggedMask( LOGM_PLAYER_SPEAK ) ? "ON" : "OFF",
 				g_Log.IsFileOpen() ? "OPEN" : "CLOSED",
-				CurrentProfileData.IsActive() ? "ON" : "OFF",
+				GetCurrentProfileData().IsActive() ? "ON" : "OFF",
 				g_Cfg.m_fSecure ? "ON" : "OFF"
 				);
 			break;
@@ -679,8 +680,8 @@ bool CServer::OnConsoleCmd( CSString & sText, CTextConsole * pSrc )
 					IThread * thrCurrent = ThreadHolder::get().getThreadAt(iThreads);
 					if (thrCurrent != nullptr)
 					{
-						pSrc->SysMessagef("%" PRIuSIZE_T " - Id: %lu, Priority: %d, Name: %s.\n",
-							(iThreads + 1), thrCurrent->getId(), thrCurrent->getPriority(), thrCurrent->getName());
+						pSrc->SysMessagef("%" PRIuSIZE_T " - Id: %" PRIu64 ", Priority: %d, Name: %s.\n",
+							(iThreads + 1), (uint64)thrCurrent->getId(), thrCurrent->getPriority(), thrCurrent->getName());
 					}
 				}
 			} break;
@@ -976,7 +977,7 @@ longcommand:
 		}
 
 		if ( g_Cfg.IsConsoleCmd(low) )
-			pszText++;
+			++pszText;
 
 		CScript	script(pszText);
 		if ( !g_Cfg.CanUsePrivVerb(this, pszText, pSrc) )
@@ -1049,15 +1050,15 @@ void CServer::ProfileDump( CTextConsole * pSrc, bool bDump )
 
     if (pSrc != this)
     {
-        pSrc->SysMessagef("Profiles %s: (%d sec total)\n", CurrentProfileData.IsActive() ? "ON" : "OFF", CurrentProfileData.GetActiveWindow());
+        pSrc->SysMessagef("Profiles %s: (%d sec total)\n", GetCurrentProfileData().IsActive() ? "ON" : "OFF", GetCurrentProfileData().GetActiveWindow());
     }
     else
     {
-        g_Log.Event(LOGL_EVENT, "Profiles %s: (%d sec total)\n", CurrentProfileData.IsActive() ? "ON" : "OFF", CurrentProfileData.GetActiveWindow());
+        g_Log.Event(LOGL_EVENT, "Profiles %s: (%d sec total)\n", GetCurrentProfileData().IsActive() ? "ON" : "OFF", GetCurrentProfileData().GetActiveWindow());
     }
     if (ftDump != nullptr)
     {
-        ftDump->Printf("Profiles %s: (%d sec total)\n", CurrentProfileData.IsActive() ? "ON" : "OFF", CurrentProfileData.GetActiveWindow());
+        ftDump->Printf("Profiles %s: (%d sec total)\n", GetCurrentProfileData().IsActive() ? "ON" : "OFF", GetCurrentProfileData().GetActiveWindow());
     }
 
 	size_t iThreadCount = ThreadHolder::get().getActiveThreads();
@@ -1073,15 +1074,15 @@ void CServer::ProfileDump( CTextConsole * pSrc, bool bDump )
 
         if (pSrc != this)
         {
-            pSrc->SysMessagef("Thread %lu, Name=%s\n", thrCurrent->getId(), thrCurrent->getName());
+            pSrc->SysMessagef("Thread %llu, Name=%s\n", (ullong)thrCurrent->getId(), thrCurrent->getName());
         }
         else
         {
-            g_Log.Event(LOGL_EVENT, "Thread %lu, Name=%s\n", thrCurrent->getId(), thrCurrent->getName());
+            g_Log.Event(LOGL_EVENT, "Thread %llu, Name=%s\n", (ullong)thrCurrent->getId(), thrCurrent->getName());
         }
 		if (ftDump != nullptr)
 		{
-			ftDump->Printf("Thread %lu, Name=%s\n", thrCurrent->getId(), thrCurrent->getName());
+			ftDump->Printf("Thread %llu, Name=%s\n", (ullong)thrCurrent->getId(), thrCurrent->getName());
 		}
 
 		for (int i = 0; i < PROFILE_QTY; ++i)
@@ -1329,11 +1330,11 @@ bool CServer::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * pSrc, 
 	else if (!strnicmp(ptcKey, "GMPAGE.", 7))
 	{
 		ptcKey += 7;
-		size_t iNum = Exp_GetULLVal(ptcKey);
-		if (iNum >= g_World.m_GMPages.size())
+		size_t uiNum = Exp_GetSTVal(ptcKey);
+		if (uiNum >= g_World.m_GMPages.size())
 			return false;
 
-		CGMPage* pGMPage = g_World.m_GMPages[iNum].get();
+		CGMPage* pGMPage = g_World.m_GMPages[uiNum].get();
 		if (!pGMPage)
 			return false;
 
@@ -1359,6 +1360,7 @@ enum SV_TYPE
 	SV_ALLCLIENTS,
 	SV_B,
 	SV_BLOCKIP,
+    SV_CALCCRYPT,
 	SV_CHARS, //read only
 	SV_CLEARLISTS,
 	SV_CONSOLE,
@@ -1398,6 +1400,7 @@ lpctstr const CServer::sm_szVerbKeys[SV_QTY+1] =
 	"ALLCLIENTS",
 	"B",
 	"BLOCKIP",
+    "CALCCRYPT",
 	"CHARS", // read only
 	"CLEARLISTS",
 	"CONSOLE",
@@ -1576,6 +1579,39 @@ bool CServer::r_Verb( CScript &s, CTextConsole * pSrc )
 			}
 			break;
 
+        case SV_CALCCRYPT:
+            {
+                tchar* ppArgs[3];
+                const int iArgs = Str_ParseCmds(s.GetArgRaw(), ppArgs, ARRAY_COUNT(ppArgs), ", ");
+                if (iArgs < 1)
+                    return false;
+                // 1st arg: client version string
+                // 2nd arg (optional): client type (GAMECLIENT_TYPE enum)
+
+                GAMECLIENT_TYPE cliType = (iArgs >= 2) ? (GAMECLIENT_TYPE)atoi(ppArgs[1]) : CLIENTTYPE_2D;
+                if ((cliType < CLIENTTYPE_2D) || (cliType > CLIENTTYPE_EC))
+                {
+                    g_Log.EventError("Invalid client type, defaulting to 2D (Classic Client).\n");
+                    cliType = CLIENTTYPE_2D;
+                }
+
+                ENCRYPTION_TYPE encTypeForce = (iArgs >= 3) ? (ENCRYPTION_TYPE)atoi(ppArgs[2]) : ENC_NONE;
+                if ((encTypeForce < ENC_NONE) || (encTypeForce >= ENC_QTY))
+                {
+                    g_Log.EventError("Invalid encryption type, defaulting to 'autodetect'.\n");
+                    encTypeForce = ENC_NONE;
+                }
+
+                const CUOClientVersion cliver_standard(ppArgs[0]);
+                const CCryptoClientKey cckey = CCryptoKeyCalc::CalculateLoginKeys(cliver_standard, cliType, encTypeForce);
+
+                const std::string cryptIniStr = CCryptoKeyCalc::FormattedLoginKey(cliver_standard, cliType, cckey);
+                if (pSrc != this)
+                    pSrc->SysMessagef(cryptIniStr.c_str());
+                else
+                    g_Log.Event(LOGL_EVENT, "%s\n", cryptIniStr.c_str());
+            }
+            break;
 		case SV_CONSOLE:
 			{
 				CSString z = s.GetArgRaw();
@@ -1748,7 +1784,7 @@ bool CServer::r_Verb( CScript &s, CTextConsole * pSrc )
                             break;	// no more args here!
                     }
                     ++pszArgs;
-                    if (Args[0] > (dword)CTCOL_QTY || Args[0] < (dword)0)
+                    if (Args[0] > (dword)CTCOL_QTY /*|| Args[0] < (dword)0*/)
                         Args[0] = (dword)CTCOL_DEFAULT;
                     if (Args[1] > (dword)LOGL_QTY || Args[1] < (dword)1)
                         Args[1] = (dword)LOGL_EVENT;
@@ -1826,7 +1862,7 @@ log_cont:
 			pszMsg = Str_GetTemp();
 			g_Cfg.m_fSecure = s.GetArgFlag( g_Cfg.m_fSecure, true ) != 0;
 			SetSignals();
-			sprintf(pszMsg, "Secure mode %s.\n", g_Cfg.m_fSecure ? "re-enabled" : "disabled" );
+			snprintf(pszMsg, Str_TempLength(), "Secure mode %s.\n", g_Cfg.m_fSecure ? "re-enabled" : "disabled" );
 			break;
 		case SV_SHRINKMEM:
 			{
@@ -2290,7 +2326,7 @@ bool CServer::Load()
 nowinsock:		g_Log.Event(LOGL_FATAL|LOGM_INIT, "Winsock 1.1 not found!\n");
 				return false;
 			}
-			sprintf(wSockInfo, "Using WinSock ver %d.%d (%s)\n", HIBYTE(wsaData.wVersion), LOBYTE(wsaData.wVersion), wsaData.szDescription);
+			snprintf(wSockInfo, Str_TempLength(), "Using WinSock ver %d.%d (%s)\n", HIBYTE(wsaData.wVersion), LOBYTE(wsaData.wVersion), wsaData.szDescription);
 		}
 	}
 #endif
@@ -2347,17 +2383,17 @@ nowinsock:		g_Log.Event(LOGL_FATAL|LOGM_INIT, "Winsock 1.1 not found!\n");
 		return false;
 
 	EXC_SET_BLOCK("init encryption");
-	if ( m_ClientVersion.GetClientVer() )
+	if ( m_ClientVersion.GetClientVerNumber() )
 	{
-		char szVersion[128];
-		g_Log.Event(LOGM_INIT, "ClientVersion=%s\n", m_ClientVersion.WriteClientVer(szVersion, sizeof(szVersion)));
+        std::string cliverstr = m_ClientVersion.GetClientVer();
+		g_Log.Event(LOGM_INIT, "ClientVersion=%s\n", cliverstr.c_str());
 		if ( !m_ClientVersion.IsValid() )
 		{
-			g_Log.Event(LOGL_FATAL|LOGM_INIT, "Bad Client Version '%s'\n", szVersion);
+			g_Log.Event(LOGL_FATAL|LOGM_INIT, "Bad Client Version '%s'\n", cliverstr.c_str());
 			return false;
 		}
 	}
-	
+
 #ifdef _WIN32
     EXC_SET_BLOCK("finalizing");
     g_NTWindow.SetWindowTitle();

@@ -5,11 +5,24 @@
 #ifndef _INC_CWORLDTICKER_H
 #define _INC_CWORLDTICKER_H
 
-#include "../../lib/parallel_hashmap/phmap.h"
 #include "CTimedFunctionHandler.h"
 #include "CTimedObject.h"
 #include <map>
 //#include <unordered_set>
+
+#ifdef _WIN32
+    #undef SRWLOCK_INIT
+#endif
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wshift-count-overflow"
+#endif
+#include <parallel_hashmap/phmap.h>
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#endif
+//#include <flat_containers/flat_map.hpp>
+
 
 
 class CObjBase;
@@ -26,12 +39,14 @@ public:
 private:
     using TimedObjectsContainer = std::vector<CTimedObject*>;
     struct WorldTickList : public std::map<int64, TimedObjectsContainer>
+    //struct WorldTickList : public fc::vector_map<int64, TimedObjectsContainer>
     {
         THREAD_CMUTEX_DEF;
     };
 
     using TimedCharsContainer = std::vector<CChar*>;
     struct CharTickList : public std::map<int64, TimedCharsContainer>
+    //struct CharTickList : public fc::vector_map<int64, TimedCharsContainer>
     {
         THREAD_CMUTEX_DEF;
     };

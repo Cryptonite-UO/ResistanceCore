@@ -83,8 +83,8 @@ bool CCMultiMovable::SetMoveDir(DIR_TYPE dir, ShipMovementType eMovementType, bo
 
     if (!pItemThis->IsAttr(ATTR_MAGIC))	// make sound.
     {
-        if (!Calc_GetRandVal(10))
-            pItemThis->Sound(Calc_GetRandVal(2) ? 0x12 : 0x13);
+        if (!g_Rand.GetVal(10))
+            pItemThis->Sound(g_Rand.GetVal(2) ? 0x12 : 0x13);
     }
 
     pItemThis->m_itShip._eMovementType = (eMovementType >= SMT_NORMAL) ? SMT_NORMAL : eMovementType;	//checking here that packet is legit from client and not modified by 3rd party tools to send speed > 2.
@@ -320,7 +320,7 @@ bool CCMultiMovable::MoveDelta(const CPointMap& ptDelta, bool fUpdateViewFull)
             continue;
 
         const CNetState* pNetState = pClient->GetNetState();
-        const bool fClientUsesSmoothSailing = !IsSetOF(OF_NoSmoothSailing) && (pNetState->isClientVersion(MINCLIVER_HS) || pNetState->isClientEnhanced());
+        const bool fClientUsesSmoothSailing = !IsSetOF(OF_NoSmoothSailing) && (pNetState->isClientVersionNumber(MINCLIVER_HS) || pNetState->isClientEnhanced());
 
         const CPointMap& ptMe = pCharClient->GetTopPoint();
         const int iViewDist = pCharClient->GetVisualRange();
@@ -349,7 +349,7 @@ bool CCMultiMovable::MoveDelta(const CPointMap& ptDelta, bool fUpdateViewFull)
                 if (pObj->IsItem())
                 {
                     if ((ptMe.GetDistSight(pt) < iViewDist)
-                        && ( (ptMe.GetDistSight(ptOld) >= iViewDist) || !(pNetState->isClientVersion(MINCLIVER_HS) || pNetState->isClientEnhanced()) || IsSetOF(OF_NoSmoothSailing) ))
+                        && ( (ptMe.GetDistSight(ptOld) >= iViewDist) || !(pNetState->isClientVersionNumber(MINCLIVER_HS) || pNetState->isClientEnhanced()) || IsSetOF(OF_NoSmoothSailing) ))
                     {
                         CItem *pItem = static_cast<CItem *>(pObj);
                         pClient->addItem(pItem);
@@ -364,9 +364,9 @@ bool CCMultiMovable::MoveDelta(const CPointMap& ptDelta, bool fUpdateViewFull)
                             pClient->addPlayerUpdate();     // update my (client) position
                     }
                     else if ((ptMe.GetDistSight(pt) <= iViewDist)
-                        && ((ptMe.GetDistSight(ptOld) > iViewDist) || !(pNetState->isClientVersion(MINCLIVER_HS) || pNetState->isClientEnhanced()) || IsSetOF(OF_NoSmoothSailing)))
+                        && ((ptMe.GetDistSight(ptOld) > iViewDist) || !(pNetState->isClientVersionNumber(MINCLIVER_HS) || pNetState->isClientEnhanced()) || IsSetOF(OF_NoSmoothSailing)))
                     {
-                        if ((pt.GetDist(ptOld) > 1) && (pNetState->isClientLessVersion(MINCLIVER_HS)) && (pt.GetDistSight(ptOld) < iViewDist))
+                        if ((pt.GetDist(ptOld) > 1) && (pNetState->isClientLessVersionNumber(MINCLIVER_HS)) && (pt.GetDistSight(ptOld) < iViewDist))
                             pClient->addCharMove(pChar);
                         else
                         {
@@ -1238,7 +1238,7 @@ bool CCMultiMovable::r_Verb(CScript & s, CTextConsole * pSrc) // Execute command
     {
         if (pszSpeak == nullptr)
         {
-            switch (Calc_GetRandVal(3))
+            switch (g_Rand.GetVal(3))
             {
                 case 1:
                     pszSpeak = g_Cfg.GetDefaultMsg(DEFMSG_TILLER_REPLY_1);

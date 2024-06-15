@@ -46,7 +46,7 @@ void CClient::Event_ChatButton(const nachar* pszName) // Client's chat button wa
 
 	if (m_pChar == nullptr)
 		return;
-	m_fUseNewChatSystem = (GetNetState()->isClientVersion(MINCLIVER_NEWCHATSYSTEM) || GetNetState()->isClientVersion(CLIENTTYPE_EC + MINCLIVER_NEWCHATSYSTEM_EC));
+	m_fUseNewChatSystem = (GetNetState()->isClientVersionNumber(MINCLIVER_NEWCHATSYSTEM) || GetNetState()->isClientVersionNumber(CLIENTTYPE_EC + MINCLIVER_NEWCHATSYSTEM_EC));
 
 	if ( IsTrigUsed(TRIGGER_USERCHATBUTTON) )
 	{
@@ -195,7 +195,7 @@ void CClient::Event_Item_Pickup(CUID uid, word amount) // Client grabs an item
 
 	EXC_SET_BLOCK("FastLoot");
 	//	fastloot (,emptycontainer) protection
-	const int64 iCurTime = CSTime::GetPreciseSysTimeMilli();
+	const int64 iCurTime = CSTime::GetMonotonicSysTimeMilli();
 	if ( m_tNextPickup > iCurTime)
 	{
 		EXC_SET_BLOCK("FastLoot - addItemDragCancel(0)");
@@ -487,7 +487,7 @@ void CClient::Event_Item_Drop( CUID uidItem, CPointMap pt, CUID uidOn, uchar gri
 			// Still in same container.
 			ASSERT(pItemOn);
 
-			if (pItemOn->IsTypeMulti() && (GetNetState()->isClientVersion(MINCLIVER_HS) || GetNetState()->isClientEnhanced()))
+			if (pItemOn->IsTypeMulti() && (GetNetState()->isClientVersionNumber(MINCLIVER_HS) || GetNetState()->isClientEnhanced()))
 			{
 				pt.m_x += pItemOn->GetTopPoint().m_x;
 				pt.m_y += pItemOn->GetTopPoint().m_y;
@@ -729,7 +729,7 @@ bool CClient::Event_CheckWalkBuffer(byte rawdir)
 	//NOTE: If WalkBuffer=20 in ini, it's egal 2000 here
 
 
-	const int64 iCurTime = CSTime::GetPreciseSysTimeMilli();
+	const int64 iCurTime = CSTime::GetMonotonicSysTimeMilli();
     int64 iTimeDiff = (int64)llabs(iCurTime - m_timeWalkStep);	// use absolute value to prevent overflows
 	int64 iTimeMin = 0;  // minimum time to move 1 step in milliseconds
 	m_timeWalkStep = iCurTime; //Take the time of step for the next time we enter here
@@ -794,7 +794,7 @@ bool CClient::Event_CheckWalkBuffer(byte rawdir)
 			m_iWalkTimeAvg = g_Cfg.m_iWalkBuffer;
 
 		if ( IsPriv(PRIV_DETAIL) && IsPriv(PRIV_DEBUG) )
-			SysMessagef("Walkcheck trace: timeDiff(%lld) / timeMin(%lld). curAvg(%lld)", iTimeDiff, iTimeMin, m_iWalkTimeAvg);
+			SysMessagef("Walkcheck trace: timeDiff(%" PRId64 ") / timeMin(%" PRId64 "). curAvg(%lld)", iTimeDiff, iTimeMin, m_iWalkTimeAvg);
 
 		// Checking if there a speehack
 		if ( m_iWalkTimeAvg < 0 && iTimeDiff >= 0 )
@@ -2624,7 +2624,7 @@ void CClient::Event_AOSPopupMenuRequest( dword uid ) //construct packet after a 
 			else
 			{
 				word iEnabled = pChar->IsStatFlag(STATF_DEAD) ? POPUPFLAG_LOCKED : POPUPFLAG_COLOR;
-				if ( (pChar->IsOwnedBy(m_pChar, false)) && ((pChar->m_pNPC->m_Brain != NPCBRAIN_BERSERK)) || (m_pChar->IsPriv(PRIV_GM)))
+				if (( pChar->IsOwnedBy(m_pChar, false) && ((pChar->m_pNPC->m_Brain != NPCBRAIN_BERSERK)) ) || m_pChar->IsPriv(PRIV_GM))
 				{
 					CREID_TYPE id = pChar->GetID();
 
@@ -2640,7 +2640,7 @@ void CClient::Event_AOSPopupMenuRequest( dword uid ) //construct packet after a 
 					m_pPopupPacket->addOption(POPUP_PETSTOP, 6112, POPUPFLAG_COLOR, 0xFFFF);
 					m_pPopupPacket->addOption(POPUP_PETSTAY, 6114, POPUPFLAG_COLOR, 0xFFFF);
 
-					if (GetNetState()->isClientVersion(MINCLIVER_NEWDAMAGE))
+					if (GetNetState()->isClientVersionNumber(MINCLIVER_NEWDAMAGE))
 						m_pPopupPacket->addOption(POPUP_PETRENAME, 1115557, POPUPFLAG_COLOR, 0xFFFF);
 
 					if (!pChar->IsStatFlag(STATF_CONJURED))
@@ -2668,15 +2668,15 @@ void CClient::Event_AOSPopupMenuRequest( dword uid ) //construct packet after a 
 		else if (pChar == m_pChar)
 		{
 			m_pPopupPacket->addOption(POPUP_BACKPACK, 6145, POPUPFLAG_COLOR, 0xFFFF);
-			if (GetNetState()->isClientVersion(MINCLIVER_STATUS_V6))
+			if (GetNetState()->isClientVersionNumber(MINCLIVER_STATUS_V6))
 			{
 				if (pChar->GetDefNum("REFUSETRADES", true))
 					m_pPopupPacket->addOption(POPUP_TRADE_ALLOW, 1154112, POPUPFLAG_COLOR, 0xFFFF);
 				else
 					m_pPopupPacket->addOption(POPUP_TRADE_REFUSE, 1154113, POPUPFLAG_COLOR, 0xFFFF);
 			}
-			
-			if (GetNetState()->isClientVersion(MINCLIVER_GLOBALCHAT) && (g_Cfg.m_iChatFlags & CHATF_GLOBALCHAT))
+
+			if (GetNetState()->isClientVersionNumber(MINCLIVER_GLOBALCHAT) && (g_Cfg.m_iChatFlags & CHATF_GLOBALCHAT))
 			{
 				if (pChar->m_pPlayer->m_fRefuseGlobalChatRequests)
 					m_pPopupPacket->addOption(POPUP_GLOBALCHAT_ALLOW, 1158415, POPUPFLAG_COLOR, 0xFFFF);
@@ -2696,7 +2696,7 @@ void CClient::Event_AOSPopupMenuRequest( dword uid ) //construct packet after a 
 					m_pPopupPacket->addOption(POPUP_PARTY_REMOVE, 198, POPUPFLAG_COLOR, 0xFFFF);
 			}
 
-			if (GetNetState()->isClientVersion(MINCLIVER_TOL) && m_pChar->GetDist(pChar) <= 2)
+			if (GetNetState()->isClientVersionNumber(MINCLIVER_TOL) && m_pChar->GetDist(pChar) <= 2)
 				m_pPopupPacket->addOption(POPUP_TRADE_OPEN, 1077728, POPUPFLAG_COLOR, 0xFFFF);
 		}
 
@@ -3118,7 +3118,7 @@ bool CClient::xPacketFilter( const byte * pData, uint iLen )
 	{
 		CScriptTriggerArgs Args(pData[0]);
 		enum TRIGRET_TYPE trigReturn;
-		tchar idx[5];
+		tchar idx[12];
 
 		Args.m_s1 = GetPeerStr();
 		Args.m_pO1 = this; // Yay for ARGO.SENDPACKET
@@ -3167,7 +3167,7 @@ bool CClient::xOutPacketFilter( const byte * pData, uint iLen )
 	{
 		CScriptTriggerArgs Args(pData[0]);
 		enum TRIGRET_TYPE trigReturn;
-		tchar idx[5];
+		tchar idx[12];
 
 		Args.m_s1 = GetPeerStr();
 		Args.m_pO1 = this;

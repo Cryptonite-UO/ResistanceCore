@@ -34,6 +34,7 @@
 #include "triggers.h"
 
 
+// .ini settings.
 CServerConfig::CServerConfig()
 {
 	m_timePeriodic = 0;
@@ -41,8 +42,8 @@ CServerConfig::CServerConfig()
 	m_fUseNTService		= false;
 	m_fUseHTTP			= 2;
 	m_fUseAuthID		= true;
-	_iMapCacheTime		= 2  * 60 * MSECS_PER_SEC;
-	_iSectorSleepDelay  = 10 * 60 * MSECS_PER_SEC;
+	_iMapCacheTime		= 2ll  * 60 * MSECS_PER_SEC;
+	_iSectorSleepDelay  = 10ll * 60 * MSECS_PER_SEC;
 	m_fUseMapDiffs		= false;
 
 	m_iDebugFlags			= 0;	//DEBUGF_NPC_EMOTE
@@ -77,9 +78,10 @@ CServerConfig::CServerConfig()
 	m_iSpell_Teleport_Sound_NPC			= 0x01fe;
 
 	// Decay
-	m_iDecay_Item			= 30*60 * MSECS_PER_SEC;
-	m_iDecay_CorpsePlayer	= 7*60 * MSECS_PER_SEC;
-	m_iDecay_CorpseNPC		= 7*60 * MSECS_PER_SEC;
+	m_iDecay_Item			= 30ll * 60 * MSECS_PER_SEC;
+	m_iDecay_CorpsePlayer	= 7ll * 60 * MSECS_PER_SEC;
+	m_iDecay_CorpseNPC		= 7ll * 60 * MSECS_PER_SEC;
+    m_uiItemTimers = 0;
 
 	// Accounts
 	m_iClientsMax		= FD_SETSIZE-1;
@@ -89,9 +91,9 @@ CServerConfig::CServerConfig()
 
 	m_iGuestsMax			= 0;
 	m_iArriveDepartMsg		= 1;
-	m_iClientLingerTime		= 10*60 * MSECS_PER_SEC;
-	m_iDeadSocketTime		= 5*60 * MSECS_PER_SEC;
-	m_iMinCharDeleteTime	= 7*24*60*60 * MSECS_PER_SEC;
+	m_iClientLingerTime		= 10ll * 60 * MSECS_PER_SEC;
+	m_iDeadSocketTime		= 5ll * 60 * MSECS_PER_SEC;
+	m_iMinCharDeleteTime	= 7ll * 24*60*60 * MSECS_PER_SEC;
 	m_iMaxCharsPerAccount	= 5;
 	m_fLocalIPAdmin			= true;
     _iMaxHousesAccount = 1;
@@ -106,7 +108,7 @@ CServerConfig::CServerConfig()
 	m_iSaveBackupLevels			= 10;
 	m_iSaveBackgroundTime		= 0;		// Use the new background save.
 	m_fSaveGarbageCollect		= true;		// Always force a full garbage collection.
-	m_iSavePeriod				= 20 * 60 * MSECS_PER_SEC;
+	m_iSavePeriod				= 20ll * 60 * MSECS_PER_SEC;
 	m_iSaveSectorsPerTick		= 1;
 	m_iSaveStepMaxComplexity	= 500;
 
@@ -139,12 +141,12 @@ CServerConfig::CServerConfig()
 	m_fVendorTradeTitle		= true;
 	m_iVendorMaxSell		= 255;
 	m_iVendorMarkup			= 15;
-	m_iGameMinuteLength		= 20 * MSECS_PER_SEC; // 20 seconds
+	m_iGameMinuteLength		= 20ll * MSECS_PER_SEC; // 20 seconds
 	m_fNoWeather			= true;
 	m_fFlipDroppedItems		= true;
 	m_iItemsMaxAmount		= 60000;
 	m_iMurderMinCount		= 5;
-	m_iMurderDecayTime		= 8*60*60 * MSECS_PER_SEC;
+	m_iMurderDecayTime		= 8ll * 60 * 60 * MSECS_PER_SEC;
 	m_iMaxCharComplexity	= 32;
 	m_iMaxItemComplexity	= 25;
 	m_iMaxSectorComplexity	= 1024;
@@ -153,8 +155,8 @@ CServerConfig::CServerConfig()
 	m_iMinKarma				= -10000;
 	m_iMaxKarma				= 10000;
 	m_iMaxFame				= 10000;
-	m_iGuardLingerTime		= 3*60 * MSECS_PER_SEC;
-	m_iCriminalTimer		= 3*60 * MSECS_PER_SEC;
+	m_iGuardLingerTime		= 3ll *60 * MSECS_PER_SEC;
+	m_iCriminalTimer		= 3ll *60 * MSECS_PER_SEC;
 	m_iHitpointPercentOnRez	= 10;
 	m_iHitsHungerLoss		= 0;
 	m_fLootingIsACrime		= true;
@@ -200,14 +202,15 @@ CServerConfig::CServerConfig()
 	_uiAreaFlags		= AREAF_RoomInheritsFlags;
 	_fMeditationMovementAbort = false;
 
-    m_iMapViewSize      = UO_MAP_VIEW_SIZE_DEFAULT;
-    m_iMapViewSizeMax   = UO_MAP_VIEW_SIZE_MAX;
-    m_iMapViewRadar     = UO_MAP_VIEW_RADAR;
+  m_iMapViewSize      = UO_MAP_VIEW_SIZE_DEFAULT;
+  m_iMapViewSizeMax   = UO_MAP_VIEW_SIZE_MAX;
+  m_iMapViewRadar     = UO_MAP_VIEW_RADAR;
+
 
 	m_iMaxSkill			= SKILL_QTY;
 	m_iWalkBuffer		= 15;
 	m_iWalkRegen		= 25;
-	m_iWoolGrowthTime	= 30*60 * MSECS_PER_SEC;
+	m_iWoolGrowthTime	= 30ll * 60 * MSECS_PER_SEC;
 	m_iAttackerTimeout	= 30;
 
 	m_iCommandLog		= 0;
@@ -221,7 +224,8 @@ CServerConfig::CServerConfig()
 	m_iCanSeeSamePLevel		= 0;
 	m_fSuppressCapitals		= false;
 
-	m_iAdvancedLos		= 0;
+	m_iAdvancedLos		= ADVANCEDLOS_DISABLED;
+    m_iDistanceFormula = DISTANCE_FORMULA_NODIAGONAL_NOZ;
 
 	// New ones
 	m_iFeatureT2A		= FEATURE_T2A_UPDATE;
@@ -267,11 +271,11 @@ CServerConfig::CServerConfig()
 
 	m_iDefaultCommandLevel	= 7;	// PLevel 7 default for command levels.
 
-	m_iRegenRate[STAT_STR]	= 40 * MSECS_PER_SEC;       // Seconds to heal ONE hp (before stam/food adjust)
-	m_iRegenRate[STAT_INT]	= 20 * MSECS_PER_SEC;       // Seconds to heal ONE mn
-	m_iRegenRate[STAT_DEX]	= 10 * MSECS_PER_SEC;       // Seconds to heal ONE stm
-	m_iRegenRate[STAT_FOOD] = 60*60 * MSECS_PER_SEC;    // Food usage (1 time per 60 minutes)
-    _iItemHitpointsUpdate   = 10 * MSECS_PER_SEC;       // Delay to send hitpoints update packet for items.
+	m_iRegenRate[STAT_STR]	= 40ll * MSECS_PER_SEC;       // Seconds to heal ONE hp (before stam/food adjust)
+	m_iRegenRate[STAT_INT]	= 20ll * MSECS_PER_SEC;       // Seconds to heal ONE mn
+	m_iRegenRate[STAT_DEX]	= 10ll * MSECS_PER_SEC;       // Seconds to heal ONE stm
+	m_iRegenRate[STAT_FOOD] = 60ll * 60 * MSECS_PER_SEC;  // Food usage (1 time per 60 minutes)
+    _iItemHitpointsUpdate   = 10ll * MSECS_PER_SEC;       // Delay to send hitpoints update packet for items.
 
 	_iTimerCall			= 0;
 	_iTimerCallUnit		= 0;
@@ -309,17 +313,19 @@ CServerConfig::CServerConfig()
 	_uiNetMaxPacketsPerTick = 50;
 	_uiNetMaxLengthPerTick	= 18'000;
 	m_iNetMaxQueueSize		= 75;
+    _iMaxConnectRequestsPerIP = 5;
+    _iTimeoutIncompleteConnectionMs = 5ll * MSECS_PER_SEC;
 	_iMaxSizeClientOut		= 80'000;
 	_iMaxSizeClientIn		= 10'000;
 	m_fUsePacketPriorities	= false;
 	m_fUseExtraBuffer		= true;
 
-	m_iTooltipCache			= 30 * MSECS_PER_SEC;
+	m_iTooltipCache			= 30ll * MSECS_PER_SEC;
 	m_iTooltipMode			= TOOLTIPMODE_SENDVERSION;
 	m_iContextMenuLimit		= 15;
 
 	m_iClientLoginMaxTries	= 0;		// maximum bad password tries before a temp ip ban
-	m_iClientLoginTempBan	= 3*60 * MSECS_PER_SEC;
+	m_iClientLoginTempBan	= 3ll * 60 * MSECS_PER_SEC;
 	m_iMaxShipPlankTeleport = UO_MAP_VIEW_SIZE_DEFAULT;
 	m_sChatStaticChannels = "General, Help, Trade, Looking For Group";
 	m_iChatFlags = (CHATF_AUTOJOIN | CHATF_CHANNELCREATION | CHATF_CHANNELMODERATION | CHATF_CUSTOMNAMES);
@@ -462,6 +468,9 @@ enum RC_TYPE
 	RC_BANKMAXITEMS,
 	RC_BANKMAXWEIGHT,
 	RC_BUILD,
+    RC_BUILDBRANCH,
+    RC_BUILDNUM,
+    RC_BUILDSTR,
     RC_CANPETSDRINKPOTION,      // m_fCanPetsDrinkPotion
 	RC_CANSEESAMEPLEVEL,		// m_iCanSeeSamePLevel
 	RC_CANUNDRESSPETS,			// m_fCanUndressPets
@@ -512,7 +521,8 @@ enum RC_TYPE
 	RC_DEFAULTCOMMANDLEVEL,		//m_iDefaultCommandLevel
 	RC_DISPLAYPERCENTAR,	    //m_fDisplayPercentAr
 	RC_DISPLAYELEMENTALRESISTANCE, //m_fDisplayElementalResistance
-	RC_DISTANCETALK,
+    RC_DISTANCEFORMULA,
+    RC_DISTANCETALK,
 	RC_DISTANCEWHISPER,
 	RC_DISTANCEYELL,
     RC_DECIMALVARIABLES,
@@ -561,6 +571,7 @@ enum RC_TYPE
 	RC_HITSUPDATERATE,
     RC_ITEMHITPOINTSUPDATE,     // _iItemHitpointsUpdate
 	RC_ITEMSMAXAMOUNT,			// m_iItemsMaxAmount
+    RC_ITEMTIMERS,              // m_uiItemTimers
 	RC_LEVELMODE,				// m_iLevelMode
 	RC_LEVELNEXTAT,				// m_iLevelNextAt
 	RC_LEVELSYSTEM,				// m_fLevelSystem
@@ -583,6 +594,7 @@ enum RC_TYPE
 	RC_MAXBASESKILL,			// m_iMaxBaseSkill
 	RC_MAXCHARSPERACCOUNT,		//
 	RC_MAXCOMPLEXITY,			// m_iMaxCharComplexity
+    RC_MAXCONNECTREQUESTSPERIP,  // m_iMaxConnectRequestsPerIP
 	RC_MAXFAME,					// m_iMaxFame
     RC_MAXHOUSESACCOUNT,        // _iMaxHousesAccount
     RC_MAXHOUSESGUILD,          // _iMaxHousesGuild
@@ -681,6 +693,7 @@ enum RC_TYPE
 	RC_TELEPORTSOUNDSTAFF,		// m_iSpell_Teleport_Sound_Staff
 	RC_TELNETLOG,				// m_fTelnetLog
     RC_TICKPERIOD,
+    RC_TIMEOUTINCOMPLETECONN,   // _iTimeoutIncompleteConnectionMs
 	RC_TIMERCALL,				// _iTimerCall
 	RC_TIMERCALLUNIT,			// _iTimerCallUnit
 	RC_TIMEUP,
@@ -713,8 +726,10 @@ enum RC_TYPE
 };
 
 // NOTE: Need to be alphabetized order
+
 const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
-{
+
+{ 
     { "ACCTFILES",				{ ELEM_CSTRING,	static_cast<uint>OFFSETOF(CServerConfig,m_sAcctBaseDir)			}},
     { "ADVANCEDLOS",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iAdvancedLos)			}},
     { "AGREE",					{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fAgree)				}},
@@ -738,6 +753,9 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
     { "BANKMAXITEMS",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iBankIMax)			}},
     { "BANKMAXWEIGHT",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iBankWMax)			}},
     { "BUILD",					{ ELEM_VOID,	0																}},
+    { "BUILDBRANCH",			{ ELEM_VOID,	0																}},
+    { "BUILDNUM",				{ ELEM_VOID,	0																}},
+    { "BUILDSTR",				{ ELEM_VOID,	0																}},
     { "CANPETSDRINKPOTION",		{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fCanPetsDrinkPotion)	}},
     { "CANSEESAMEPLEVEL",		{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iCanSeeSamePLevel)	}},
     { "CANUNDRESSPETS",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fCanUndressPets)		}},
@@ -789,6 +807,7 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
     { "DEFAULTCOMMANDLEVEL",	{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iDefaultCommandLevel)	}},
     { "DISPLAYARMORASPERCENT",  { ELEM_BOOL,    static_cast<uint>OFFSETOF(CServerConfig,m_fDisplayPercentAr)		}},
     { "DISPLAYELEMENTALRESISTANCE",{ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fDisplayElementalResistance)}},
+    { "DISTANCEFORMULA",		{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iDistanceFormula)		}},
     { "DISTANCETALK",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iDistanceTalk)		}},
     { "DISTANCEWHISPER",		{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iDistanceWhisper)		}},
     { "DISTANCEYELL",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iDistanceYell)		}},
@@ -837,6 +856,7 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
     { "HITSUPDATERATE",			{ ELEM_VOID,	0												}},
     { "ITEMHITPOINTSUPDATE",    { ELEM_MASK_INT,static_cast<uint>OFFSETOF(CServerConfig,_iItemHitpointsUpdate),  }},
     { "ITEMSMAXAMOUNT",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iItemsMaxAmount),		}},
+    { "ITEMTIMERS",             { ELEM_MASK_INT,static_cast<uint>OFFSETOF(CServerConfig,m_uiItemTimers),  } },
     { "LEVELMODE",				{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iLevelMode),			}},
     { "LEVELNEXTAT",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iLevelNextAt),			}},
     { "LEVELSYSTEM",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fLevelSystem),			}},
@@ -859,6 +879,7 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
 	{ "MAXBASESKILL",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iMaxBaseSkill)			}},
 	{ "MAXCHARSPERACCOUNT",		{ ELEM_BYTE,	static_cast<uint>OFFSETOF(CServerConfig,m_iMaxCharsPerAccount)	}},
 	{ "MAXCOMPLEXITY",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iMaxCharComplexity)	}},
+    { "MAXCONNECTREQUESTSPERIP",{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,_iMaxConnectRequestsPerIP)	} },
     { "MAXFAME",                { ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iMaxFame)				}},
     { "MAXHOUSESACCOUNT",       { ELEM_BYTE,    static_cast<uint>OFFSETOF(CServerConfig,_iMaxHousesAccount)		}},
     { "MAXHOUSESGUILD",         { ELEM_BYTE,    static_cast<uint>OFFSETOF(CServerConfig,_iMaxHousesGuild)		}},
@@ -957,6 +978,7 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
 	{ "TELEPORTSOUNDSTAFF",		{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iSpell_Teleport_Sound_Staff)	}},
 	{ "TELNETLOG",				{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fTelnetLog)			}},
     { "TICKPERIOD",				{ ELEM_INT,	    0			                                    }},
+    { "TIMEOUTINCOMPLETECONN",	{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,_iTimeoutIncompleteConnectionMs) } },
 	{ "TIMERCALL",				{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,_iTimerCall)				}},
 	{ "TIMERCALLUNIT",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,_iTimerCallUnit)			}},
 	{ "TIMEUP",					{ ELEM_VOID,	0												}},
@@ -1309,7 +1331,7 @@ bool CServerConfig::r_LoadVal( CScript &s )
             break;
 		case RC_PROFILE:
 			{
-				int seconds = s.GetArgVal();
+				int seconds = std::max(0, s.GetArgVal());   // 0 does not enable it
 				size_t threadCount = ThreadHolder::get().getActiveThreads();
 				for (size_t j = 0; j < threadCount; ++j)
 				{
@@ -1902,19 +1924,17 @@ bool CServerConfig::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * 
 			{
 				ptcKey += 5;
 			}
-			else
-				return false;
+            else
+            {
+                return false;
+            }
 
 			// Get the position of the arguments after the round brackets
 			tchar * pszArgsNext;
 			if (! Str_Parse(const_cast<tchar*>(ptcKey), &pszArgsNext, ")") )
 				return false;
-			// Get the argument inside the round brackets
-			tchar * pVal;
-			if ( !Str_ParseCmds(const_cast<tchar*>(ptcKey), &pVal, 1, ")") )
-				return false;
 
-			uint id = Exp_GetUVal(pVal);
+			uint id = Exp_GetUVal(ptcKey);
 			if ( fTerrain && (id >= TERRAIN_QTY) )
 			{
 				// Invalid id
@@ -1989,23 +2009,34 @@ bool CServerConfig::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * 
 
 	switch (index)
 	{
-		case RC_ATTACKERTIMEOUT:
-			sVal.FormatVal(m_iAttackerTimeout);
-			break;
-		case RC_BACKPACKOVERLOAD:
-			sVal.FormatVal( m_iBackpackOverload / WEIGHT_UNITS );
-			break;
-		case RC_BANKMAXWEIGHT:
-			sVal.FormatVal( m_iBankWMax / WEIGHT_UNITS );
-			break;
-		case RC_BUILD:
-			#ifdef __GITREVISION__
-			 sVal.Format("%u (%s)", __GITBRANCH__, __GITREVISION__ );
-			#else
-			 sVal = __DATE__;
-			#endif
-			break;
-		case RC_CHATFLAGS:
+        case RC_ATTACKERTIMEOUT:
+            sVal.FormatVal(m_iAttackerTimeout);
+            break;
+        case RC_BACKPACKOVERLOAD:
+            sVal.FormatVal(m_iBackpackOverload / WEIGHT_UNITS);
+            break;
+        case RC_BANKMAXWEIGHT:
+            sVal.FormatVal(m_iBankWMax / WEIGHT_UNITS);
+            break;
+
+        case RC_BUILD:
+        case RC_BUILDNUM:
+            sVal.FormatVal(SPHERE_BUILD_VER);
+        break;
+
+        case RC_BUILDBRANCH:
+            sVal = SPHERE_BUILD_BRANCH_NAME;
+        break;
+
+        case RC_BUILDSTR:
+#ifdef __GITREVISION__
+            sVal.Format("%s (%d)", __GITBRANCH__, __GITREVISION__);
+#else
+            sVal.Format("%s (%d)", SPHERE_BUILD_BRANCH_NAME, __DATE__);
+#endif
+            break;
+
+        case RC_CHATFLAGS:
 			sVal.FormatHex(m_iChatFlags);
 			break;
 		case RC_CHATSTATICCHANNELS:
@@ -2111,7 +2142,7 @@ bool CServerConfig::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * 
             sVal.FormatLLVal(_iItemHitpointsUpdate / MSECS_PER_SEC);
             break;
 		case RC_PROFILE:
-			sVal.FormatVal(CurrentProfileData.GetActiveWindow());
+			sVal.FormatVal(GetCurrentProfileData().GetActiveWindow());
 			break;
 		case RC_RTICKS:
 			{
@@ -3241,6 +3272,7 @@ bool CServerConfig::LoadResourceSection( CScript * pScript )
 		return true;
 	case RES_RESOURCES:
 		// Add these all to the list of files we need to include.
+        g_Log.Event(LOGM_NOCONTEXT|LOGM_INIT, "Caching script files...\n");
 		while ( pScript->ReadKey() )
 		{
 			AddResourceFile( pScript->GetKey() );
@@ -4237,7 +4269,7 @@ CResourceID CServerConfig::ResourceGetNewID( RES_TYPE restype, lpctstr pszName, 
 	if ( iHashRange )
 	{
 		// find a new FREE entry starting here
-        int iRandIndex = iIndex + Calc_GetRandVal(iHashRange);
+        int iRandIndex = iIndex + g_Rand.GetVal(iHashRange);
         rid = CResourceID(restype, iRandIndex, wPage);
 
         const bool fCheckPage = (pszName && (g_Exp.m_VarResDefs.GetKeyNum(pszName) != 0));
@@ -4599,14 +4631,14 @@ bool CServerConfig::Load( bool fResync )
         {
             g_Log.Event( LOGL_FATAL|LOGM_INIT, "The " SPHERE_FILE ".ini file is corrupt, missing, or there was an error while loading the settings.\n" );
             g_Log.CatchEvent( &e, "g_VerData.Load" );
-            CurrentProfileData.Count(PROFILE_STAT_FAULTS, 1);
+            GetCurrentProfileData().Count(PROFILE_STAT_FAULTS, 1);
             return false;
         }
         catch (...)
         {
             g_Log.Event( LOGL_FATAL|LOGM_INIT, "The " SPHERE_FILE ".ini file is corrupt, missing, or there was an error while loading the settings.\n" );
             g_Log.CatchEvent( nullptr, "g_VerData.Load" );
-            CurrentProfileData.Count(PROFILE_STAT_FAULTS, 1);
+            GetCurrentProfileData().Count(PROFILE_STAT_FAULTS, 1);
             return false;
         }
 	}
@@ -4625,6 +4657,7 @@ bool CServerConfig::Load( bool fResync )
 			return false;
 		}
 
+        g_Log.Event(LOGL_EVENT|LOGM_INIT, "Loading table definitions file (" SPHERE_FILE "tables." SPHERE_SCRIPT ")...\n");
 		LoadResourcesOpen(&m_scpTables);
 		m_scpTables.Close();
 	}

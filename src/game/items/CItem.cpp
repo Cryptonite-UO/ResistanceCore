@@ -471,7 +471,7 @@ CItem * CItem::CreateHeader( tchar * pArg, CObjBase * pCont, bool fDupeCheck, CC
         else if ( pptcCmd[i][0] == 'R' )
         {
             // 1 in x chance of creating this.
-            if ( Calc_GetRandVal( atoi(pptcCmd[i] + 1) ))
+            if ( g_Rand.GetVal( atoi(pptcCmd[i] + 1) ))
                 return nullptr;	// don't create it
         }
     }
@@ -793,7 +793,7 @@ int CItem::IsWeird() const
 char CItem::GetFixZ( CPointMap pt, uint64 uiBlockFlags )
 {
 	height_t zHeight = CItemBase::GetItemHeight( GetDispID(), &uiBlockFlags );
-	CServerMapBlockState block(uiBlockFlags, pt.m_z, pt.m_z + zHeight, pt.m_z + 2, zHeight);
+	CServerMapBlockingState block(uiBlockFlags, pt.m_z, pt.m_z + zHeight, pt.m_z + 2, zHeight);
 	CWorldMap::GetFixPoint(pt, block);
 	return block.m_Bottom.m_z;
 }
@@ -1098,14 +1098,14 @@ int CItem::FixWeirdness()
             // Doors and containers must have a lock complexity set.
             if (!m_itContainer.m_dwLockComplexity)
             {
-                m_itContainer.m_dwLockComplexity = 500 + Calc_GetRandVal(600);
+                m_itContainer.m_dwLockComplexity = 500 + g_Rand.GetVal(600);
             }
             break;
 
         case IT_POTION:
             if (m_itPotion.m_dwSkillQuality == 0) // store bought ?
             {
-                m_itPotion.m_dwSkillQuality = Calc_GetRandVal(950);
+                m_itPotion.m_dwSkillQuality = g_Rand.GetVal(950);
             }
             break;
         case IT_MAP_BLANK:
@@ -1401,7 +1401,7 @@ int64 CItem::GetDecayTime() const
                 return (m_itCrop.m_Respawn_Sec * MSECS_PER_SEC);
 
             const int64 iTimeNextNewMoon = CWorldGameTime::GetNextNewMoon((GetTopPoint().m_map == 1) ? false : true);
-            const int64 iMinutesDelay = Calc_GetRandLLVal(20) * g_Cfg.m_iGameMinuteLength;
+            const int64 iMinutesDelay = g_Rand.GetLLVal(20) * g_Cfg.m_iGameMinuteLength;
 			return (iTimeNextNewMoon - CWorldGameTime::GetCurrentTime().GetTimeRaw() + iMinutesDelay);
         }
 		case IT_MULTI:
@@ -2003,14 +2003,14 @@ height_t CItem::GetHeight() const
 
     height_t tmpHeight;
 
-    const ITEMID_TYPE iDispID = GetDispID();
-    const CItemBase * pItemDef = CItemBase::FindItemBase(iDispID);
+    const ITEMID_TYPE uiDispID = GetDispID();
+    const CItemBase * pItemDef = CItemBase::FindItemBase(uiDispID);
     ASSERT(pItemDef);
     tmpHeight = pItemDef->GetHeight();
     if (tmpHeight)
         return tmpHeight;
 
-    const CItemBaseDupe * pDupeDef = CItemBaseDupe::GetDupeRef(iDispID);
+    const CItemBaseDupe * pDupeDef = CItemBaseDupe::GetDupeRef(uiDispID);
     if (pDupeDef)
     {
         tmpHeight = pDupeDef->GetHeight();
@@ -2018,17 +2018,14 @@ height_t CItem::GetHeight() const
             return tmpHeight;
     }
 
-	char * heightDef = Str_GetTemp();
-
-	sprintf(heightDef, "itemheight_0%x", (uint)iDispID);
+	char heightDef[24]{"itemheight_"};
+    Str_FromUI(uint(uiDispID), heightDef + 11, sizeof(heightDef) - 11, 16);
 	tmpHeight = static_cast<height_t>(g_Exp.m_VarDefs.GetKeyNum(heightDef));
-	//DEBUG_ERR(("2 tmpHeight %d\n",tmpHeight));
 	if ( tmpHeight ) //set by a defname ([DEFNAME charheight]  height_0a)
 		return tmpHeight;
 
-	sprintf(heightDef, "itemheight_%u", (uint)iDispID);
+    Str_FromUI(uint(uiDispID), heightDef + 11, sizeof(heightDef) - 11, 10);
 	tmpHeight = static_cast<height_t>(g_Exp.m_VarDefs.GetKeyNum(heightDef));
-	//DEBUG_ERR(("3 tmpHeight %d\n",tmpHeight));
 	if ( tmpHeight ) //set by a defname ([DEFNAME charheight]  height_10)
 		return tmpHeight;
 
@@ -2991,29 +2988,29 @@ void CItem::r_LoadMore2(dword dwVal)
     }
 }
 
-const lpctstr CItem::ResourceGetName(const CResourceID& rid)
+lpctstr CItem::ResourceGetName(const CResourceID& rid)
 {
     if (Can(CAN_I_SCRIPTEDMORE))
     {
         tchar* pszText = Str_GetTemp();
         if (!rid.IsValidUID())
-            sprintf(pszText, "%d", (int)rid.GetPrivateUID());
+            snprintf(pszText, Str_TempLength(), "%d", (int)rid.GetPrivateUID());
         else
-            sprintf(pszText, "0%" PRIx32, rid.GetResIndex());
+            snprintf(pszText, Str_TempLength(),"0%" PRIx32, rid.GetResIndex());
         return pszText;
     }
     return g_Cfg.ResourceGetName(rid);
 }
 
-const lpctstr CItem::ResourceGetName(const CResourceIDBase& rid, RES_TYPE iExpectedType)
+lpctstr CItem::ResourceGetName(const CResourceIDBase& rid, RES_TYPE iExpectedType)
 {
     if (Can(CAN_I_SCRIPTEDMORE))
     {
         tchar* pszText = Str_GetTemp();
         if (!rid.IsValidUID())
-            sprintf(pszText, "%d", (int)rid.GetPrivateUID());
+            snprintf(pszText, Str_TempLength(), "%d", (int)rid.GetPrivateUID());
         else
-            sprintf(pszText, "0%" PRIx32, rid.GetResIndex());
+            snprintf(pszText, Str_TempLength(), "0%" PRIx32, rid.GetResIndex());
         return pszText;
     }
     return g_Cfg.ResourceGetName(rid, iExpectedType);
@@ -4051,13 +4048,6 @@ void CItem::SetAnim( ITEMID_TYPE id, int64 iTicksTimeout)
 	_SetTimeout(iTicksTimeout);
 	//RemoveFromView();
 	Update();
-}
-
-CObjBase * CItem::GetContainer() const
-{
-	// What is this CItem contained in ?
-	// Container should be a CChar or CItemContainer
-	return ( dynamic_cast <CObjBase*> (GetParent()));
 }
 
 const CItem* CItem::GetTopContainer() const
@@ -5185,14 +5175,14 @@ lpctstr CItem::Use_SpyGlass( CChar * pUser ) const
 			if ( iDist > g_Cfg.m_iMapViewRadar) // if beyond ship visibility in the radar window, don't be specific
 				sSearch.Format(g_Cfg.GetDefaultMsg(DEFMSG_SHIP_SEEN_STH_DIR), static_cast<lpctstr>(CPointBase::sm_szDirs[ dir ]) );
 			else
-				sSearch.Format(g_Cfg.GetDefaultMsg(DEFMSG_SHIP_SEEN_ITEM_DIR), static_cast<lpctstr>(pItemSighted->GetNameFull(false)), static_cast<lpctstr>(CPointBase::sm_szDirs[ dir ]) );
+				sSearch.Format(g_Cfg.GetDefaultMsg(DEFMSG_SHIP_SEEN_ITEM_DIR), pItemSighted->GetNameFull(false), static_cast<lpctstr>(CPointBase::sm_szDirs[ dir ]) );
 		}
 		else
 		{
 			if ( iDist > g_Cfg.m_iMapViewRadar) // if beyond ship visibility in the radar window, don't be specific
 				sSearch.Format(g_Cfg.GetDefaultMsg(DEFMSG_SHIP_SEEN_ITEM_DIR_MANY), CPointBase::sm_szDirs[ dir ] );
 			else
-				sSearch.Format(g_Cfg.GetDefaultMsg(DEFMSG_SHIP_SEEN_SPECIAL_DIR), static_cast<lpctstr>(pItemSighted->GetNameFull(false)), static_cast<lpctstr>(CPointBase::sm_szDirs[ dir ]));
+				sSearch.Format(g_Cfg.GetDefaultMsg(DEFMSG_SHIP_SEEN_SPECIAL_DIR), pItemSighted->GetNameFull(false), static_cast<lpctstr>(CPointBase::sm_szDirs[ dir ]));
 		}
 		strcat( pResult, sSearch);
 	}
@@ -5336,7 +5326,7 @@ int CItem::Use_LockPick( CChar * pCharSrc, bool fTest, bool fFail )
 		if ( ! fTest )
 			pCharSrc->CheckCrimeSeen( SKILL_SNOOPING, nullptr, this, g_Cfg.GetDefaultMsg( DEFMSG_LOCK_PICK_CRIME ) );
 
-		if ( Calc_GetRandVal( g_Cfg.m_iMagicUnlockDoor ))
+		if ( g_Rand.GetVal( g_Cfg.m_iMagicUnlockDoor ))
 			return 10000;	// plain impossible.
 	}
 
@@ -5643,7 +5633,7 @@ bool CItem::OnSpellEffect( SPELL_TYPE spell, CChar * pCharSrc, int iSkillLevel, 
 				}
 			}
 
-			m_itRune.m_ptMark = pCharSrc->GetTopPoint();
+			m_itRune.m_ptMark = static_cast<CPointBase const&>(pCharSrc->GetTopPoint());
 			if ( IsType(IT_RUNE) )
 			{
 				m_itRune.m_Strength = pSpellDef->m_vcEffect.GetLinear( iSkillLevel );
@@ -5719,7 +5709,7 @@ int CItem::OnTakeDamage( int iDmg, CChar * pSrc, DAMAGE_TYPE uType )
     if (fHasMaxHits && (m_itArmor.m_wHitsMax > 0))
     {
         const int64 iSelfRepair = GetDefNum("SELFREPAIR", true);
-        if (iSelfRepair > Calc_GetRandVal(10))
+        if (iSelfRepair > g_Rand.GetVal(10))
         {
             const ushort uiOldHits = m_itArmor.m_dwHitsCur;
             m_itArmor.m_dwHitsCur += 2;
@@ -5755,13 +5745,13 @@ int CItem::OnTakeDamage( int iDmg, CChar * pSrc, DAMAGE_TYPE uType )
 		if ( iDmg == 1 )
 		{
 			// Miss - They will usually survive.
-			if ( Calc_GetRandVal(5))
+			if ( g_Rand.GetVal(5))
 				return 0;
 		}
 		else
 		{
 			// Must have hit.
-			if ( ! Calc_GetRandVal(3))
+			if ( ! g_Rand.GetVal(3))
 				return 1;
 		}
 		Delete();
@@ -6042,6 +6032,16 @@ bool CItem::_CanHoldTimer() const
 	ADDTOCALLSTACK("CItem::_CanHoldTimer");
 	EXC_TRY("Can have a TIMER?");
 
+    if (g_World.IsScheduledObjDeletion(this))
+    {
+        return false;
+    }
+
+    if (HAS_FLAG(g_Cfg.m_uiItemTimers, ITEM_CANTIMER_IN_CONTAINER) || Can(CAN_I_TIMER_CONTAINED))
+    {
+        return true;
+    }
+
 	if (_IsIdle())
 	{
 		return true;
@@ -6065,8 +6065,9 @@ bool CItem::_CanTick(bool fParentGoingToSleep) const
 	EXC_TRY("Can tick?");
 
 	const CObjBase* pCont = GetContainer();
+    const bool fIgnoreCont = (HAS_FLAG(g_Cfg.m_uiItemTimers, ITEM_CANTIMER_IN_CONTAINER) || Can(CAN_I_TIMER_CONTAINED));
 	// ATTR_DECAY ignores/overrides fParentGoingToSleep
-	if (IsAttr(ATTR_DECAY) && (pCont == nullptr))
+	if (fIgnoreCont || (IsAttr(ATTR_DECAY) && !pCont))
 	{
 		return CObjBase::_CanTick(false);
 	}
@@ -6154,7 +6155,7 @@ bool CItem::_OnTick()
                     {
                         pClient->addMapWaypoint(this, MAPWAYPOINT_Remove);	// remove corpse map waypoint on enhanced clients
                     }
-					SetID((ITEMID_TYPE)(Calc_GetRandVal2(ITEMID_SKELETON_1, ITEMID_SKELETON_9)));
+					SetID((ITEMID_TYPE)(g_Rand.GetVal2(ITEMID_SKELETON_1, ITEMID_SKELETON_9)));
 					SetHue((HUE_TYPE)(HUE_DEFAULT));
 					_SetTimeout(g_Cfg.m_iDecay_CorpsePlayer);
 					m_itCorpse.m_carved = 1;	// the corpse can't be carved anymore
@@ -6315,7 +6316,15 @@ bool CItem::_OnTick()
 		return false;
 
 	EXC_SET_BLOCK("default behaviour4");
-	DEBUG_ERR(( "Timer expired without DECAY flag '%s' (UID=0%x)?\n", GetName(), GetUID().GetObjUID()));
+    if (auto pContObj = dynamic_cast<CObjBase const*>(GetParent()))
+    {
+        g_Log.EventError("Timer expired without DECAY flag '%s' (UID=0%x)? Inside container '%s' (UID=0%x).\n",
+            GetName(), GetUID().GetObjUID(), pContObj->GetName(), pContObj->GetUID().GetObjUID());
+    }
+    else
+    {
+        g_Log.EventError("Timer expired without DECAY flag '%s' (UID=0%x)?\n", GetName(), GetUID().GetObjUID());
+    }
 
     EXC_CATCH;
 

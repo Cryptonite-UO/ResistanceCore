@@ -115,7 +115,7 @@ bool CClient::Cmd_Use_Item( CItem *pItem, bool fTestTouch, bool fScript )
 
 		if (fMustEquip)
 		{
-			if (!m_pChar->CanMove(pItem))
+			if (!m_pChar->CanMoveItem(pItem))
 				return false;
 			/*Before weight behavior rework we had this check too :
 			if ( (pObjTop != m_pChar) && !m_pChar->CanCarry(pItem) )
@@ -266,7 +266,7 @@ bool CClient::Cmd_Use_Item( CItem *pItem, bool fTestTouch, bool fScript )
 
 		case IT_POTION:
 		{
-			if ( !m_pChar->CanMove(pItem) )
+			if ( !m_pChar->CanMoveItem(pItem) )
 			{
 				SysMessageDefault(DEFMSG_ITEMUSE_POTION_FAIL);
 				return false;
@@ -328,7 +328,7 @@ bool CClient::Cmd_Use_Item( CItem *pItem, bool fTestTouch, bool fScript )
 
 		case IT_SHIP_TILLER:
 		{
-			if (m_net->isClientVersion(MINCLIVER_HS))
+			if (m_net->isClientVersionNumber(MINCLIVER_HS))
 			{
 				CItemShip* pShip = dynamic_cast<CItemShip*>(pItem->m_uidLink.ItemFind());
 				if (pShip)
@@ -367,7 +367,7 @@ bool CClient::Cmd_Use_Item( CItem *pItem, bool fTestTouch, bool fScript )
 
 		case IT_RUNE:
 		{
-			if ( !m_pChar->CanMove(pItem, true) )
+			if ( !m_pChar->CanMoveItem(pItem, true) )
 				return false;
 			addPromptConsole(CLIMODE_PROMPT_NAME_RUNE, g_Cfg.GetDefaultMsg(DEFMSG_ITEMUSE_RUNE_NAME), pItem->GetUID());
 			return true;
@@ -1196,9 +1196,9 @@ bool CClient::Cmd_Skill_Tracking( uint track_sel, bool fExec )
 				if ( g_Cfg.m_iFeatureSE & FEATURE_SE_UPDATE )
 					chance = 50 * (tracking * 2 + detectHidden) / divisor;
 				else
-					chance = 50 * (tracking + detectHidden + 10 * Calc_GetRandVal(20)) / divisor;
+					chance = 50 * (tracking + detectHidden + 10 * g_Rand.GetVal(20)) / divisor;
 
-				if ( Calc_GetRandVal(100) > chance )
+				if ( g_Rand.GetVal(100) > chance )
 					continue;
 			}
 
@@ -1215,14 +1215,14 @@ bool CClient::Cmd_Skill_Tracking( uint track_sel, bool fExec )
 		// Some credit for trying.
 		if ( count > 0 )
 		{
-			m_pChar->Skill_UseQuick(SKILL_TRACKING, 20 + Calc_GetRandLLVal(30));
+			m_pChar->Skill_UseQuick(SKILL_TRACKING, 20 + g_Rand.GetLLVal(30));
 			ASSERT(count < ARRAY_COUNT(item));
 			addItemMenu(CLIMODE_MENU_SKILL_TRACK, item, count);
 			return true;
 		}
 		else
 		{
-			m_pChar->Skill_UseQuick(SKILL_TRACKING, 10 + Calc_GetRandLLVal(30));
+			m_pChar->Skill_UseQuick(SKILL_TRACKING, 10 + g_Rand.GetLLVal(30));
 		}
 	}
 
@@ -1413,12 +1413,12 @@ bool CClient::Cmd_SecureTrade( CChar *pChar, CItem *pItem )
 	if ( g_Cfg.m_iFeatureTOL & FEATURE_TOL_VIRTUALGOLD )
 	{
 		PacketTradeAction cmd2(SECURE_TRADE_UPDATELEDGER);
-		if ( GetNetState()->isClientVersion(MINCLIVER_NEWSECURETRADE) )
+		if ( GetNetState()->isClientVersionNumber(MINCLIVER_NEWSECURETRADE) )
 		{
 			cmd2.prepareUpdateLedger(pCont1, (dword)(m_pChar->m_virtualGold % 1000000000), (dword)(m_pChar->m_virtualGold / 1000000000));
 			cmd2.send(this);
 		}
-		if ( pChar->GetClientActive()->GetNetState()->isClientVersion(MINCLIVER_NEWSECURETRADE) )
+		if ( pChar->GetClientActive()->GetNetState()->isClientVersionNumber(MINCLIVER_NEWSECURETRADE) )
 		{
 			cmd2.prepareUpdateLedger(pCont2, (dword)(pChar->m_virtualGold % 1000000000), (dword)(pChar->m_virtualGold / 1000000000));
 			cmd2.send(pChar->GetClientActive());

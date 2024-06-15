@@ -245,15 +245,18 @@ CSector* CWorldMap::GetSector(int map, short x, short y) noexcept // static
 
 const CServerMapBlock* CWorldMap::GetMapBlock(const CPointMap& pt) // static
 {
-	ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetMapBlock");
+	//ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetMapBlock");
 	// Get a map block from the cache. load it if not.
+
+    EXC_TRY("GetMapBlock");
 
 	if (!pt.IsValidXY() || !g_MapList.IsInitialized(pt.m_map))
 	{
-		g_Log.EventWarn("Attempting to access invalid memory block at %s.\n", pt.WriteUsed());
+		g_Log.EventWarn("Attempting to access invalid map block at %s.\n", pt.WriteUsed());
 		return nullptr;
 	}
 
+    EXC_SET_BLOCK("Try to get from cache");
 	const ProfileTask mapTask(PROFILE_MAP);
 
 	const int iBx = pt.m_x / UO_BLOCK_SIZE;
@@ -268,11 +271,15 @@ const CServerMapBlock* CWorldMap::GetMapBlock(const CPointMap& pt) // static
 		return block.get();
 	}
 
+    EXC_SET_BLOCK("Create new");
 	// else load and add it to the cache.
 	block = std::make_unique<CServerMapBlock>(iBx, iBy, pt.m_map);
 	ASSERT(block);
 
 	return block.get();
+
+    EXC_CATCH;
+    return nullptr;
 }
 
 // Tile info fromMAP*.MUL at given coordinates
@@ -290,6 +297,7 @@ std::optional<CUOMapMeter> CWorldMap::GetMapMeterAdjusted(const CPointMap& pt)
 	const CUOMapMeter* pMeter = GetMapMeter(pt);
 	if (!pMeter)
 		return std::nullopt;
+
 	CUOMapMeter pMapTop(*pMeter);
 	const CUOMapMeter pMapLeft(CheckMapTerrain(pMapTop, pt.m_x, pt.m_y + 1, pt.m_map));
 	const CUOMapMeter pMapBottom(CheckMapTerrain(pMapTop, pt.m_x + 1, pt.m_y + 1, pt.m_map));
@@ -899,7 +907,7 @@ CPointMap CWorldMap::FindItemTypeNearby(const CPointMap & pt, IT_TYPE iType, int
 
 //****************************************************
 
-void CWorldMap::GetFixPoint( const CPointMap & pt, CServerMapBlockState & block) // static
+void CWorldMap::GetFixPoint( const CPointMap & pt, CServerMapBlockingState & block) // static
 {
 	//Will get the highest CAN_I_PLATFORM|CAN_I_CLIMB and places it into block.Bottom
 	ADDTOCALLSTACK("CWorldMap::GetFixPoint");
@@ -1219,16 +1227,16 @@ void CWorldMap::GetFixPoint( const CPointMap & pt, CServerMapBlockState & block)
 	}
 }
 
-void CWorldMap::GetHeightPoint(const CPointMap & pt, CServerMapBlockState & block, bool fHouseCheck) // static
+void CWorldMap::GetHeightPoint(const CPointMap & pt, CServerMapBlockingState & block, bool fHouseCheck) // static
 {
 	ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetHeightPoint");
     const CItemBase * pItemDef = nullptr;
     const CItemBaseDupe * pDupeDef = nullptr;
 	CItem * pItem = nullptr;
 	uint64 uiBlockThis = 0;
+    int x2 = 0, y2 = 0;
 	char z = 0;
 	height_t zHeight = 0;
-	int x2 = 0, y2 = 0;
 
 	// Height of statics at/above given coordinates
 	// do gravity here for the z.
@@ -1519,7 +1527,7 @@ CUOMapMeter CWorldMap::CheckMapTerrain(CUOMapMeter pDefault, short x, short y, u
 		return pDefault;
 	else
 	{
-		const CUOTerrainInfo land(pMeter->m_wTerrainIndex);
+		const CUOTerrainInfo land(pMeter->m_wTerrainIndex, false);
 		if ((land.m_flags & UFLAG1_WATER))
 			return pDefault;
 	}
@@ -1530,7 +1538,7 @@ char CWorldMap::GetHeightPoint(const CPointMap & pt, uint64 & uiBlockFlags, bool
 {
 	ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetHeightPoint");
 	const uint64 uiCan = uiBlockFlags;
-	CServerMapBlockState block( uiBlockFlags, pt.m_z + (PLAYER_HEIGHT / 2), pt.m_z + PLAYER_HEIGHT );
+	CServerMapBlockingState block( uiBlockFlags, pt.m_z + (PLAYER_HEIGHT / 2), pt.m_z + PLAYER_HEIGHT );
 	GetHeightPoint(pt, block, fHouseCheck);
 
 	// Pass along my results.
@@ -1559,9 +1567,11 @@ char CWorldMap::GetHeightPoint(const CPointMap & pt, uint64 & uiBlockFlags, bool
 	return block.m_Bottom.m_z;
 }
 
-void CWorldMap::GetHeightPoint2( const CPointMap & pt, CServerMapBlockState & block, bool fHouseCheck ) // static
+void CWorldMap::GetHeightPoint2( const CPointMap & pt, CServerMapBlockingState & block, bool fHouseCheck ) // static
 {
-	ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetHeightPoint2");
+    EXC_TRYSUB("GHP2 with blockFlags");
+
+	//ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetHeightPoint2(blockingState)");
 	// Height of statics at/above given coordinates
 	// do gravity here for the z.
 
@@ -1640,37 +1650,37 @@ void CWorldMap::GetHeightPoint2( const CPointMap & pt, CServerMapBlockState & bl
 	}
 
 	{
-	// Any dynamic items here ?
-	// NOTE: This could just be an item that an NPC could just move ?
-	CWorldSearch Area( pt );
-	for (;;)
-	{
-		const CItem * pItem = Area.GetItem();
-		if ( pItem == nullptr )
-			break;
+	    // Any dynamic items here ?
+	    // NOTE: This could just be an item that an NPC could just move ?
+	    CWorldSearch Area( pt );
+	    for (;;)
+	    {
+		    const CItem * pItem = Area.GetItem();
+		    if ( pItem == nullptr )
+			    break;
 
-		char zitem = pItem->GetTopZ();
+		    char zitem = pItem->GetTopZ();
 
-        // Invis items should not block ???
-		const CItemBase * pItemDef = pItem->Item_GetDef();
-		ASSERT(pItemDef);
+            // Invis items should not block ???
+		    const CItemBase * pItemDef = pItem->Item_GetDef();
+		    ASSERT(pItemDef);
 
-		// Get Attributes from ItemDef. If they are not set, get them from the static object (DISPID)
-		uiBlockThis = pItemDef->Can(CAN_I_DOOR | CAN_I_WATER | CAN_I_CLIMB | CAN_I_BLOCK | CAN_I_PLATFORM);
-		height_t zHeight = pItemDef->GetHeight();
+		    // Get Attributes from ItemDef. If they are not set, get them from the static object (DISPID)
+		    uiBlockThis = pItemDef->Can(CAN_I_DOOR | CAN_I_WATER | CAN_I_CLIMB | CAN_I_BLOCK | CAN_I_PLATFORM);
+		    height_t zHeight = pItemDef->GetHeight();
 
-		uint64 uiStaticBlockThis = 0;
-		height_t zStaticHeight = CItemBase::GetItemHeight(pItem->GetDispID(), &uiStaticBlockThis);
+		    uint64 uiStaticBlockThis = 0;
+		    height_t zStaticHeight = CItemBase::GetItemHeight(pItem->GetDispID(), &uiStaticBlockThis);
 
-		if (uiBlockThis == 0)
-			uiBlockThis = uiStaticBlockThis;
-		if (zHeight == 0)
-			zHeight = zStaticHeight;
+		    if (uiBlockThis == 0)
+			    uiBlockThis = uiStaticBlockThis;
+		    if (zHeight == 0)
+			    zHeight = zStaticHeight;
 
-		if ( !block.CheckTile(uiBlockThis, zitem, zHeight, pItemDef->GetDispID() + (ITEMID_TYPE)TERRAIN_QTY ) )
-		{
-		}
-	}
+		    if ( !block.CheckTile(uiBlockThis, zitem, zHeight, pItemDef->GetDispID() + (ITEMID_TYPE)TERRAIN_QTY ) )
+		    {
+		    }
+	    }
 	}
 
 	// Check Terrain here.
@@ -1705,12 +1715,15 @@ void CWorldMap::GetHeightPoint2( const CPointMap & pt, CServerMapBlockState & bl
 	{
 		block.m_Bottom = block.m_Lowest;
 	}
+
+    EXC_CATCHSUB("GHP2 with blockFlags");
 }
 
 // Height of player who walked to X/Y/OLDZ
 char CWorldMap::GetHeightPoint2( const CPointMap & pt, uint64 & uiBlockFlags, bool fHouseCheck ) // static
 {
-    ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetHeightPoint2");
+    EXC_TRYSUB("GHP2 with blockFlags");
+    //ADDTOCALLSTACK_INTENSIVE("CWorldMap::GetHeightPoint2(blockFlags)");
 	// Given our coords at pt including pt.m_z
 	// What is the height that gravity would put me at should i step here ?
 	// Assume my head height is PLAYER_HEIGHT/2
@@ -1734,7 +1747,7 @@ char CWorldMap::GetHeightPoint2( const CPointMap & pt, uint64 & uiBlockFlags, bo
 	// ??? NOTE: some creatures should be taller than others !!!
 
 	const uint64 uiCan = uiBlockFlags;
-	CServerMapBlockState block(uiBlockFlags, pt.m_z, PLAYER_HEIGHT);
+	CServerMapBlockingState block(uiBlockFlags, pt.m_z, PLAYER_HEIGHT);
 	GetHeightPoint2( pt, block, fHouseCheck );
 
 	// Pass along my results.
@@ -1774,53 +1787,54 @@ char CWorldMap::GetHeightPoint2( const CPointMap & pt, uint64 & uiBlockFlags, bo
 		return( pt.m_z );
 
 	return( block.m_Bottom.m_z );
+
+    EXC_CATCHSUB("GHP2 with blockFlags");
+    return UO_SIZE_MIN_Z;
 }
 
 
 //////////////////////////////////////////////////////////////////
 // -CWorldSearch
 
-CWorldSearch::CWorldSearch(const CPointMap& pt, int iDist) :
-	_pt(pt), _iDist(iDist)
+CWorldSearch::CWorldSearch(const CPointMap& pt, int iDist) noexcept :
+	_pt(pt), _iDist(iDist), _fAllShow(false), _fSearchSquare(false),
+    _eSearchType(ws_search_e::None), _fInertToggle(false),
+    _ppCurContObjs(nullptr), _pObj(nullptr),
+    _idxObj(0), _idxObjMax(0),
+    _iSectorCur(0)  // Get upper left of search rect.
 {
 	// define a search of the world.
-	_eSearchType = ws_search_e::None;
-	_fAllShow = false;
-	_fSearchSquare = false;
-	_fInertToggle = false;
-	_pObj = nullptr;
-	_idxObj = _idxObjMax = 0;
-
 	_pSectorBase = _pSector = pt.GetSector();
-
 	_rectSector.SetRect(
 		pt.m_x - iDist,
 		pt.m_y - iDist,
 		pt.m_x + iDist + 1,
 		pt.m_y + iDist + 1,
 		pt.m_map);
+}
 
-	// Get upper left of search rect.
-	_iSectorCur = 0;
+CWorldSearch::~CWorldSearch() noexcept
+{
+    if (nullptr != _ppCurContObjs)
+        delete[] _ppCurContObjs;
 }
 
 void CWorldSearch::SetAllShow(bool fView)
 {
-	ADDTOCALLSTACK("CWorldSearch::SetAllShow");
+	//ADDTOCALLSTACK_INTENSIVE("CWorldSearch::SetAllShow");
 	_fAllShow = fView;
 }
 
 void CWorldSearch::SetSearchSquare(bool fSquareSearch)
 {
-	ADDTOCALLSTACK("CWorldSearch::SetSearchSquare");
+    //ADDTOCALLSTACK_INTENSIVE("CWorldSearch::SetSearchSquare");
 	_fSearchSquare = fSquareSearch;
 }
 
 void CWorldSearch::RestartSearch()
 {
-	ADDTOCALLSTACK("CWorldSearch::RestartSearch");
+    //ADDTOCALLSTACK_INTENSIVE("CWorldSearch::RestartSearch");
 	_eSearchType = ws_search_e::None;
-	_vCurContObjs.clear();
 	_pObj = nullptr;
 	_idxObj = _idxObjMax = 0;
 }
@@ -1842,7 +1856,6 @@ bool CWorldSearch::GetNextSector()
 			continue;	// same as base.
 
 		_eSearchType = ws_search_e::None;
-		_vCurContObjs.clear();
 		_pObj = nullptr;	// start at head of next Sector.
 		_idxObj = _idxObjMax = 0;
 
@@ -1852,15 +1865,37 @@ bool CWorldSearch::GetNextSector()
 
 CItem* CWorldSearch::GetItem()
 {
-	ADDTOCALLSTACK_INTENSIVE("CWorldSearch::GetItem");
+    // This method is called very frequently, ADDTOCALLSTACK unneededly sucks cpu
+	//ADDTOCALLSTACK_INTENSIVE("CWorldSearch::GetItem");
+
+    constexpr size_t kuiContainerScaleFactor = 2;
 	while (true)
 	{
 		if (_pObj == nullptr)
 		{
 			ASSERT(_eSearchType == ws_search_e::None);
 			_eSearchType = ws_search_e::Items;
-			_vCurContObjs = _pSector->m_Items.GetIterationSafeCont();
-			_idxObjMax = _vCurContObjs.size();
+
+            const size_t sector_obj_num = _pSector->m_Items.size();
+            if (0 != sector_obj_num)
+            {
+                if (_ppCurContObjs != nullptr)
+                {
+                    if (_idxObjMax < sector_obj_num * kuiContainerScaleFactor)
+                    {
+                        delete[] _ppCurContObjs;
+                        _ppCurContObjs = new CSObjContRec * [sector_obj_num * kuiContainerScaleFactor];
+                    }
+                }
+                else
+                {
+                    _ppCurContObjs = new CSObjContRec * [sector_obj_num * kuiContainerScaleFactor];
+                }
+
+                memcpy(_ppCurContObjs, _pSector->m_Items.data(), sector_obj_num * sizeof(CSObjContRec*)); // I need this to be as fast as possible
+            }
+
+            _idxObjMax = sector_obj_num;
 			_idxObj = 0;
 		}
 		else
@@ -1869,7 +1904,7 @@ CItem* CWorldSearch::GetItem()
 		}
 
 		ASSERT(_eSearchType == ws_search_e::Items);
-		_pObj = (_idxObj >= _idxObjMax) ? nullptr : static_cast <CObjBase*> (_vCurContObjs[_idxObj]);
+		_pObj = (_idxObj >= _idxObjMax) ? nullptr : static_cast <CObjBase*> (_ppCurContObjs[_idxObj]);
 		if (_pObj == nullptr)
 		{
 			if (GetNextSector())
@@ -1910,7 +1945,10 @@ CItem* CWorldSearch::GetItem()
 
 CChar* CWorldSearch::GetChar()
 {
-	ADDTOCALLSTACK_INTENSIVE("CWorldSearch::GetChar");
+    // This method is called very frequently, ADDTOCALLSTACK unneededly sucks cpu
+	//ADDTOCALLSTACK_INTENSIVE("CWorldSearch::GetChar");
+
+    constexpr size_t kuiContainerScaleFactor = 2;
 	while (true)
 	{
 		if (_pObj == nullptr)
@@ -1918,8 +1956,26 @@ CChar* CWorldSearch::GetChar()
 			ASSERT(_eSearchType == ws_search_e::None);
 			_eSearchType = ws_search_e::Chars;
 			_fInertToggle = false;
-			_vCurContObjs = _pSector->m_Chars_Active.GetIterationSafeCont();
-			_idxObjMax = _vCurContObjs.size();
+
+            const size_t sector_obj_num = _pSector->m_Chars_Active.size();
+            if (0 != sector_obj_num)
+            {
+                if (_ppCurContObjs != nullptr)
+                {
+                    if (_idxObjMax < sector_obj_num * kuiContainerScaleFactor)
+                    {
+                        delete[] _ppCurContObjs;
+                        _ppCurContObjs = new CSObjContRec * [sector_obj_num * kuiContainerScaleFactor];
+                    }
+                }
+                else
+                {
+                    _ppCurContObjs = new CSObjContRec * [sector_obj_num * kuiContainerScaleFactor];
+                }
+                memcpy(_ppCurContObjs, _pSector->m_Chars_Active.data(), sector_obj_num * sizeof(CSObjContRec*)); // I need this to be as fast as possible
+            }
+
+            _idxObjMax = sector_obj_num;
 			_idxObj = 0;
 		}
 		else
@@ -1928,17 +1984,35 @@ CChar* CWorldSearch::GetChar()
 		}
 
 		ASSERT(_eSearchType == ws_search_e::Chars);
-		_pObj = (_idxObj >= _idxObjMax) ? nullptr : static_cast <CObjBase*> (_vCurContObjs[_idxObj]);
+		_pObj = (_idxObj >= _idxObjMax) ? nullptr : static_cast <CObjBase*> (_ppCurContObjs[_idxObj]);
 		if (_pObj == nullptr)
 		{
 			if (!_fInertToggle && _fAllShow)
 			{
 				_fInertToggle = true;
-				_vCurContObjs = _pSector->m_Chars_Disconnect.GetIterationSafeCont();
-				_idxObjMax = _vCurContObjs.size();
+
+                const size_t sector_obj_num = _pSector->m_Chars_Disconnect.size();
+                if (0 != sector_obj_num)
+                {
+                    if (_ppCurContObjs != nullptr)
+                    {
+                        if (_idxObjMax < sector_obj_num * kuiContainerScaleFactor)
+                        {
+                            delete[] _ppCurContObjs;
+                            _ppCurContObjs = new CSObjContRec * [sector_obj_num * kuiContainerScaleFactor];
+                        }
+                    }
+                    else
+                    {
+                        _ppCurContObjs = new CSObjContRec * [sector_obj_num * 2];
+                    }
+                    memcpy(_ppCurContObjs, _pSector->m_Chars_Disconnect.data(), sector_obj_num * sizeof(CSObjContRec*)); // I need this to be as fast as possible
+                }
+                
+                _idxObjMax = sector_obj_num;
 				_idxObj = 0;
 
-				_pObj = (_idxObj >= _idxObjMax) ? nullptr : static_cast <CObjBase*> (_vCurContObjs[_idxObj]);
+				_pObj = (_idxObj >= _idxObjMax) ? nullptr : static_cast <CObjBase*> (_ppCurContObjs[_idxObj]);
 				if (_pObj != nullptr)
 					goto jumpover;
 			}

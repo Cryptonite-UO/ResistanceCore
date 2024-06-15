@@ -47,13 +47,13 @@ public:
 
 	// Height checks
 
-	static void GetHeightPoint2( const CPointMap & pt, CServerMapBlockState & block, bool fHouseCheck = false );
+	static void GetHeightPoint2(const CPointMap & pt, CServerMapBlockingState & block, bool fHouseCheck = false );
 	static char GetHeightPoint2(const CPointMap & pt, uint64 & uiBlockFlags, bool fHouseCheck = false); // Height of player who walked to X/Y/OLDZ
 
-	static void GetHeightPoint( const CPointMap & pt, CServerMapBlockState & block, bool fHouseCheck = false );
+	static void GetHeightPoint( const CPointMap & pt, CServerMapBlockingState & block, bool fHouseCheck = false );
 	static char GetHeightPoint( const CPointMap & pt, uint64 & uiBlockFlags, bool fHouseCheck = false );
 
-	static void GetFixPoint( const CPointMap & pt, CServerMapBlockState & block);
+	static void GetFixPoint( const CPointMap & pt, CServerMapBlockingState & block);
 
 
 	// Object position-based search
@@ -83,21 +83,22 @@ class CWorldSearch	// define a search of the world.
 	ws_search_e _eSearchType;
 	bool _fInertToggle;			// We are now doing the inert chars.
 
-	std::vector<CSObjContRec*>  _vCurContObjs;	// Sector-attached object container in which we are searching right now.
-	CObjBase*					_pObj;			// The current object of interest.
-	size_t						_idxObj, _idxObjMax;
+	CSObjContRec**      _ppCurContObjs;	// Sector-attached object container in which we are searching right now.
+	CObjBase*			_pObj;			// The current object of interest.
+	size_t				_idxObj, _idxObjMax;
 
+    int		 _iSectorCur;		// What is the current Sector index in m_rectSector
 	CSector * _pSectorBase;		// Don't search the center sector 2 times.
 	CSector * _pSector;			// current Sector
 	CRectMap _rectSector;		// A rectangle containing our sectors we can search.
-	int		 _iSectorCur;		// What is the current Sector index in m_rectSector
 
 public:
 	static const char *m_sClassName;
 	CWorldSearch(const CWorldSearch& copy) = delete;
 	CWorldSearch& operator=(const CWorldSearch& other) = delete;
 
-	explicit CWorldSearch( const CPointMap & pt, int iDist = 0 );
+	explicit CWorldSearch( const CPointMap & pt, int iDist = 0 ) noexcept;
+    ~CWorldSearch() noexcept;
 
 	void SetAllShow( bool fView );
 	void SetSearchSquare( bool fSquareSearch );

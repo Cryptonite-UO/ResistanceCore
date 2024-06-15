@@ -258,9 +258,13 @@ public:
 	uint m_iDebugFlags;         // DEBUG In game effects to turn on and off.
 
 	// Decay
-	int64  m_iDecay_Item;         // Base decay time in minutes (but stored as milliseconds).
-	int64  m_iDecay_CorpsePlayer; // Time in minutes for a playercorpse to decay.
-	int64  m_iDecay_CorpseNPC;    // Time in minutes for a NPC corpse to decay.
+	int64  m_iDecay_Item;           // Base decay time in minutes (but stored as milliseconds).
+	int64  m_iDecay_CorpsePlayer;   // Time in minutes for a playercorpse to decay.
+	int64  m_iDecay_CorpseNPC;      // Time in minutes for a NPC corpse to decay.
+
+#define ITEM_CANTIMER_BASE          0x0 // Timer only if top-level (on map) or equipped directly on a char.
+#define ITEM_CANTIMER_IN_CONTAINER  0x1 // Items can hold a timer even if equipped.
+    uint m_uiItemTimers;            // Flags regulating behavior of timers on items.
 
 	// Save
 	int  m_iSaveNPCSkills;			// Only save NPC skills above this
@@ -464,6 +468,11 @@ public:
 #define	ADVANCEDLOS_NPC				0x02
 	int	m_iAdvancedLos;     // AdvancedLOS
 
+#define DISTANCE_FORMULA_NODIAGONAL_NOZ     0
+#define DISTANCE_FORMULA_DIAGONAL_NOZ       1
+#define DISTANCE_FORMULA_DIAGONAL_Z         2
+    int m_iDistanceFormula;
+
 	// New ones
 	int	m_iFeatureT2A;		// T2A features.
 	int	m_iFeatureLBR;		// LBR features.
@@ -563,10 +572,12 @@ public:
 	int	 m_fUseAsyncNetwork;        // 0=normal send, 1=async send, 2=async send for 4.0.0+ only
 	int	 m_iNetMaxPings;            // max pings before blocking an ip
 	int	 m_iNetHistoryTTL;          // time to remember an ip
-	int	 _uiNetMaxPacketsPerTick;   // max packets to send per tick (per queue)
+	uint _uiNetMaxPacketsPerTick;   // max packets to send per tick (per queue)
 	uint _uiNetMaxLengthPerTick;    // max packet length to send per tick (per queue) (also max length of individual packets)
     int64 _iMaxSizeClientOut;       // Maximum number of bytes a client can send to the server in 10 seconds before being disconnected
     int64 _iMaxSizeClientIn;        // Maximum number of bytes a client can receive from the server in 10 seconds before being disconnected
+    int  _iMaxConnectRequestsPerIP; // Maximum number of connection requests before rejecting/blocking IP.
+    int64 _iTimeoutIncompleteConnectionMs; // Maximum time in milliseconds to wait before closing a connection request wich did not make it into a successful login
 	int	 m_iNetMaxQueueSize;        // max packets to hold per queue (comment out for unlimited)
 	bool m_fUsePacketPriorities;    // true to prioritise sending packets
 	bool m_fUseExtraBuffer;         // true to queue packet data in an extra buffer
@@ -639,9 +650,8 @@ public:
 	CServerConfig();
 	virtual ~CServerConfig();
 
-private:
-	CServerConfig(const CServerConfig& copy);
-	CServerConfig& operator=(const CServerConfig& other);
+	CServerConfig(const CServerConfig& copy) = delete;
+	CServerConfig& operator=(const CServerConfig& other) = delete;
 
 public:
 	virtual bool r_LoadVal( CScript &s ) override;

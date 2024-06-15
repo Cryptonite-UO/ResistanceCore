@@ -732,7 +732,7 @@ char CChar::GetFixZ( const CPointMap& pt, uint64 uiBlockFlags)
 	const int iBlockMaxHeight = std::max(int(iZClimbed + uiHeightMount), int(INT8_MAX));
 	const height_t uiClimbHeight = height_t(std::max(short(iZClimbed + 2), short(UINT8_MAX)));
 
-	CServerMapBlockState block(uiBlockFlags, pt.m_z, iBlockMaxHeight, uiClimbHeight, uiHeightMount);
+	CServerMapBlockingState block(uiBlockFlags, pt.m_z, iBlockMaxHeight, uiClimbHeight, uiHeightMount);
 	CWorldMap::GetFixPoint(pt, block);
 
 	uiBlockFlags = block.m_Bottom.m_uiBlockFlags;
@@ -1369,12 +1369,12 @@ bool CChar::ReadScriptReduced(CResourceLock &s, bool fVendor)
 
 					if (pItem->IsAttr(ATTR_NEWBIE))
 					{
-						if (Calc_GetRandVal(s.GetArgVal()) == 0)
+						if (g_Rand.GetVal(s.GetArgVal()) == 0)
 							pItem->ClrAttr(ATTR_NEWBIE);
 					}
 					else
 					{
-						if (Calc_GetRandVal(s.GetArgVal()) == 0)
+						if (g_Rand.GetVal(s.GetArgVal()) == 0)
 							pItem->SetAttr(ATTR_NEWBIE);
 					}
 					continue;
@@ -1490,15 +1490,15 @@ height_t CChar::GetHeight() const
 		return tmpHeight;
 
     // This is SLOW (since this method is called very frequently)! Move those defs value to CharDef!
-	char * heightDef = Str_GetTemp();
     const uint uiDispID = (uint)pCharDef->GetDispID();
 
-	sprintf(heightDef, "height_0%x", uiDispID);
+    char heightDef[20]{"height_"};
+    Str_FromUI(uint(uiDispID), heightDef + 7, sizeof(heightDef) - 7, 16);
 	tmpHeight = (height_t)(g_Exp.m_VarDefs.GetKeyNum(heightDef));
 	if ( tmpHeight ) //set by a defname ([DEFNAME charheight]  height_0a)
 		return tmpHeight;
 
-	sprintf(heightDef, "height_%u", uiDispID);
+	Str_FromUI(uint(uiDispID), heightDef + 7, sizeof(heightDef) - 7, 10);
 	tmpHeight = (height_t)(g_Exp.m_VarDefs.GetKeyNum(heightDef));
 	if ( tmpHeight ) //set by a defname ([DEFNAME charheight]  height_10)
 		return tmpHeight;
@@ -1556,7 +1556,7 @@ bool CChar::SetDispID(CREID_TYPE id)
         m_dwDispIndex = pCharDef->GetDispID();
         if (!CCharBase::IsValidDispID((CREID_TYPE)(m_dwDispIndex)))
         {
-            g_Log.EventError("DispID of base Char (0% " PRIx32 ") not valid\n", m_dwDispIndex);
+            g_Log.EventError("DispID of base Char (0%" PRIx32 ") not valid\n", m_dwDispIndex);
             return false;
         }
     }
@@ -1572,7 +1572,7 @@ void CChar::SetID( CREID_TYPE id )
 	if ( pCharDef == nullptr )
 	{
 		if ( (id != (CREID_TYPE)-1) && (id != CREID_INVALID) )
-			DEBUG_ERR(("Create Invalid Char 0%x\n", id));
+			DEBUG_ERR(("Setting invalid char ID 0%x\n", id));
 
 		id = (CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, "DEFAULTCHAR"));
 		if ( id < CREID_INVALID )
@@ -1580,10 +1580,10 @@ void CChar::SetID( CREID_TYPE id )
 
 		pCharDef = CCharBase::FindCharBase(id);
 	}
-    
+
     //Update DispId
     m_dwDispIndex = id;
-    
+
 	ASSERT(pCharDef != nullptr);
 
 	CCharBase* pCharOldDef = Char_GetDef();
@@ -1732,7 +1732,7 @@ void CChar::InitPlayer( CClient *pClient, const char *pszCharname, bool fFemale,
 	for ( uint i = 0; i < g_Cfg.m_iMaxSkill; ++i )
 	{
 		if ( g_Cfg.m_SkillIndexDefs.valid_index(i) )
-			Skill_SetBase((SKILL_TYPE)i, (ushort)Calc_GetRandVal(g_Cfg.m_iMaxBaseSkill));
+			Skill_SetBase((SKILL_TYPE)i, (ushort)g_Rand.GetVal(g_Cfg.m_iMaxBaseSkill));
 	}
 
 	if ( wStr > 60 )		wStr = 60;
