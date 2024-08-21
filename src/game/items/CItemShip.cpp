@@ -6,6 +6,7 @@
 #include "../chars/CChar.h"
 #include "../CServer.h"
 #include "../CWorldMap.h"
+#include "../CWorldSearch.h"
 #include "../triggers.h"
 #include "CItemContainer.h"
 #include "CItemShip.h"
@@ -55,7 +56,7 @@ bool CItem::Ship_Plank(bool fOpen)
         m_itShipPlank.m_wSideType = (word)oldType;
         if ( !IsTimerSet() )
         {
-            SetTimeoutS(5); // autoclose the plank 
+            SetTimeoutS(5); // autoclose the plank
             SetAttr(ATTR_DECAY); // For preventing Decay Warning on the console.
         }
     }
@@ -112,7 +113,7 @@ bool CItemShip::r_Verb(CScript & s, CTextConsole * pSrc) // Execute command from
 
 void CItemShip::r_Write(CScript & s)
 {
-    ADDTOCALLSTACK_INTENSIVE("CItemShip::r_Write");
+    ADDTOCALLSTACK_DEBUG("CItemShip::r_Write");
     CItemMulti::r_Write(s);
     if (m_uidHold.IsValidUID())
         s.WriteKeyHex("HATCH", m_uidHold.GetObjUID());
@@ -125,7 +126,7 @@ void CItemShip::r_Write(CScript & s)
     }
 }
 
-enum IMCS_TYPE
+enum IMCS_TYPE : int
 {
     IMCS_HATCH,
     IMCS_PLANK,
@@ -196,7 +197,7 @@ bool CItemShip::r_LoadVal(CScript & s)
     EXC_TRY("LoadVal");
     lpctstr	ptcKey = s.GetKey();
     IMCS_TYPE index = (IMCS_TYPE)FindTableHeadSorted(ptcKey, sm_szLoadKeys, ARRAY_COUNT(sm_szLoadKeys) - 1);
-    if (g_Serv.IsLoading())
+    if (index >= 0 && g_Serv.IsLoading())
     {
         switch (index)
         {
@@ -305,10 +306,10 @@ CItem * CItemShip::GetShipPlank(size_t index)
     // Find plank(s) if the list is empty
     if (m_uidPlanks.empty())
     {
-        CWorldSearch Area(GetTopPoint(), Multi_GetDistanceMax());
+        auto Area = CWorldSearchHolder::GetInstance(GetTopPoint(), Multi_GetDistanceMax());
         for (;;)
         {
-            const CItem * pItem = Area.GetItem();
+            const CItem * pItem = Area->GetItem();
             if (pItem == nullptr)
                 break;
 

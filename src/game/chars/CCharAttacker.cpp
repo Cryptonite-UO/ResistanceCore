@@ -23,6 +23,11 @@ bool CChar::Attacker_Add(CChar * pChar, int threat)
         TRIGRET_TYPE tRet = OnTrigger(CTRIG_CombatStart, pChar, 0);
         if (tRet == TRIGRET_RET_TRUE)
             return false;
+        else
+        {
+            if (pChar->IsNPC())
+                UpdateAnimate(ANIM_ALERT);
+        }
     }
 
     CScriptTriggerArgs Args;
@@ -116,7 +121,7 @@ int CChar::Attacker_GetHighestThreat() const
 {
     ADDTOCALLSTACK("CChar::Attacker_GetHighestThreat");
     if (m_lastAttackers.empty())
-        return -1;
+        return 0;
 
     int highThreat = 0;
     for (const LastAttackers & refAttacker : m_lastAttackers)

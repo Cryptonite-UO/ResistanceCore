@@ -16,29 +16,30 @@
 
 class CLanguageID
 {
-private:
 	// 3 letter code for language.
 	// ENU,FRA,DEU,etc. (see langcode.iff)
 	// terminate with a 0
 	// 0 = english default.
 	char m_codes[4]; // UNICODE language pref. ('ENU'=english)
+
 public:
-	CLanguageID() :
+	CLanguageID() noexcept :
 		m_codes{}
 	{}
-	CLanguageID( const char * pszInit )
+	CLanguageID( const char * pszInit ) noexcept
 	{
 		Set( pszInit );
 	}
-	CLanguageID(int iDefault);
-	bool IsDef() const
+	CLanguageID(int iDefault) noexcept;
+
+	bool IsDef() const noexcept
 	{
 		return ( m_codes[0] != 0 );
 	}
-    void GetStrDef(tchar* pszLang);
-    void GetStr(tchar* pszLang) const;
+    void GetStrDef(tchar* pszLang) noexcept;
+    void GetStr(tchar* pszLang) const noexcept;
     lpctstr GetStr() const;
-    bool Set(lpctstr pszLang);
+    bool Set(lpctstr pszLang) noexcept;
 };
 
 enum XCMD_TYPE	// XCMD_* messages are unique in both directions.
@@ -369,7 +370,7 @@ enum SECURE_TRADE_TYPE
 	SECURE_TRADE_UPDATELEDGER = 4
 };
 
-enum SEASON_TYPE
+enum SEASON_TYPE : uchar
 {
 	// The seasons can be:
 	SEASON_Spring = 0,
@@ -384,11 +385,11 @@ enum SEASON_TYPE
 enum BBOARDF_TYPE	// Bulletin Board Flags. m_flag
 {
 	BBOARDF_NAME = 0,	// board name
-	BBOARDF_MSG_HEAD,	// 1=message header, 
+	BBOARDF_MSG_HEAD,	// 1=message header,
 	BBOARDF_MSG_BODY,	// 2=message body
 	BBOARDF_REQ_FULL,	// 3=request for full msg.
 	BBOARDF_REQ_HEAD,	// 4=request for just head.
-	BBOARDF_NEW_MSG,	// 5=new message, 
+	BBOARDF_NEW_MSG,	// 5=new message,
 	BBOARDF_DELETE		// 6=Delete
 };
 
@@ -539,7 +540,7 @@ enum MAPWAYPOINT_TYPE
 	MAPWAYPOINT_GreenDotFlashing = 0xF
 };
 
-enum WEATHER_TYPE
+enum WEATHER_TYPE : uchar
 {
 	WEATHER_DEFAULT = 0xFE,
 	WEATHER_DRY = 0xFF,
@@ -719,6 +720,7 @@ enum RACE_TYPE		// character race, used in new character creation (0x8D) and sta
 /*
     Client Versions numeric constants.
     WARNING: DEPRECATED! Use CUOClientVersion (or at least wrap those numbers in that class).
+    TODO: convert them to CUOClientVersion.
 */
 
 // client versions (expansions)

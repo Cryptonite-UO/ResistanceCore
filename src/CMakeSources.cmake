@@ -89,6 +89,8 @@ src/game/uo_files/CUOMapList.h
 src/game/uo_files/CUOMapList.cpp
 src/game/uo_files/CUOMapMeter.h
 src/game/uo_files/CUOMapMeter.cpp
+src/game/uo_files/CUOMobtypes.h
+src/game/uo_files/CUOMobtypes.cpp
 src/game/uo_files/CUOMultiItemRec.h
 src/game/uo_files/CUOMultiItemRec.cpp
 src/game/uo_files/CUOStaticItemRec.h
@@ -240,6 +242,7 @@ src/common/sphere_library/CSObjList.h
 src/common/sphere_library/CSObjListRec.h
 src/common/sphere_library/CSObjSortArray.h
 src/common/sphere_library/CSPtrTypeArray.h
+src/common/sphere_library/CSReferenceCount.h
 src/common/sphere_library/CSTypedArray.h
 src/common/sphere_library/CSQueue.cpp
 src/common/sphere_library/CSQueue.h
@@ -252,6 +255,7 @@ src/common/sphere_library/CSTime.h
 src/common/sphere_library/CSWindow.cpp
 src/common/sphere_library/CSWindow.h
 src/common/sphere_library/scontainer_ops.h
+src/common/sphere_library/sfastmath.h
 src/common/sphere_library/smap.h
 src/common/sphere_library/smutex.h
 src/common/sphere_library/smutex.cpp
@@ -266,6 +270,7 @@ src/common/sphere_library/sstring.cpp
 src/common/sphere_library/sstring.h
 src/common/sphere_library/sstringobjs.cpp
 src/common/sphere_library/sstringobjs.h
+src/common/sphere_library/stypecast.h
 )
 SOURCE_GROUP (common\\sphere_library FILES ${spherelibrary_SRCS})
 
@@ -333,6 +338,8 @@ src/game/CWorldGameTime.h
 src/game/CWorldImport.cpp
 src/game/CWorldMap.cpp
 src/game/CWorldMap.h
+src/game/CWorldSearch.cpp
+src/game/CWorldSearch.h
 src/game/CWorldTicker.cpp
 src/game/CWorldTicker.h
 src/game/CWorldTickingList.cpp

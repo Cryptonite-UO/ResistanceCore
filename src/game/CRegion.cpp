@@ -21,7 +21,7 @@ CRegion::CRegion( CResourceID rid, lpctstr pszName ) :
 {
 	ADDTOCALLSTACK("CRegion::CRegion()");
 	m_dwFlags	= 0;
-	m_iModified	= 0;
+	m_dwModifiedFlags	= 0;
 	m_iLinkedSectors = 0;
 	if ( pszName )
 		SetName( pszName );
@@ -35,14 +35,12 @@ CRegion::~CRegion()
 	UnRealizeRegion();
 }
 
-void CRegion::SetModified( int iModFlag ) noexcept
+void CRegion::SetModified( dword dwModFlag ) noexcept
 {
-#ifdef _MSC_VER
-    //_CrtCheckMemory();
-#endif
 	if ( !m_iLinkedSectors )
         return;
-	m_iModified	= m_iModified | iModFlag;
+
+	m_dwModifiedFlags = m_dwModifiedFlags | dwModFlag;
 }
 
 void CRegion::UnRealizeRegion()
@@ -86,7 +84,7 @@ bool CRegion::RealizeRegion()
 			//	Yes, this sector overlapped, so add it to the sector list
 			if ( !pSector->LinkRegion(this) )
 			{
-				g_Log.EventError("Linking sector #%d for map %d for region %s failed (fatal for this region).\n", i, m_pt.m_map, GetName());
+				g_Log.EventError("Linking sector #%d (map %d) for region %s failed (fatal for this region).\n", i, int(m_pt.m_map), GetName());
 				return false;
 			}
 			++m_iLinkedSectors;
@@ -195,9 +193,13 @@ bool CRegion::MakeRegionDefname()
         // Is this is subsequent key with a number? Get the highest (plus one)
         if ( IsStrNumericDec( ptcKey ) )
         {
-            int iVarThis = Str_ToI( ptcKey );
-            if ( iVarThis >= iVar )
-                iVar = iVarThis + 1;
+            std::optional<int> iconv = Str_ToI( ptcKey );
+            if (iconv.has_value())
+            {
+                int iVarThis = iconv.value();
+                if ( iVarThis >= iVar )
+                    iVar = iVarThis + 1;
+            }
         }
         else
             ++iVar;
@@ -210,7 +212,7 @@ bool CRegion::MakeRegionDefname()
     return true;
 }
 
-enum RC_TYPE
+enum RC_TYPE : int // Even if it would implicitly be set to int, specify it to silence UBSanitizer.
 {
 	RC_ANNOUNCE,
 	RC_ARENA,
@@ -638,18 +640,18 @@ void CRegion::r_WriteBody( CScript & s, lpctstr pszPrefix )
 void CRegion::r_WriteModified( CScript &s )
 {
 	ADDTOCALLSTACK("CRegion::r_WriteModified");
-	if ( m_iModified & REGMOD_NAME )
+	if ( m_dwModifiedFlags & REGMOD_NAME )
 		s.WriteKeyStr("NAME", GetName() );
 
-	if ( m_iModified & REGMOD_GROUP )
+	if ( m_dwModifiedFlags & REGMOD_GROUP )
 		s.WriteKeyStr("GROUP", m_sGroup.GetBuffer() );
 
-	if ( m_iModified & REGMOD_FLAGS )
+	if ( m_dwModifiedFlags & REGMOD_FLAGS )
 	{
 		s.WriteKeyHex("FLAGS", GetRegionFlags() );
 	}
 
-	if ( m_iModified & REGMOD_EVENTS )
+	if ( m_dwModifiedFlags & REGMOD_EVENTS )
 	{
 		CSString sVal;
 		m_Events.WriteResourceRefList( sVal );
@@ -684,7 +686,7 @@ void CRegion::r_WriteBase( CScript &s )
 
 void CRegion::r_Write( CScript &s )
 {
-	ADDTOCALLSTACK_INTENSIVE("CRegion::r_Write");
+	ADDTOCALLSTACK_DEBUG("CRegion::r_Write");
 	s.WriteSection( "ROOMDEF %s", GetResourceName() );
 	r_WriteBase( s );
 }
@@ -792,7 +794,7 @@ bool CRegion::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 				CChar * pChar = pClient->GetChar();
 				if ( !pChar || ( pChar->GetRegion() != this ))
 					continue;
-				
+
 				CScript script(s.GetArgRaw());
 				script.CopyParseState(s);
 				pChar->r_Verb(script, pSrc);
@@ -1006,7 +1008,7 @@ void CRegionWorld::r_WriteModified( CScript &s )
 	ADDTOCALLSTACK("CRegionWorld::r_WriteModified");
 	CRegion::r_WriteModified( s );
 
-	if ( m_iModified & REGMOD_TAGS )
+	if ( m_dwModifiedFlags & REGMOD_TAGS )
 	{
 		m_TagDefs.r_WritePrefix(s, "TAG", "GUARDOWNER");
 	}
@@ -1022,7 +1024,7 @@ void CRegionWorld::r_WriteBody( CScript &s, lpctstr pszPrefix )
 
 void CRegionWorld::r_Write( CScript &s )
 {
-	ADDTOCALLSTACK_INTENSIVE("CRegionWorld::r_Write");
+	ADDTOCALLSTACK_DEBUG("CRegionWorld::r_Write");
 	s.WriteSection( "AREADEF %s", GetResourceName());
 	r_WriteBase( s );
 

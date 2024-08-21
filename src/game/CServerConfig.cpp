@@ -45,6 +45,7 @@ CServerConfig::CServerConfig()
 	_iMapCacheTime		= 2ll  * 60 * MSECS_PER_SEC;
 	_iSectorSleepDelay  = 10ll * 60 * MSECS_PER_SEC;
 	m_fUseMapDiffs		= false;
+    m_fUseMobTypes      = false;
 
 	m_iDebugFlags			= 0;	//DEBUGF_NPC_EMOTE
 	m_fSecure				= true;
@@ -707,6 +708,7 @@ enum RC_TYPE
 	RC_USEEXTRABUFFER,			// m_fUseExtraBuffer
 	RC_USEHTTP,					// m_fUseHTTP
 	RC_USEMAPDIFFS,				// m_fUseMapDiffs
+    RC_USEMOBTYPES,             // m_fUseMobTypes
 	RC_USENOCRYPT,				// m_Usenocrypt
 	RC_USEPACKETPRIORITY,		// m_fUsePacketPriorities
 	RC_VENDORMARKUP,			// m_iVendorMarkup
@@ -729,7 +731,7 @@ enum RC_TYPE
 
 const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
 
-{ 
+{
     { "ACCTFILES",				{ ELEM_CSTRING,	static_cast<uint>OFFSETOF(CServerConfig,m_sAcctBaseDir)			}},
     { "ADVANCEDLOS",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iAdvancedLos)			}},
     { "AGREE",					{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fAgree)				}},
@@ -818,9 +820,9 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
     { "DUNGEONLIGHT",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iLightDungeon)			}},
     { "EMOTEFLAGS",				{ ELEM_MASK_INT,static_cast<uint>OFFSETOF(CServerConfig,m_iEmoteFlags)			}},
     { "EQUIPPEDCAST",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fEquippedCast)			}},
-    { "ERALIMITGEAR",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,_iEraLimitGear)			}},
-    { "ERALIMITLOOT",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,_iEraLimitLoot)			}},
-    { "ERALIMITPROPS",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,_iEraLimitProps)			}},
+    { "ERALIMITGEAR",			{ ELEM_BYTE,	static_cast<uint>OFFSETOF(CServerConfig,_iEraLimitGear)			}},
+    { "ERALIMITLOOT",			{ ELEM_BYTE,	static_cast<uint>OFFSETOF(CServerConfig,_iEraLimitLoot)			}},
+    { "ERALIMITPROPS",			{ ELEM_BYTE,	static_cast<uint>OFFSETOF(CServerConfig,_iEraLimitProps)			}},
     { "EVENTSITEM",				{ ELEM_CSTRING, static_cast<uint>OFFSETOF(CServerConfig,m_sEventsItem)			}},
     { "EVENTSPET",				{ ELEM_CSTRING,	static_cast<uint>OFFSETOF(CServerConfig,m_sEventsPet)			}},
     { "EVENTSPLAYER",			{ ELEM_CSTRING,	static_cast<uint>OFFSETOF(CServerConfig,m_sEventsPlayer)			}},
@@ -992,6 +994,7 @@ const CAssocReg CServerConfig::sm_szLoadKeys[RC_QTY + 1]
 	{ "USEEXTRABUFFER",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fUseExtraBuffer)		}},
 	{ "USEHTTP",				{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_fUseHTTP)				}},
 	{ "USEMAPDIFFS",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fUseMapDiffs)			}},
+    { "USEMOBTYPES",			{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fUseMobTypes)			} },
 	{ "USENOCRYPT",				{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fUsenocrypt)			}},	// we don't want no-crypt clients
 	{ "USEPACKETPRIORITY",		{ ELEM_BOOL,	static_cast<uint>OFFSETOF(CServerConfig,m_fUsePacketPriorities)	}},
 	{ "VENDORMARKUP",			{ ELEM_INT,		static_cast<uint>OFFSETOF(CServerConfig,m_iVendorMarkup)			}},
@@ -2329,13 +2332,13 @@ static constexpr lpctstr _ptcStatName[STAT_QTY] = // not alphabetically sorted o
 
 STAT_TYPE CServerConfig::GetStatKey( lpctstr ptcKey ) // static
 {
-	//ADDTOCALLSTACK_INTENSIVE("CServerConfig::GetStatKey");
+	//ADDTOCALLSTACK_DEBUG("CServerConfig::GetStatKey");
 	return (STAT_TYPE) FindTable( ptcKey, _ptcStatName, ARRAY_COUNT(_ptcStatName));
 }
 
 lpctstr CServerConfig::GetStatName(STAT_TYPE iKey) // static
 {
-    //ADDTOCALLSTACK_INTENSIVE("CServerConfig::GetStatName");
+    //ADDTOCALLSTACK_DEBUG("CServerConfig::GetStatName");
     ASSERT(iKey >= STAT_STR && iKey < STAT_QTY);
     return _ptcStatName[iKey];
 }
@@ -2683,7 +2686,11 @@ CPointMap CServerConfig::GetRegionPoint( lpctstr pCmd ) const // Decode a telepo
             return CPointMap();
 
         SKIP_NONNUM(pCmd);
-		size_t i = Str_ToUI(pCmd);
+        std::optional<uint> iconv = Str_ToU(pCmd);
+        if (!iconv.has_value())
+            return CPointMap();
+
+		size_t i = iconv.value();
         if (i > 0)
         {
             i -= 1;
@@ -3761,8 +3768,14 @@ bool CServerConfig::LoadResourceSection( CScript * pScript )
 
 					if (iStartVersion == 2)
 					{
-						if ( pScript->ReadKey())
-							pStart->iClilocDescription = Str_ToI(pScript->GetKey());
+                        if ( pScript->ReadKey())
+                        {
+                            std::optional<int> iconv = Str_ToI(pScript->GetKey());
+                            if (!iconv.has_value())
+                                continue;
+
+                            pStart->iClilocDescription = *iconv;
+                        }
 					}
 				}
 				m_StartDefs.emplace_back(pStart);
@@ -3975,7 +3988,7 @@ CResourceID CServerConfig::ResourceGetNewID( RES_TYPE restype, lpctstr pszName, 
 			{
 				// For a book the page is... the page number
 				// For a REGIONTYPE block, the page (pArg2) is the landtile type associated with the REGIONTYPE
-                int iArgPage = RES_GET_INDEX(Exp_GetVal(pArg2));
+                int iArgPage = ResGetIndex(Exp_GetDWVal(pArg2));
                 if ( iArgPage < RES_PAGE_MAX )
                     wPage = (word)iArgPage;
                 else
@@ -4653,11 +4666,11 @@ bool CServerConfig::Load( bool fResync )
 	{
 		if ( ! OpenResourceFind( m_scpTables, SPHERE_FILE "tables" SPHERE_SCRIPT ))
 		{
-			g_Log.Event( LOGL_FATAL|LOGM_INIT, "Error opening table definitions file (" SPHERE_FILE "tables." SPHERE_SCRIPT ")...\n" );
+			g_Log.Event( LOGL_FATAL|LOGM_INIT, "Error opening table definitions file (" SPHERE_FILE "tables" SPHERE_SCRIPT ")...\n" );
 			return false;
 		}
 
-        g_Log.Event(LOGL_EVENT|LOGM_INIT, "Loading table definitions file (" SPHERE_FILE "tables." SPHERE_SCRIPT ")...\n");
+        g_Log.Event(LOGL_EVENT|LOGM_INIT, "Loading table definitions file (" SPHERE_FILE "tables" SPHERE_SCRIPT ")...\n");
 		LoadResourcesOpen(&m_scpTables);
 		m_scpTables.Close();
 	}

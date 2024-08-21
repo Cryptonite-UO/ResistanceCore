@@ -17,11 +17,13 @@
 #include "../CWorld.h"
 #include "../CWorldGameTime.h"
 #include "../CWorldMap.h"
+#include "../CWorldSearch.h"
 #include "../CWorldTickingList.h"
 #include "../spheresvr.h"
 #include "../triggers.h"
 #include "CChar.h"
 #include "CCharNPC.h"
+#include "../../common/CUOInstall.h"
 
 // "GONAME", "GOTYPE", "GOCHAR"
 // 0 = object name
@@ -40,7 +42,7 @@ bool CChar::TeleportToObj( int iType, tchar * pszArgs )
 	{
 		if ( pszArgs[0] && iType == 1 )
 			dwUID = 0;
-		iArg = RES_GET_INDEX( Exp_GetVal( pszArgs ));
+		iArg = ResGetIndex( Exp_GetVal( pszArgs ));
 	}
 
 	while ( dwCount-- )
@@ -396,9 +398,10 @@ void CChar::LayerAdd( CItem * pItem, LAYER_TYPE layer )
 void CChar::OnRemoveObj( CSObjContRec* pObRec )	// Override this = called when removed from list.
 {
 	ADDTOCALLSTACK("CChar::OnRemoveObj");
+
+    ASSERT(pObRec);
+    ASSERT(dynamic_cast<const CItem*>(pObRec));
 	CItem * pItem = static_cast <CItem*>(pObRec);
-	if ( !pItem )
-		return;
 
 	LAYER_TYPE layer = pItem->GetEquipLayer();
 	if (( IsTrigUsed(TRIGGER_UNEQUIP) ) || ( IsTrigUsed(TRIGGER_ITEMUNEQUIP) ))
@@ -898,169 +901,1345 @@ ANIM_TYPE CChar::GenerateAnimate( ANIM_TYPE action, bool fTranslate, bool fBackw
 			case ANIM_SALUTE:
 			case ANIM_EAT:
 				return ANIM_HORSE_ATTACK_XBOW;
+            case ANIM_ALERT:
+            case ANIM_SUMMON:
+                return ANIM_HORSE_STAND;
+            case ANIM_PILLAGE:
+                return ANIM_HORSE_SLAP;
 			default:
 				return ANIM_HORSE_STAND;
 			}
 		}
-		else if (!IsPlayableCharacter())  //( GetDispID() < CREID_MAN ) Possible fix for anims not being displayed above 400
+		else if (!IsPlayableCharacter())
 		{
 			// Animals have certain anims. Monsters have others.
 
-			if (GetDispID() >= CREID_HORSE_TAN)
-			{
-				// All animals have all these anims thankfully
-				switch (action)
-				{
-					case ANIM_WALK_UNARM:
-					case ANIM_WALK_ARM:
-					case ANIM_WALK_WAR:
-						return ANIM_ANI_WALK;
-					case ANIM_RUN_UNARM:
-					case ANIM_RUN_ARMED:
-						return ANIM_ANI_RUN;
-					case ANIM_STAND:
-					case ANIM_STAND_WAR_1H:
-					case ANIM_STAND_WAR_2H:
+            CUOMobTypesEntry mobTypesRow {MOBTE_QTY, 0};
+            CREID_TYPE dispID = GetDispID();
+            bool fUseMobTypes = g_Cfg.m_fUseMobTypes && g_Install.m_mobtypes.IsLoaded();
 
-					case ANIM_FIDGET1:
-						return ANIM_ANI_FIDGET1;
-					case ANIM_FIDGET_YAWN:
-						return ANIM_ANI_FIDGET2;
-					case ANIM_CAST_DIR:
-						return ANIM_ANI_ATTACK1;
-					case ANIM_CAST_AREA:
-						return ANIM_ANI_EAT;
-					case ANIM_GET_HIT:
-						return ANIM_ANI_GETHIT;
+            //Check mobtypes.txt to get the anim type
+            if (fUseMobTypes)
+            {
+                const CUOMobTypesEntry *pMobtEntry = g_Install.m_mobtypes.GetEntry(dispID);
 
-					case ANIM_ATTACK_1H_SLASH:
-					case ANIM_ATTACK_1H_PIERCE:
-					case ANIM_ATTACK_1H_BASH:
-					case ANIM_ATTACK_2H_BASH:
-					case ANIM_ATTACK_2H_SLASH:
-					case ANIM_ATTACK_2H_PIERCE:
-					case ANIM_ATTACK_BOW:
-					case ANIM_ATTACK_XBOW:
-					case ANIM_ATTACK_WRESTLE:
-						switch (g_Rand.GetVal(2))
-						{
-							case 0: return ANIM_ANI_ATTACK1;
-							case 1: return ANIM_ANI_ATTACK2;
-						}
+                if (pMobtEntry->m_uiType == MOBTE_QTY)
+                {
+                    // Invalid entry, fall back to old method.
+                    fUseMobTypes = false;
+                }
+                else
+                {
+                    mobTypesRow.m_uiType = pMobtEntry->m_uiType;
+                    mobTypesRow.m_uiFlags = pMobtEntry->m_uiFlags;
+                }
+            }
+
+            if (!fUseMobTypes)
+            {
+                //Old Method
+                mobTypesRow.m_uiType = (dispID >= CREID_HORSE_TAN) ? MOBTE_ANIMAL : MOBTE_MONSTER;
+            }
+
+            //Standard UOP Animations
+            if (mobTypesRow.m_uiFlags & ATFLAG_UseUopAnimation)
+            {
+
+                //Only mount animations, 3 actions
+                if (dispID == CREID_BOURA_AR || dispID == CREID_TARANTULA || dispID == CREID_DRAGON_SERPENTINE_ETH)
+                {
+                    switch (action)
+                    {
+                        case ANIM_WALK_UNARM:
+                        case ANIM_WALK_ARM:
+                        case ANIM_WALK_WAR:
+                        case ANIM_CAST_DIR:
+                        case ANIM_CAST_AREA:
+                        case ANIM_GET_HIT:
+                        case ANIM_ATTACK_1H_SLASH:
+                        case ANIM_ATTACK_1H_PIERCE:
+                        case ANIM_ATTACK_1H_BASH:
+                        case ANIM_ATTACK_2H_BASH:
+                        case ANIM_ATTACK_2H_SLASH:
+                        case ANIM_ATTACK_2H_PIERCE:
+                        case ANIM_ATTACK_WRESTLE:
+                        case ANIM_ATTACK_BOW:
+                        case ANIM_ATTACK_XBOW:
+                        case ANIM_HORSE_RIDE_SLOW:
+                            return ANIM_UOP_WALK_MOUNTED;
+
+                        case ANIM_RUN_UNARM:
+                        case ANIM_RUN_ARMED:
+                        case ANIM_HORSE_RIDE_FAST:
+                              return ANIM_UOP_RUN_MOUNTED;
+
+                        default:
+                            return ANIM_UOP_STAND_MOUNTED;
+                    }
+                }
+                //Only 3 actions
+                else if (dispID == CREID_HOMUNCULUS)
+                {
+                    switch (action)
+                    {
+                        case ANIM_DIE_BACK:
+                        case ANIM_DIE_FORWARD:
+                            return ANIM_UOP_DIE_BACKWARD;
+
+                        case ANIM_SPECIAL:
+                        case ANIM_SUMMON:
+                            return ANIM_UOP_SPECIAL;
+
+                        default:
+                            return ANIM_UOP_STAND;
+                    }
+                }
+
+                switch (action)
+                {
+                    case ANIM_WALK_UNARM:
+                    case ANIM_WALK_ARM:
+                        //Creatures without walk animation
+                        if (dispID == CREID_TUNNEL_SPIRIT_BODY || dispID == CREID_CHARYBDIS || (dispID >= CREID_PUMPKIN_DEMON && dispID <= CREID_CLOCKWORK_EXODUS) || dispID == CREID_JACK_IN_THE_BOX)
+                        {
+                            return ANIM_UOP_WALK_COMBAT;
+                        }
+                        else if (dispID == CREID_ANIMATED_WEAPON || dispID == CREID_LITHOS)
+                        {
+                            return ANIM_UOP_STAND;
+                        }
+                        else if (dispID == CREID_TS_TENTACLE || dispID == CREID_CHARYBDIS_TENTACLE)
+                        {
+                            return ANIM_UOP_STAND_COMBAT;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_WALK;
+                        }
+
+                    case ANIM_WALK_WAR:
+                        //Creatures without walk combat animation
+                        if (dispID == CREID_PARROT_BIRD || dispID == CREID_TURKEY_GIANT || dispID == CREID_HELLHOUND_ANCIENT || dispID == CREID_GIANT_GORILLA || dispID == CREID_HORSE_PALOMINO)
+                        {
+                            return ANIM_UOP_WALK;
+                        }
+                        else if (dispID == CREID_PHOENIX)
+                        {
+                            return ANIM_UOP_FLY;
+                        }
+                        else if (dispID == CREID_ANIMATED_WEAPON || dispID == CREID_TS_TENTACLE || dispID == CREID_CHARYBDIS_TENTACLE || dispID == CREID_LITHOS)
+                        {
+                            return ANIM_UOP_STAND_COMBAT;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_WALK_COMBAT;
+                        }
+
+                    case ANIM_RUN_UNARM:
+                    case ANIM_RUN_ARMED:
+                        //If the creature can fly we can use flying action for running
+                        if (mobTypesRow.m_uiFlags & ATFLAG_CanFlying)
+                        {
+                            //Phoenix and Parrot Bird don't have run anims
+                            if (IsStatFlag(STATF_FLY | STATF_HOVERING) || (dispID == CREID_PARROT_BIRD || dispID == CREID_PHOENIX) )
+                                return ANIM_UOP_FLY;
+                            else
+                                return ANIM_UOP_RUN;
+                        }
+                        else
+                        {
+                            //Creatures without run anim
+                            if (dispID == CREID_TUNNEL_SPIRIT_BODY || dispID == CREID_CHARYBDIS || (dispID >= CREID_PUMPKIN_DEMON && dispID <= CREID_CLOCKWORK_EXODUS))
+                            {
+                                return ANIM_UOP_WALK_COMBAT;
+                            }
+                            else if (dispID == CREID_ANIMATED_WEAPON)
+                            {
+                                return ANIM_UOP_STAND;
+                            }
+                            else if (dispID == CREID_TS_TENTACLE || dispID == CREID_CHARYBDIS_TENTACLE)
+                            {
+                                return ANIM_UOP_STAND_COMBAT;
+                            }
+                            else
+                            {
+                                return ANIM_UOP_RUN;
+                            }
+                        }
+
+                    case ANIM_STAND:
+                        //Creatures without stand anim
+                        if (dispID == CREID_TUNNEL_SPIRIT_BODY || dispID == CREID_TS_TENTACLE || dispID == CREID_CHARYBDIS || dispID == CREID_CHARYBDIS_TENTACLE || dispID == CREID_CLOCKWORK_EXODUS || dispID == CREID_JACK_IN_THE_BOX)
+                        {
+                            return ANIM_UOP_STAND_COMBAT;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_STAND;
+                        }
+
+                    case ANIM_STAND_WAR_1H:
+                    case ANIM_STAND_WAR_2H:
+                        if (dispID == CREID_PARROT_BIRD)
+                        {
+                            return ANIM_UOP_STAND;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_STAND_COMBAT;
+                        }
+
+                    case ANIM_FIDGET1:
+                    case ANIM_BOW:
+                    case ANIM_EAT:
+                        if (dispID == CREID_PUMPKIN_FRIGHT)
+                        {
+                            return ANIM_UOP_PEACE_TO_COMBAT;
+                        }
+                        else if (dispID == CREID_ANIMATED_WEAPON || dispID == CREID_TUNNEL_SPIRIT_BODY || dispID == CREID_TS_TENTACLE || (dispID >= CREID_CHARYBDIS && dispID <= CREID_CLOCKWORK_EXODUS) || dispID == CREID_JACK_IN_THE_BOX)
+                        {
+                            return ANIM_UOP_SPECIAL;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_FIDGET;
+                        }
+
+                    case ANIM_FIDGET_YAWN:
+                    case ANIM_SALUTE:
+                        if (dispID == CREID_PARROT_BIRD || dispID == CREID_PHOENIX || dispID == CREID_TURKEY_GIANT || dispID == CREID_PUMPKIN_DEMON)
+                        {
+                            return ANIM_UOP_FIDGET;
+                        }
+                        else if(dispID == CREID_PUMPKIN_FRIGHT)
+                        {
+                            return ANIM_UOP_PEACE_TO_COMBAT;
+                        }
+                        else if (dispID == CREID_ANIMATED_WEAPON || dispID == CREID_TS_TENTACLE || (dispID >= CREID_CHARYBDIS && dispID <= CREID_CLOCKWORK_EXODUS))
+                        {
+                            return ANIM_UOP_SPECIAL;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_ROAR;
+                        }
+
+                    case ANIM_CAST_DIR:
+                    case ANIM_CAST_AREA:
+                    case ANIM_ATTACK_BOW:
+                    case ANIM_ATTACK_XBOW:
+                    case ANIM_THROW:
+
+                        // 2 actions for cast
+                        if (dispID == CREID_CLOCKWORK_EXODUS)
+                        {
+                            switch (g_Rand.GetVal(2))
+                            {
+                                case 0: return ANIM_UOP_CAST_1; break;
+                                case 1: return ANIM_UOP_CAST_2; break;
+                            }
+                        }
+                        //Creatures with cast action
+                        else if (dispID == CREID_DRAGON_CRIMSON || dispID == CREID_DRAGON_PLATINUM || dispID == CREID_GRUBBER || dispID == CREID_STONE_FORM || dispID == CREID_ABYSSAL_INFERNAL
+                            || (dispID >= CREID_ELEM_LAVA && dispID <= CREID_GARG_UNDEAD) || dispID == CREID_GOBLIN_GREEN_MAGE || dispID == CREID_MEDUSA || dispID == CREID_SLASHER_VEILS
+                            || dispID == CREID_DRAGON_STYGIAN || dispID == CREID_LICH_PRIMEVAL || dispID == CREID_SCALIS || dispID == CREID_HELLHOUND_ANCIENT || dispID == CREID_MINOTAUR_LORD
+                            || dispID == CREID_PUMPKIN_FRIGHT || dispID == CREID_CLOCKWORK_EXODUS || dispID == CREID_MYRMIDEX_DRONE || dispID == CREID_MYRMIDEX_WARRIOR || dispID == CREID_ZIPACTRIOTL
+                            || dispID == CREID_LASHER || dispID == CREID_WINDRUNNER || dispID == CREID_HYDROS || dispID == CREID_JACK_IN_THE_BOX || (dispID >= CREID_LITHOS && dispID <= CREID_PYROS)
+                            || dispID == CREID_KHAL_ANKUR || dispID == CREID_WAR_BOAR_MOUNT)
+                        {
+                            return ANIM_UOP_CAST_1;
+                        }
+                        else if (dispID == CREID_PARROT_BIRD || dispID == CREID_PHOENIX || dispID == CREID_TURKEY_GIANT)
+                        {
+                            return ANIM_UOP_FIDGET;
+                        }
+                        else if (dispID == CREID_ANIMATED_WEAPON)
+                        {
+                            return ANIM_UOP_SPECIAL;
+                        }
+                        else if (dispID == CREID_TS_TENTACLE || dispID == CREID_CHARYBDIS_TENTACLE)
+                        {
+                            return ANIM_UOP_ATTACK_1;
+                        }
+                        else if (dispID == CREID_CHARYBDIS)
+                        {
+                            return ANIM_UOP_GETHIT;
+                        }
+                        else if (dispID == CREID_PUMPKIN_DEMON)
+                        {
+                            return ANIM_UOP_PEACE_TO_COMBAT;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_ROAR;
+                        }
                         break;
-					case ANIM_DIE_BACK:
-						return ANIM_ANI_DIE1;
-					case ANIM_DIE_FORWARD:
-						return ANIM_ANI_DIE2;
-					case ANIM_BLOCK:
-					case ANIM_BOW:
-					case ANIM_SALUTE:
-						return ANIM_ANI_SLEEP;
-					case ANIM_EAT:
-						return ANIM_ANI_EAT;
-					default:
-						break;
-				}
 
-				ASSERT(action < ANIM_MASK_MAX);
-				while (action != ANIM_WALK_UNARM && !(pCharDef->m_Anims & (1ULL << action)))
-				{
-					// This anim is not supported. Try to use one that is.
-					switch (action)
-					{
-						case ANIM_ANI_SLEEP:	// All have this.
-							return ANIM_ANI_EAT;
-						default:
-							return ANIM_WALK_UNARM;
-					}
-				}
+                    case ANIM_GET_HIT:
+                        //No GetHit
+                        if (dispID == CREID_TURKEY_GIANT || dispID == CREID_CLOCKWORK_EXODUS)
+                        {
+                            return ANIM_UOP_STAND_COMBAT;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_GETHIT;
+                        }
+                        break;
+
+                    case ANIM_ATTACK_1H_SLASH:
+                    case ANIM_ATTACK_1H_PIERCE:
+                    case ANIM_ATTACK_1H_BASH:
+                    case ANIM_ATTACK_2H_BASH:
+                    case ANIM_ATTACK_2H_SLASH:
+                    case ANIM_ATTACK_2H_PIERCE:
+                    case ANIM_ATTACK_WRESTLE:
+                        //No attack
+                        if (dispID == CREID_TUNNEL_SPIRIT_BODY || dispID == CREID_CHARYBDIS)
+                        {
+                            return ANIM_UOP_BLOCK;
+                        }
+                        else if (dispID == CREID_PARROT_BIRD)
+                        {
+                            return ANIM_UOP_FIDGET;
+                        }
+                        //No attack 2
+                        else if (dispID == CREID_ANIMATED_WEAPON || dispID == CREID_TS_TENTACLE || dispID == CREID_TURKEY_GIANT || dispID == CREID_HORSE_PALOMINO || dispID == CREID_BLOOD_FOX || dispID == CREID_KRUMPUS_IMP || (dispID >= CREID_CHARYBDIS_TENTACLE && dispID <= CREID_PUMPKIN_FRIGHT) || (dispID >= CREID_DOG_NEWFOUNDLAND && dispID <= CREID_DOG_ROTTWEILER))
+                        {
+                            return ANIM_UOP_ATTACK_1;
+                        }
+                        else
+                        {
+                            switch (g_Rand.GetVal(2))
+                            {
+                                case 0: return ANIM_UOP_ATTACK_1; break;
+                                case 1: return ANIM_UOP_ATTACK_2; break;
+                            }
+                            break;
+                        }
+
+                    case ANIM_DIE_BACK:
+                        return ANIM_UOP_DIE_BACKWARD;
+
+                    case ANIM_DIE_FORWARD:
+                        //No die forward
+                        if (dispID == CREID_ANIMATED_WEAPON || dispID == CREID_TUNNEL_SPIRIT_BODY || dispID == CREID_TS_TENTACLE || dispID == CREID_PARROT_BIRD || dispID == CREID_PHOENIX || dispID == CREID_TURKEY_GIANT
+                            || dispID == CREID_HELLHOUND_ANCIENT || (dispID >= CREID_CHARYBDIS && dispID <= CREID_PUMPKIN_FRIGHT) || dispID == CREID_GIANT_GORILLA || dispID == CREID_BLOOD_FOX || dispID == CREID_FROST_MITE
+                            || dispID == CREID_STRATOS || dispID == CREID_KRUMPUS_IMP || (dispID >= CREID_WAR_BOAR_MOUNT && dispID <= CREID_WAR_CAPYBARA_BABY) || (dispID >= CREID_RABBIT_DOOM_BABY && dispID <= CREID_DOG_ROTTWEILER))
+                        {
+                            return ANIM_UOP_DIE_BACKWARD;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_DIE_FORWARD;
+                        }
+
+                    case ANIM_BLOCK:
+                        //No Block
+                        if (dispID == CREID_TURKEY_GIANT || dispID == CREID_CLOCKWORK_EXODUS)
+                        {
+                            return ANIM_UOP_STAND_COMBAT;
+                        }
+                        else if (dispID == CREID_ANIMATED_WEAPON || dispID == CREID_TS_TENTACLE || dispID == CREID_PARROT_BIRD || dispID == CREID_PHOENIX || dispID == CREID_CHARYBDIS_TENTACLE || dispID == CREID_PUMPKIN_FRIGHT || dispID == CREID_FROST_MITE)
+                        {
+                            return ANIM_UOP_GETHIT;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_BLOCK;
+                        }
+
+                    case ANIM_PILLAGE:
+                        //Creatures with Pillage
+                        if (dispID == CREID_GARG_FIRE || dispID == CREID_DRAGON_CRIMSON || dispID == CREID_DRAGON_PLATINUM || dispID == CREID_TROGLODYTE || dispID == CREID_GRUBBER || dispID == CREID_BLOODWORM || dispID == CREID_VOLLEM || dispID == CREID_GOBLIN_GRAY
+                            || dispID == CREID_STONE_FORM || (dispID >= CREID_MADDENING_HORROR && dispID <= CREID_GOBLIN_GREEN_MAGE) || dispID == CREID_MEDUSA || dispID == CREID_SKREE || dispID == CREID_SPIDER_TRAPDOOR || dispID == CREID_FIRE_ANT || dispID == CREID_DREAM_WRAITH
+                            || dispID == CREID_SLASHER_VEILS || dispID == CREID_GARG_ENSLAVED || dispID == CREID_DRAGON_STYGIAN || dispID == CREID_RISING_COLOSSUS || dispID == CREID_LICH_PRIMEVAL || dispID == CREID_SCALIS || dispID == CREID_MINOTAUR_LORD
+                            || dispID == CREID_DRAGON_TURTLE || dispID == CREID_SAUROSAURUS || dispID == CREID_MYRMIDEX_LARVAE || dispID == CREID_DRAGON_TURTLE_HATCHL || dispID == CREID_MYRMIDEX_DRONE || dispID == CREID_MYRMIDEX_WARRIOR || dispID == CREID_ZIPACTRIOTL || dispID == CREID_KHAL_ANKUR)
+                        {
+                            return ANIM_UOP_PILLAGE;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_FIDGET;
+                        }
+
+                    case ANIM_STOMP:
+                        return ANIM_UOP_ROAR;
+
+                    case ANIM_FLY:
+                        return ANIM_UOP_FLY;
+
+                    case ANIM_ALERT:
+                        return ANIM_UOP_PEACE_TO_COMBAT;
+
+                    case ANIM_SPECIAL:
+                        return ANIM_UOP_SPECIAL;
+
+                    case ANIM_BOSS_SPECIAL_1:
+                    case ANIM_HORSE_RIDE_SLOW:
+                        return ANIM_UOP_WALK_MOUNTED;
+
+                    case ANIM_BOSS_SPECIAL_2:
+                    case ANIM_HORSE_RIDE_FAST:
+                        return ANIM_UOP_RUN_MOUNTED;
+
+                    case ANIM_HORSE_STAND:
+                        return ANIM_UOP_STAND_MOUNTED;
+
+                    case ANIM_SUMMON:
+                        if (dispID == CREID_WILD_TIGER || dispID == CREID_TIGER_ETHEREAL || (dispID >= CREID_GIANT_GORILLA && dispID <= CREID_TYRANNOSAURUS_REX) || dispID == CREID_LASHER || dispID == CREID_HORSE_PALOMINO
+                            || (dispID >= CREID_TRICERATOPS && dispID <= CREID_FROST_MITE) || dispID == CREID_LION || dispID == CREID_HYDROS || (dispID >= CREID_LITHOS && dispID <= CREID_PYROS) || dispID == CREID_TIGER_UNDEAD
+                            || (dispID >= CREID_CRAB_COCONUT_MOUNT && dispID <= CREID_CRAB_COCONUT_LARGE) || (dispID >= CREID_WAR_BOAR_MOUNT && dispID <= CREID_WAR_CAPYBARA_BABY) || (dispID >= CREID_RABBIT_DOOM_BABY && dispID <= CREID_DOG_ROTTWEILER))
+                        {
+                            return ANIM_UOP_ROAR;
+                        }
+                        else if (dispID == CREID_PARROT_BIRD)
+                        {
+                            return ANIM_UOP_GETHIT;
+                        }
+                        else if (dispID == CREID_PHOENIX || dispID == CREID_TURKEY_GIANT || dispID == CREID_PUMPKIN_DEMON || dispID == CREID_PUMPKIN_FRIGHT)
+                        {
+                            return ANIM_UOP_PEACE_TO_COMBAT;
+                        }
+                        else
+                        {
+                            return ANIM_UOP_SPECIAL;
+                        }
+
+                    default:
+                        return ANIM_WALK_UNARM;
+                }
+            }
+            //Sea Monster: H slot with only 9 actions in L slot order
+            //Only Sea Serpent and Dolphin
+            else if (mobTypesRow.m_uiType == MOBTE_SEA_MONSTER)
+            {
+                switch (action)
+                {
+                    case ANIM_WALK_UNARM:
+                    case ANIM_WALK_ARM:
+                    case ANIM_WALK_WAR:
+                        return ANIM_MON_WALK;
+
+                    case ANIM_RUN_UNARM:
+                    case ANIM_RUN_ARMED:
+                        return ANIM_MON_STAND;
+
+                    case ANIM_STAND:
+                    case ANIM_STAND_WAR_1H:
+                    case ANIM_STAND_WAR_2H:
+                        return ANIM_MON_DIE1;
+
+                    case ANIM_FIDGET1:
+                        return ANIM_MON_DIE2;
+
+                    case ANIM_FIDGET_YAWN:
+                        return ANIM_MON_ATTACK1;
+
+                    case ANIM_CAST_DIR:
+                        if (dispID == CREID_DOLPHIN) //Dolphin doesn't have ANIM_MON_ATTACK2 and ANIM_MON_ATTACK3
+                            return ANIM_MON_AttackBow;
+                        else
+                            return ANIM_MON_ATTACK2;
+
+                    case ANIM_CAST_AREA:
+                        if (dispID == CREID_DOLPHIN) //Dolphin doesn't have ANIM_MON_ATTACK2 and ANIM_MON_ATTACK3
+                            return ANIM_MON_DIE2;
+                        else
+                            return ANIM_MON_ATTACK3;
+
+                    case ANIM_GET_HIT:
+                        return ANIM_MON_AttackBow;
+
+                    case ANIM_ATTACK_1H_SLASH:
+                    case ANIM_ATTACK_1H_PIERCE:
+                    case ANIM_ATTACK_1H_BASH:
+                    case ANIM_ATTACK_2H_BASH:
+                    case ANIM_ATTACK_2H_SLASH:
+                    case ANIM_ATTACK_2H_PIERCE:
+                    case ANIM_ATTACK_BOW:
+                    case ANIM_ATTACK_XBOW:
+                    case ANIM_ATTACK_WRESTLE:
+                        if (dispID == CREID_DOLPHIN) //Dolphin doesn't have ANIM_MON_ATTACK2 and ANIM_MON_ATTACK3
+                        {
+                            switch (g_Rand.GetVal(2))
+                            {
+                                case 0: return ANIM_MON_AttackBow; break;
+                                case 1: return ANIM_MON_DIE2; break;
+                            }
+                        }
+                        else
+                        {
+                            switch (g_Rand.GetVal(3))
+                            {
+                                case 0: return ANIM_MON_ATTACK2; break;
+                                case 1: return ANIM_MON_ATTACK2; break;
+                                case 2: return ANIM_MON_ATTACK3; break;
+                            }
+                        }
+                        break;
+                    case ANIM_DIE_BACK:
+                    case ANIM_DIE_FORWARD:
+                        return ANIM_MON_AttackXBow;
+
+                    case ANIM_BLOCK:
+                        return ANIM_MON_AttackBow;
+
+                    case ANIM_BOW:
+                    case ANIM_SALUTE:
+                        return ANIM_MON_ATTACK1;
+
+                    case ANIM_EAT:
+                    case ANIM_PILLAGE:
+                    case ANIM_ALERT:
+                        return ANIM_MON_DIE2;
+
+                    case ANIM_THROW:
+                        if (dispID == CREID_DOLPHIN) //Dolphin doesn't have ANIM_MON_ATTACK2 and ANIM_MON_ATTACK3
+                        {
+                            return ANIM_MON_AttackBow;
+                        }
+                        else
+                        {
+                            return ANIM_MON_ATTACK2;
+                        }
+
+                    case ANIM_SUMMON:
+                        return ANIM_MON_ATTACK1;
+
+                    default:
+                        return ANIM_MON_WALK;
+                }
+            }
+            //Animal
+			else if ((mobTypesRow.m_uiType == MOBTE_ANIMAL && !(mobTypesRow.m_uiFlags & ATFLAG_CalculateOffsetLowGroupExtended))
+                || (mobTypesRow.m_uiType == MOBTE_MONSTER && (mobTypesRow.m_uiFlags & ATFLAG_CalculateOffsetByLowGroup)))
+			{
+                //Partial actions
+                if (dispID == CREID_PARROT || dispID == CREID_BIRD_CROW)
+                {
+                    switch (action)
+                    {
+                        case ANIM_WALK_UNARM:
+                        case ANIM_WALK_ARM:
+                        case ANIM_WALK_WAR:
+                        case ANIM_RUN_UNARM:
+                        case ANIM_RUN_ARMED:
+                            return ANIM_ANI_WALK;
+
+                        case ANIM_STAND:
+                        case ANIM_STAND_WAR_1H:
+                        case ANIM_STAND_WAR_2H:
+                            return ANIM_ANI_STAND;
+
+                        case ANIM_FIDGET1:
+                        case ANIM_CAST_DIR:
+                        case ANIM_CAST_AREA:
+                        case ANIM_GET_HIT:
+                        case ANIM_BLOCK:
+                        case ANIM_DIE_BACK:
+                        case ANIM_DIE_FORWARD:
+                        case ANIM_ALERT:
+                        case ANIM_SUMMON:
+                            return ANIM_ANI_FIDGET1;
+
+                        case ANIM_FIDGET_YAWN:
+                        case ANIM_ATTACK_1H_SLASH:
+                        case ANIM_ATTACK_1H_PIERCE:
+                        case ANIM_ATTACK_1H_BASH:
+                        case ANIM_ATTACK_2H_BASH:
+                        case ANIM_ATTACK_2H_SLASH:
+                        case ANIM_ATTACK_2H_PIERCE:
+                        case ANIM_ATTACK_BOW:
+                        case ANIM_ATTACK_XBOW:
+                        case ANIM_ATTACK_WRESTLE:
+                        case ANIM_BOW:
+                        case ANIM_SALUTE:
+                        case ANIM_EAT:
+                        case ANIM_PILLAGE:
+                        case ANIM_THROW:
+                            return ANIM_ANI_FIDGET2;
+
+                        default:
+                            return ANIM_ANI_STAND;
+                    }
+                }
+
+                ushort attackActions = 2;
+
+                // Standard and Custom Anims
+                switch (action)
+                {
+	                case ANIM_WALK_UNARM:
+	                case ANIM_WALK_ARM:
+	                case ANIM_WALK_WAR:
+		                return ANIM_ANI_WALK;
+
+	                case ANIM_RUN_UNARM:
+	                case ANIM_RUN_ARMED:
+		                return ANIM_ANI_RUN;
+
+	                case ANIM_STAND:
+	                case ANIM_STAND_WAR_1H:
+	                case ANIM_STAND_WAR_2H:
+                        return ANIM_ANI_STAND;
+
+	                case ANIM_FIDGET1:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET1)
+                        {
+                            if (!(pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET2))
+                            {
+                                return ANIM_ANI_FIDGET2;
+                            }
+                            else
+                            {
+                                return ANIM_ANI_STAND;
+                            }
+                        }
+                        else
+                        {
+                            return ANIM_ANI_FIDGET1;
+                        }
+
+	                case ANIM_FIDGET_YAWN:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET2)
+                        {
+                            if (!(pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET1))
+                            {
+                                return ANIM_ANI_FIDGET1;
+                            }
+                            else
+                            {
+                                return ANIM_ANI_STAND;
+                            }
+                        }
+                        else
+                        {
+                            return ANIM_ANI_FIDGET2;
+                        }
+
+	                case ANIM_CAST_DIR:
+		                return ANIM_ANI_ATTACK1;
+
+	                case ANIM_CAST_AREA:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_EAT)
+                        {
+                            return ANIM_ANI_ATTACK1;
+                        }
+                        else
+                        {
+                            return ANIM_ANI_EAT;
+                        }
+
+	                case ANIM_GET_HIT:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_GETHIT)
+                        {
+                            if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET1)
+                            {
+                                if (!(pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET2))
+                                {
+                                    return ANIM_ANI_FIDGET2;
+                                }
+                                else
+                                {
+                                    return ANIM_ANI_STAND;
+                                }
+                            }
+                            else
+                            {
+                                return ANIM_ANI_FIDGET1;
+                            }
+                        }
+                        else
+                        {
+                            return ANIM_ANI_GETHIT;
+                        }
+
+	                case ANIM_ATTACK_1H_SLASH:
+	                case ANIM_ATTACK_1H_PIERCE:
+	                case ANIM_ATTACK_1H_BASH:
+	                case ANIM_ATTACK_2H_BASH:
+	                case ANIM_ATTACK_2H_SLASH:
+	                case ANIM_ATTACK_2H_PIERCE:
+	                case ANIM_ATTACK_BOW:
+	                case ANIM_ATTACK_XBOW:
+	                case ANIM_ATTACK_WRESTLE:
+                    case ANIM_THROW:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_ATTACK2)
+                        {
+                            attackActions--;
+                        }
+
+                        switch (g_Rand.GetVal(attackActions))
+                        {
+                            case 0: return ANIM_ANI_ATTACK1; break;
+                            case 1: return ANIM_ANI_ATTACK2; break;
+                        }
+                        break;
+
+	                case ANIM_DIE_BACK:
+		                return ANIM_ANI_DIE1;
+
+	                case ANIM_DIE_FORWARD:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_DIE2)
+                        {
+                            return ANIM_ANI_DIE1;
+                        }
+                        else
+                        {
+                            return ANIM_ANI_DIE2;
+                        }
+
+	                case ANIM_BLOCK:
+                        return ANIM_ANI_GETHIT;
+
+	                case ANIM_BOW:
+	                case ANIM_SALUTE:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_LIEDOWN)
+                        {
+                            if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET1)
+                            {
+                                if (!(pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET2))
+                                {
+                                    return ANIM_ANI_FIDGET2;
+                                }
+                                else
+                                {
+                                    return ANIM_ANI_STAND;
+                                }
+                            }
+                            else
+                            {
+                                return ANIM_ANI_FIDGET1;
+                            }
+                        }
+                        //No Lie Down
+                        else if (dispID == CREID_CAT || dispID == CREID_PANTHER || dispID == CREID_COW_BW || dispID == CREID_DOG || dispID == CREID_WOLF_TIMBER || (dispID >= CREID_COW_BROWN && dispID <= CREID_BULL_BROWN_DK))
+                        {
+                            return ANIM_ANI_FIDGET1;
+                        }
+                        else if (dispID == CREID_SQUIRREL)
+                        {
+                            return ANIM_ANI_FIDGET2;
+                        }
+                        else
+                        {
+                            return ANIM_ANI_SLEEP;
+                        }
+
+	                case ANIM_EAT:
+                    case ANIM_PILLAGE:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_EAT)
+                        {
+                            if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET1)
+                            {
+                                if (!(pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET2))
+                                {
+                                    return ANIM_ANI_FIDGET2;
+                                }
+                                else
+                                {
+                                    return ANIM_ANI_STAND;
+                                }
+                            }
+                            else
+                            {
+                                return ANIM_ANI_FIDGET1;
+                            }
+                        }
+                        else
+                        {
+                            return ANIM_ANI_EAT;
+                        }
+
+                    case ANIM_ALERT:
+                        if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_ALERT)
+                        {
+                            if (pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET1)
+                            {
+                                if (!(pCharDef->m_Anims & AFLAG_CUST_ANI_NO_FIDGET2))
+                                {
+                                    return ANIM_ANI_FIDGET2;
+                                }
+                                else
+                                {
+                                    return ANIM_ANI_STAND;
+                                }
+                            }
+                            else
+                            {
+                                return ANIM_ANI_FIDGET1;
+                            }
+                        }
+                        //No Alert
+                        else if (dispID == CREID_SQUIRREL)
+                        {
+                            return ANIM_ANI_FIDGET2;
+                        }
+                        //Bugged Alert
+                        else if (dispID == CREID_CAT || dispID == CREID_PANTHER || dispID == CREID_COW_BW || dispID == CREID_DOG || dispID == CREID_WOLF_TIMBER || (dispID >= CREID_COW_BROWN && dispID <= CREID_BULL_BROWN_DK))
+                        {
+                            return ANIM_ANI_FIDGET2;
+                        }
+                        else
+                        {
+                            return ANIM_ANI_ALERT;
+                        }
+
+                    case ANIM_SUMMON:
+                        return ANIM_ANI_ATTACK1;
+
+	                default:
+                        return ANIM_ANI_STAND;
+                }
 			}
-			else
-			{
-				// Monsters don't have all the anims.
+            else
+            {
+                // Monsters don't have all the anims.
 
-				switch (action)
-				{
-					case ANIM_CAST_DIR:
-						return ANIM_MON_Stomp;
-					case ANIM_CAST_AREA:
-						return ANIM_MON_PILLAGE;
-					case ANIM_DIE_BACK:
-						return ANIM_MON_DIE1;
-					case ANIM_DIE_FORWARD:
-						return ANIM_MON_DIE2;
-					case ANIM_GET_HIT:
-						switch (g_Rand.GetValFast(3))
-						{
-							case 0: return ANIM_MON_GETHIT; break;
-							case 1: return ANIM_MON_BlockRight; break;
-							case 2: return ANIM_MON_BlockLeft; break;
-						}
-						break;
-					case ANIM_ATTACK_1H_SLASH:
-					case ANIM_ATTACK_1H_PIERCE:
-					case ANIM_ATTACK_1H_BASH:
-					case ANIM_ATTACK_2H_BASH:
-					case ANIM_ATTACK_2H_PIERCE:
-					case ANIM_ATTACK_2H_SLASH:
-					case ANIM_ATTACK_BOW:
-					case ANIM_ATTACK_XBOW:
-					case ANIM_ATTACK_WRESTLE:
-						switch (g_Rand.GetValFast(3))
-						{
-							case 0: return ANIM_MON_ATTACK1;
-							case 1: return ANIM_MON_ATTACK2;
-							case 2: return ANIM_MON_ATTACK3;
-						}
+                ANIM_TYPE attack1 = ANIM_MON_ATTACK1;
+                ANIM_TYPE cast1 = ANIM_MON_WALK, cast2 = ANIM_MON_WALK, cast3 = ANIM_MON_WALK;
+                ushort castActions = 0, attackActions = 3, blockActions = 2;
+
+                //Standard and Custom Anims
+                switch (action)
+                {
+                    case ANIM_WALK_UNARM:
+                    case ANIM_WALK_ARM:
+                    case ANIM_WALK_WAR:
+                        return ANIM_MON_WALK;
+
+                    case ANIM_RUN_UNARM:
+                    case ANIM_RUN_ARMED:
+                        //If the creature can fly we can use flying action for running
+                        if ((mobTypesRow.m_uiFlags & ATFLAG_CanFlying)
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_FLY)) //Custom anims with Fly action
+                        {
+                            return ANIM_MON_FLY;
+                        }
+                        else
+                        {
+                            return ANIM_MON_WALK;
+                        }
+
+                    case ANIM_STAND:
+                    case ANIM_STAND_WAR_1H:
+                    case ANIM_STAND_WAR_2H:
+                        //Stand action in crossbow
+                        if (mobTypesRow.m_uiFlags & ATFLAG_IdleAt8Frame)
+                        {
+                            return ANIM_MON_AttackXBow;
+                        }
+                        else
+                        {
+                            return ANIM_MON_STAND;
+                        }
+
+                    case ANIM_FIDGET1:
+                    case ANIM_BOW:
+                        if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_FIDGET1) //Custom Anims without Fidget1
+                        {
+                            if (!(pCharDef->m_Anims & AFLAG_CUST_MON_NO_FIDGET2)) //Custom Anims with Fidget2
+                            {
+                                return ANIM_MON_FIDGET2;
+                            }
+                            else
+                            {
+                                return ANIM_MON_STAND;
+                            }
+                        }
+                        else
+                        {
+                            return ANIM_MON_FIDGET1;
+                        }
+
+                    case ANIM_FIDGET_YAWN:
+                    case ANIM_SALUTE:
+                    case ANIM_EAT:
+                        if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_FIDGET2) //Custom Anims without Fidget2
+                        {
+                            if (!(pCharDef->m_Anims & AFLAG_CUST_MON_NO_FIDGET1)) //Custom Anims with Fidget1
+                            {
+                                return ANIM_MON_FIDGET1;
+                            }
+                            else
+                            {
+                                return ANIM_MON_STAND;
+                            }
+                        }
+                        else if (dispID == CREID_EAGLE || dispID == CREID_DRAGON_CRIMSON || dispID == CREID_DRAGON_PLATINUM) //No Fidget
+                        {
+                            return ANIM_MON_FIDGET1;
+                        }
+                        else
+                        {
+                            return ANIM_MON_FIDGET2;
+                        }
+
+                    case ANIM_CAST_DIR:
+                    case ANIM_CAST_AREA:
+                    case ANIM_ATTACK_BOW: //return ANIM_MON_AttackBow; //Always Empty except for standard ID 13, 15 and 16
+                    case ANIM_ATTACK_XBOW: //return ANIM_MON_AttackXBow; //Always Empty except for standard ID 13, 15 and 16
+
+                        //Check how many cast actions are present
+                        //Stomp action is not a cast for Corpser, Earth Elemental and Gorilla
+                        if (((mobTypesRow.m_uiFlags & ATFLAG_StompAction)
+                            && (dispID != CREID_CORPSER && dispID != CREID_EARTH_ELEM && dispID != CREID_GORILLA))
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_STOMP)) //Custom Anim with Stomp action
+                        {
+                            cast1 = ANIM_MON_Stomp;
+                            castActions++;
+                        }
+                        //Cast 2
+                        if (dispID == CREID_TERA_MATRIARCH || dispID == CREID_OPHID_SHAMAN || dispID == CREID_GARGOYLE || dispID == CREID_DEMON || dispID == CREID_DEMON_SWORD || dispID == CREID_LICH
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_CAST2)) //Custom Anim with Cast2 action
+                        {
+                            if (castActions == 0)
+                            {
+                                cast1 = ANIM_MON_Cast2;
+                            }
+                            else
+                            {
+                                cast2 = ANIM_MON_Cast2;
+                            }
+                            castActions++;
+                        }
+                        //Cast 3
+                        if (dispID == CREID_TERA_MATRIARCH || dispID == CREID_OPHID_SHAMAN
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_CAST3)) //Custom Anim with Cast3 action
+                        {
+                            if (castActions == 0)
+                            {
+                                cast1 = ANIM_MON_Cast3;
+                            }
+                            else if (castActions == 1)
+                            {
+                                cast2 = ANIM_MON_Cast3;
+                            }
+                            else
+                            {
+                                cast3 = ANIM_MON_Cast3;
+                            }
+                            castActions++;
+                        }
+
+                        if (castActions > 0)
+                        {
+                            switch (g_Rand.GetVal(castActions))
+                            {
+                                case 0: return cast1; break;
+                                case 1: return cast2; break;
+                                case 2: return cast3; break;
+                            }
+                        }
+                        else //No cast Actions
+                        {
+                            if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceAttack1With2)
+                            {
+                                attack1 = ANIM_MON_ATTACK2;
+                            }
+
+                            //Special handling for custom anims (some WOW anims) with attacks 4-6 in 9-11
+                            if (pCharDef->m_Anims & AFLAG_CUST_MON_ATTACKSFROM9)
+                            {
+                                switch (g_Rand.GetVal(3))
+                                {
+                                    case 0: return ANIM_MON_AttackThrow; break;
+                                    case 1: return ANIM_MON_GETHIT; break;
+                                    case 2: return ANIM_MON_PILLAGE; break;
+                                }
+                            }
+
+                            if (dispID == CREID_SHADOW_LORD
+                                || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK1)) //Custom Anim without Attack1
+                            {
+                                attackActions--;
+                            }
+                            if (dispID == CREID_EAGLE || dispID == CREID_SHADOW_LORD
+                                || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK2)) //Custom Anim without Attack2
+                            {
+                                attackActions--;
+                            }
+                            if (dispID == CREID_EAGLE || dispID == CREID_DRAGON_CRIMSON || dispID == CREID_DRAGON_PLATINUM || dispID == CREID_SHADOW_LORD
+                                || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK3)) //Custom Anim without Attack3
+                            {
+                                attackActions--;
+                            }
+
+                            if (attackActions > 0)
+                            {
+                                switch (g_Rand.GetVal(attackActions))
+                                {
+                                    case 0: return attack1; break;
+                                    case 1: return ANIM_MON_ATTACK2; break;
+                                    case 2: return ANIM_MON_ATTACK3; break;
+                                }
+                            }
+                            else if (dispID == CREID_SHADOW_LORD) //No Attacks
+                            {
+                                switch (g_Rand.GetVal(2))
+                                {
+                                    case 0: return ANIM_MON_FIDGET1; break;
+                                    case 1: return ANIM_MON_FIDGET2; break;
+                                }
+                            }
+                            else
+                            {
+                                return ANIM_MON_STAND;
+                            }
+                        }
                         break;
-					default:
-						return ANIM_WALK_UNARM;
-				}
-				// NOTE: Available actions depend HEAVILY on creature type !
-				// ??? Monsters don't have all anims in common !
-				// translate these !
-				ASSERT(action < ANIM_MASK_MAX);
-				while (action != ANIM_WALK_UNARM && !(pCharDef->m_Anims & (1ULL << action)))
-				{
-					// This anim is not supported. Try to use one that is.
-					switch (action)
-					{
-					case ANIM_MON_ATTACK1:	// All have this.
-						DEBUG_ERR(("Anim 0%x This is wrong! Invalid SCP file data.\n", GetDispID()));
-						return ANIM_WALK_UNARM;
 
-					case ANIM_MON_ATTACK2:	// Dolphins, Eagles don't have this.
-					case ANIM_MON_ATTACK3:
-						return ANIM_MON_ATTACK1;	// ALL creatures have at least this attack.
-					case ANIM_MON_Cast2:	// Trolls, Spiders, many others don't have this.
-						return ANIM_MON_BlockRight;	// Birds don't have this !
-					case ANIM_MON_BlockRight:
-						return ANIM_MON_BlockLeft;
-					case ANIM_MON_BlockLeft:
-						return ANIM_MON_GETHIT;
-					case ANIM_MON_GETHIT:
-						if (pCharDef->m_Anims & (1 << ANIM_MON_Cast2))
-							return ANIM_MON_Cast2;
-						else
-							return ANIM_WALK_UNARM;
+                    case ANIM_GET_HIT:
+                        if (IsStatFlag(STATF_FLY | STATF_HOVERING)) //Running or Flying
+                        {
+                            if (mobTypesRow.m_uiFlags & ATFLAG_Use2IfHittedWhileRunning)
+                            {
+                                return ANIM_MON_DIE1;
+                            }
+                            //GetHit while flying
+                            else if ((mobTypesRow.m_uiFlags & ATFLAG_CanFlying) && !(mobTypesRow.m_uiFlags & ATFLAG_Use10IfHittedWhileFlying))
+                            {
+                                return ANIM_MON_DIE_FLIGHT;
+                            }
+                        }
+                        if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceGetHitBlockPillage)
+                        {
+                            return ANIM_MON_STAND;
+                        }
+                        else if (pCharDef->m_Anims & AFLAG_CUST_MON_ATTACKSFROM9) //Custom Anims with GetHit in Land/TakeOff action
+                        {
+                            return ANIM_MON_LAND;
+                        }
+                        else if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_GETHIT) //Cutsom Anims without GetHit
+                        {
+                            if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_BLOCKR)
+                            {
+                                blockActions--;
+                            }
+                            if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_BLOCKL)
+                            {
+                                blockActions--;
+                            }
+                            if (blockActions > 0)
+                            {
+                                switch (g_Rand.GetVal(blockActions))
+                                {
+                                    case 0: return ANIM_MON_BlockRight; break;
+                                    case 1: return ANIM_MON_BlockLeft; break;
+                                }
+                            }
+                            else
+                            {
+                                return ANIM_MON_STAND;
+                            }
+                        }
+                        else if (dispID == CREID_BIRD || dispID == CREID_GAZER || dispID == CREID_SHADOW_LORD) //No GetHit
+                        {
+                            return ANIM_MON_FIDGET1;
+                        }
+                        else
+                        {
+                            return ANIM_MON_GETHIT;
+                        }
+                        break;
 
-					case ANIM_MON_Stomp:
-						return ANIM_MON_PILLAGE;
-					case ANIM_MON_PILLAGE:
-						return ANIM_MON_ATTACK3;
-					case ANIM_MON_AttackBow:
-					case ANIM_MON_AttackXBow:
-						return ANIM_MON_ATTACK3;
-					case ANIM_MON_AttackThrow:
-						return ANIM_MON_AttackXBow;
+                    case ANIM_ATTACK_1H_SLASH:
+                    case ANIM_ATTACK_1H_PIERCE:
+                    case ANIM_ATTACK_1H_BASH:
+                    case ANIM_ATTACK_2H_BASH:
+                    case ANIM_ATTACK_2H_SLASH:
+                    case ANIM_ATTACK_2H_PIERCE:
+                    case ANIM_ATTACK_WRESTLE:
 
-					default:
-						DEBUG_ERR(("Anim Unsupported 0%x for 0%x\n", action, GetDispID()));
-						return ANIM_WALK_UNARM;
-					}
-				}
+                        if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceAttack1With2)
+                        {
+                            attack1 = ANIM_MON_ATTACK2;
+                        }
+
+                        //Special handling for custom anims (some WOW anims) with attacks 4-6 in 9-11
+                        if (pCharDef->m_Anims & AFLAG_CUST_MON_ATTACKSFROM9)
+                        {
+                            switch (g_Rand.GetVal(3))
+                            {
+                                case 0: return ANIM_MON_AttackThrow; break;
+                                case 1: return ANIM_MON_GETHIT; break;
+                                case 2: return ANIM_MON_PILLAGE; break;
+                            }
+                        }
+
+                        if (dispID == CREID_SHADOW_LORD
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK1)) //Custom Anim without Attack1
+                        {
+                            attackActions--;
+                        }
+                        if (dispID == CREID_EAGLE || dispID == CREID_SHADOW_LORD
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK2)) //Custom Anim without Attack2
+                        {
+                            attackActions--;
+                        }
+                        if (dispID == CREID_EAGLE || dispID == CREID_DRAGON_CRIMSON || dispID == CREID_DRAGON_PLATINUM || dispID == CREID_SHADOW_LORD
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK3)) //Custom Anim without Attack3
+                        {
+                            attackActions--;
+                        }
+
+                        if (attackActions > 0)
+                        {
+                            switch (g_Rand.GetVal(attackActions))
+                            {
+                                case 0: return attack1; break;
+                                case 1: return ANIM_MON_ATTACK2; break;
+                                case 2: return ANIM_MON_ATTACK3; break;
+                            }
+                        }
+                        else if (dispID == CREID_SHADOW_LORD) //No Attacks
+                        {
+                            switch (g_Rand.GetVal(2))
+                            {
+                                case 0: return ANIM_MON_FIDGET1; break;
+                                case 1: return ANIM_MON_FIDGET2; break;
+                            }
+                        }
+                        else
+                        {
+                            return ANIM_MON_STAND;
+                        }
+                        break;
+
+                    case ANIM_DIE_BACK:
+                        //Die while flying animation
+                        if ((mobTypesRow.m_uiFlags & ATFLAG_StompAction) && (mobTypesRow.m_uiFlags & ATFLAG_CanFlying) && (mobTypesRow.m_uiFlags & ATFLAG_Use10IfHittedWhileFlying)
+                            && IsStatFlag(STATF_FLY | STATF_HOVERING))
+                        {
+                            return ANIM_MON_DIE_FLIGHT;
+                        }
+                        else
+                        {
+                            return ANIM_MON_DIE1;
+                        }
+
+                    case ANIM_DIE_FORWARD:
+                        //Die while flying animation
+                        if ((mobTypesRow.m_uiFlags & ATFLAG_StompAction) && (mobTypesRow.m_uiFlags & ATFLAG_CanFlying) && (mobTypesRow.m_uiFlags & ATFLAG_Use10IfHittedWhileFlying)
+                            && IsStatFlag(STATF_FLY | STATF_HOVERING))
+                        {
+                            return ANIM_MON_DIE_FLIGHT;
+                        }
+                        else if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_DIE2) //Custom Anims without Die2
+                        {
+                            return ANIM_MON_DIE1;
+                        }
+                        else if (dispID == CREID_SHADOW_LORD) //No Die2
+                        {
+                            return ANIM_MON_DIE1;
+                        }
+                        else
+                        {
+                            return ANIM_MON_DIE2;
+                        }
+
+                    case ANIM_BLOCK:
+                        if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceGetHitBlockPillage)
+                        {
+                            return ANIM_MON_STAND;
+                        }
+                        else if (pCharDef->m_Anims & AFLAG_CUST_MON_ATTACKSFROM9) //Custom Anims with only Block Left
+                        {
+                            return ANIM_MON_BlockLeft;
+                        }
+                        else if (dispID == CREID_BIRD || dispID == CREID_GAZER || dispID == CREID_SLIME || dispID == CREID_SHADOW_LORD) //No block
+                        {
+                            return ANIM_MON_FIDGET2;
+                        }
+
+                        if (dispID == CREID_EAGLE || dispID == CREID_CORPSER
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_BLOCKR)) //Custom anims without BlockRight
+                        {
+                            blockActions--;
+                        }
+                        if (dispID == CREID_EAGLE || dispID == CREID_CORPSER || dispID == CREID_DRAGON_CRIMSON || dispID == CREID_DRAGON_PLATINUM
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_NO_BLOCKL)) //Custom anims without BlockLeft
+                        {
+                            blockActions--;
+                        }
+                        if (blockActions > 0)
+                        {
+                            switch (g_Rand.GetVal(blockActions))
+                            {
+                                case 0: return ANIM_MON_BlockRight; break;
+                                case 1: return ANIM_MON_BlockLeft; break;
+                            }
+                        }
+                        else if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_GETHIT) //Custom anims without GetHit
+                        {
+                            return ANIM_MON_STAND;
+                        }
+                        else
+                        {
+                            return ANIM_MON_GETHIT;
+                        }
+                        break;
+
+                    case ANIM_THROW:
+                        if (mobTypesRow.m_uiFlags & ATFLAG_IdleAt8Frame) //Action Throw in Bow action
+                        {
+                            return ANIM_MON_AttackBow;
+                        }
+                        else if (((mobTypesRow.m_uiFlags & ATFLAG_StompAction)
+                            && (dispID != CREID_CORPSER && dispID != CREID_EARTH_ELEM && dispID != CREID_GORILLA))
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_STOMP)) //Custom anims with Stomp action
+                        {
+                            return ANIM_MON_Stomp;
+                        }
+                        else
+                        {
+                            if (pCharDef->m_Anims & AFLAG_CUST_MON_ATTACKSFROM9) //Custom anims with first attack in AttackThrow
+                            {
+                                return ANIM_MON_AttackThrow;
+                            }
+                            else if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK1) //Custom anims without Attack1
+                            {
+                                return ANIM_MON_STAND;
+                            }
+                            else
+                            {
+                                return ANIM_MON_ATTACK1;
+                                //return ANIM_MON_AttackThrow; //Always Empty except for Custom Anims with AFLAG_CUST_MON_ATTACKSFROM9 flag
+                            }
+                        }
+
+                    case ANIM_PILLAGE:
+                        if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceGetHitBlockPillage)
+                        {
+                            return ANIM_MON_FIDGET1;
+                        }
+                        else if (pCharDef->m_Anims & AFLAG_CUST_MON_ATTACKSFROM9)
+                        {
+                            return ANIM_MON_FIDGET1;
+                        }
+                        else if ((pCharDef->m_Anims & AFLAG_CUST_MON_NO_PILLAGE) && (!(pCharDef->m_Anims & AFLAG_CUST_MON_NO_FIDGET1))) //Custom Anims with No Pillage but Fidget1
+                        {
+                            return ANIM_MON_FIDGET1;
+                        }
+                        else if ((pCharDef->m_Anims & AFLAG_CUST_MON_NO_PILLAGE) && (!(pCharDef->m_Anims & AFLAG_CUST_MON_NO_FIDGET2))) //Custom Anims with No Pillage but Fidget2
+                        {
+                            return ANIM_MON_FIDGET2;
+                        }
+                        else if (dispID == CREID_BIRD || dispID == CREID_EAGLE || dispID == CREID_GAZER || dispID == CREID_SHADOW_LORD) //No Pillage
+                        {
+                            return ANIM_MON_FIDGET1;
+                        }
+                        else if (dispID == CREID_CORPSER) //No Pillage
+                        {
+                            return ANIM_MON_FIDGET2;
+                        }
+                        else
+                        {
+                            return ANIM_MON_PILLAGE;
+                        }
+
+                    case ANIM_STOMP:
+                    case ANIM_SPECIAL:
+                    case ANIM_SUMMON:
+                        if ((mobTypesRow.m_uiFlags & ATFLAG_StompAction) || (pCharDef->m_Anims & AFLAG_CUST_MON_STOMP))
+                        {
+                            return ANIM_MON_Stomp;
+                        }
+                        else if ((mobTypesRow.m_uiFlags & ATFLAG_CanFlying) && !(pCharDef->m_Anims & AFLAG_CUST_MON_FLY)) //Standard flying anims with Land/TakeOff action
+                        {
+                            return ANIM_MON_LAND;
+                        }
+                        else
+                        {
+                            if (dispID == CREID_SHADOW_LORD) //No Attack
+                            {
+                                return ANIM_MON_FIDGET1;
+                            }
+                            else if (pCharDef->m_Anims & AFLAG_CUST_MON_ATTACKSFROM9) //Custom anims with first attack in AttackThrow
+                            {
+                                return ANIM_MON_AttackThrow;
+                            }
+                            else if (pCharDef->m_Anims & AFLAG_CUST_MON_NO_ATTACK1) //Custom anims without Attack1
+                            {
+                                return ANIM_MON_STAND;
+                            }
+                            else
+                            {
+                                return ANIM_MON_ATTACK1;
+                            }
+                        }
+
+                    case ANIM_ALERT:
+                        if (((mobTypesRow.m_uiFlags & ATFLAG_StompAction) && dispID != CREID_CORPSER && dispID != CREID_EARTH_ELEM)
+                            || (pCharDef->m_Anims & AFLAG_CUST_MON_STOMP)) //Custom anims with Stomp action
+                        {
+                            return ANIM_MON_Stomp;
+                        }
+                        else if ((mobTypesRow.m_uiFlags & ATFLAG_CanFlying) && !(pCharDef->m_Anims & AFLAG_CUST_MON_FLY)) //Standard flying anims with Land/TakeOff action
+                        {
+                            return ANIM_MON_LAND;
+                        }
+                        else
+                        {
+                            return ANIM_MON_STAND;
+                        }
+
+                    case ANIM_FLY:
+                        if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceFlyAction)
+                        {
+                            return ANIM_MON_WALK;
+                        }
+                        else
+                        {
+                            return ANIM_MON_FLY;
+                        }
+
+                    case ANIM_LAND:
+                        if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceFlyAction)
+                        {
+                            return ANIM_MON_STAND;
+                        }
+                        else
+                        {
+                            return ANIM_MON_LAND;
+                        }
+
+                    case ANIM_GETHIT_AIR:
+                        if (mobTypesRow.m_uiFlags & ATFLAG_ReplaceFlyAction)
+                        {
+                            return ANIM_MON_STAND;
+                        }
+                        else if (mobTypesRow.m_uiFlags & ATFLAG_Use10IfHittedWhileFlying)
+                        {
+                            return ANIM_MON_GETHIT;
+                        }
+                        else
+                        {
+                            return ANIM_MON_DIE_FLIGHT;
+                        }
+
+                    default:
+                        return ANIM_MON_STAND;
+                }
 			}
 		}
+        else
+        {
+            //Not mounted human
+            switch (action)
+            {
+                case ANIM_ALERT:
+                    return ANIM_FIDGET1;
+                case ANIM_SUMMON:
+                    return ANIM_SALUTE;
+                case ANIM_PILLAGE:
+                    return ANIM_BOW;
+                case ANIM_THROW:
+                    return ANIM_ATTACK_1H_BASH;
+            }
+        }
 	}
 
 	return action;
@@ -1308,14 +2487,14 @@ void CChar::UpdateMove( const CPointMap & ptOld, CClient * pExcludeClient, bool 
 		m_fStatusUpdate &= ~SU_UPDATE_MODE;
 
 	EXC_TRY("UpdateMove");
-	
+
 	// if skill is meditation, cancel it if we move
     if (g_Cfg._fMeditationMovementAbort && Skill_GetActive() == SKILL_MEDITATION)
     {
         //cancel meditation if we move
         Skill_Fail(true);
     }
-	
+
 	EXC_SET_BLOCK("FOR LOOP");
 	ClientIterator it;
 	for ( CClient* pClient = it.next(); pClient != nullptr; pClient = it.next() )
@@ -1593,7 +2772,7 @@ void CChar::SoundChar( CRESND_TYPE type )
 				default:
 					if (id < 0x4D6)			// before the crane sound the sound IDs are ordered in a way...
 						id += (SOUND_TYPE)type;
-					else if (id < 0x5D5)	// starting with the crane and ending before absymal infernal there's another scheme
+					else if (id < 0x5D4)	// starting with the crane and ending before absymal infernal there's another scheme
 					{
 						switch (type)
 						{
@@ -1844,10 +3023,10 @@ int CChar::ItemPickup(CItem * pItem, word amount)
 		char iStackMaxZ = GetTopZ() + 16;
 		CItem * pStack = nullptr;
 		CPointMap ptNewPlace = pItem->GetTopPoint();
-		CWorldSearch AreaItems(ptNewPlace);
+		auto AreaItems = CWorldSearchHolder::GetInstance(ptNewPlace);
 		for (;;)
 		{
-			pStack = AreaItems.GetItem();
+			pStack = AreaItems->GetItem();
 			if ( pStack == nullptr )
 				break;
 			if (( pStack->GetTopZ() <= pItem->GetTopZ()) || ( pStack->GetTopZ() > iStackMaxZ ))
@@ -2041,15 +3220,15 @@ bool CChar::ItemDrop( CItem * pItem, const CPointMap & pt )
 		CPointMap ptStack = pt;
 		const char iStackMaxZ = block.m_Top.m_z;	//pt.m_z + 16;
 		const CItem * pStack = nullptr;
-		CWorldSearch AreaItems(ptStack);
-		pStack = AreaItems.GetItem();
+		auto AreaItems = CWorldSearchHolder::GetInstance(ptStack);
+		pStack = AreaItems->GetItem();
 		if (pStack != nullptr) //If there nothing  on the ground, drop the item normally and flip it if it's possible
 		{
 			for (uint i = 0;; ++i)
 			{
 				if (i != 0) //on first iteration, pStack already contain the item on the ground. If you getitem again, you'll obtain nullptr
 				{
-					pStack = AreaItems.GetItem();
+					pStack = AreaItems->GetItem();
 				}
 				if (pStack == nullptr)
 				{
@@ -2773,7 +3952,7 @@ bool CChar::Horse_Mount(CChar *pHorse)
 	{
 		CScriptTriggerArgs Args(pHorse);
         Args.m_iN1 = memoryId;
-   		if ( OnTrigger(CTRIG_Mount, this, &Args) == TRIGRET_RET_TRUE )   
+   		if ( OnTrigger(CTRIG_Mount, this, &Args) == TRIGRET_RET_TRUE )
 		    return false;
         else
             memoryId = ITEMID_TYPE(Args.m_iN1);//(ITEMID_TYPE) Args.m_iN1;
@@ -3301,11 +4480,11 @@ bool CChar::Death()
 		    // Remove the characters which I can't see as dead from the screen
             if (g_Cfg.m_fDeadCannotSeeLiving)
             {
-                CWorldSearch AreaChars(GetTopPoint(), g_Cfg.m_iMapViewSizeMax);
-                AreaChars.SetSearchSquare(true);
+                auto AreaChars = CWorldSearchHolder::GetInstance(GetTopPoint(), g_Cfg.m_iMapViewSizeMax);
+                AreaChars->SetSearchSquare(true);
                 for (;;)
                 {
-                    CChar *pChar = AreaChars.GetChar();
+                    CChar *pChar = AreaChars->GetChar();
                     if (!pChar)
                         break;
                     if (!CanSeeAsDead(pChar))
@@ -3408,10 +4587,10 @@ bool CChar::ShoveCharAtPosition(CPointMap const& ptDst, ushort *uiStaminaRequire
     ushort uiLocalStamReq = 0;
 
     CItem *pPoly = LayerFind(LAYER_SPELL_Polymorph);
-    CWorldSearch AreaChars(ptDst);
+    auto AreaChars = CWorldSearchHolder::GetInstance(ptDst);
     for (;;)
     {
-        CChar *pChar = AreaChars.GetChar();
+        CChar *pChar = AreaChars->GetChar();
         if (!pChar)
             break;
         if (pChar->Can(CAN_C_STATUE))
@@ -3643,15 +4822,21 @@ void CChar::CheckRevealOnMove()
 }
 
 // We are at this location. What will happen?
-// This function is called at every second on ALL chars
+// This function is called at every second (or more) on ALL chars
 // (even walking or not), so avoid heavy codes here.
 // RETURN:
 //	true = we can move there
 //	false = we can't move there
 //	default = we teleported
-TRIGRET_TYPE CChar::CheckLocation( bool fStanding )
+TRIGRET_TYPE CChar::CheckLocationEffects(bool fStanding)
 {
-	ADDTOCALLSTACK("CChar::CheckLocation");
+	ADDTOCALLSTACK("CChar::CheckLocationEffects");
+    // This can also be called from char periodic ticks (not classic timer).
+
+    static thread_local uint _uiRecursingStep = 0;
+    static thread_local uint _uiRecursingItemStep = 0;
+    static constexpr uint _kuiRecursingStepLimit = 20;
+    static constexpr uint _kuiRecursingItemStepLimit = 20;
 
 	CClient *pClient = GetClientActive();
 	if ( pClient && pClient->m_pHouseDesign )
@@ -3663,146 +4848,180 @@ TRIGRET_TYPE CChar::CheckLocation( bool fStanding )
 		pClient->m_pHouseDesign->EndCustomize(true);
 	}
 
-	if ( !fStanding )
-	{
-		SKILL_TYPE iSkillActive	= Skill_GetActive();
-		if ( g_Cfg.IsSkillFlag(iSkillActive, SKF_IMMOBILE) )
-			Skill_Fail(false);
-		else if ( g_Cfg.IsSkillFlag(iSkillActive, SKF_FIGHT) && g_Cfg.IsSkillFlag(iSkillActive, SKF_RANGED) && !IsSetCombatFlags(COMBAT_ARCHERYCANMOVE) && !IsStatFlag(STATF_ARCHERCANMOVE) )
-		{
-			// Keep timer active holding the swing action until the char stops moving
-			m_atFight.m_iWarSwingState = WAR_SWING_EQUIPPING;
-			_SetTimeoutD(1);
-		}
+    if (!fStanding)
+    {
+        SKILL_TYPE iSkillActive = Skill_GetActive();
+        if (g_Cfg.IsSkillFlag(iSkillActive, SKF_IMMOBILE))
+        {
+            Skill_Fail(false);
+        }
+        else if (g_Cfg.IsSkillFlag(iSkillActive, SKF_FIGHT) && g_Cfg.IsSkillFlag(iSkillActive, SKF_RANGED) && !IsSetCombatFlags(COMBAT_ARCHERYCANMOVE) && !IsStatFlag(STATF_ARCHERCANMOVE))
+        {
+            // Keep timer active holding the swing action until the char stops moving
+            m_atFight.m_iWarSwingState = WAR_SWING_EQUIPPING;
+            _SetTimeoutD(1);
+        }
 
-		// This could get REALLY EXPENSIVE !
-		if ( m_pArea && IsTrigUsed(TRIGGER_STEP) ) //Check if m_pArea is exists because it may be invalid if it try to walk while multi removing?
-		{
-			if ( m_pArea->OnRegionTrigger( this, RTRIG_STEP ) == TRIGRET_RET_TRUE )
-				return TRIGRET_RET_FALSE;
+        if (_uiRecursingStep >= _kuiRecursingStepLimit)
+        {
+            g_Log.EventError("Calling recursively @STEP for more than %u times. Skipping trigger call.\n", _kuiRecursingStepLimit);
+        }
+        else
+        {
+            if (m_pArea && IsTrigUsed(TRIGGER_STEP)) //Check if m_pArea is exists because it may be invalid if it try to walk while multi removing?
+            {
+                _uiRecursingStep += 1;
+                if (m_pArea->OnRegionTrigger(this, RTRIG_STEP) == TRIGRET_RET_TRUE)
+                {
+                    _uiRecursingStep -= 1;
+                    return TRIGRET_RET_FALSE;
+                }
 
-			CRegion *pRoom = GetTopPoint().GetRegion(REGION_TYPE_ROOM);
-			if ( pRoom && pRoom->OnRegionTrigger( this, RTRIG_STEP ) == TRIGRET_RET_TRUE )
-				return TRIGRET_RET_FALSE;
-		}
-	}
+                CRegion *pRoom = GetTopPoint().GetRegion(REGION_TYPE_ROOM);
+                if (pRoom && pRoom->OnRegionTrigger(this, RTRIG_STEP) == TRIGRET_RET_TRUE)
+                {
+                    _uiRecursingStep -= 1;
+                    return TRIGRET_RET_FALSE;
+                }
+                _uiRecursingStep -= 1;
+            }
+        }
+    }
 
-	bool fStepCancel = false;
-	bool fSpellHit = false;
-	CWorldSearch AreaItems( GetTopPoint() );
-	for (;;)
-	{
-		CItem *pItem = AreaItems.GetItem();
-		if ( !pItem )
-			break;
+    bool fStepCancel = false;
+    bool fSpellHit = false;
+    auto AreaItems = CWorldSearchHolder::GetInstance(GetTopPoint());
+    for (;;)
+    {
+        CItem *pItem = AreaItems->GetItem();
+        if (!pItem)
+            break;
 
-		int zdiff = pItem->GetTopZ() - GetTopZ();
-		int	height = pItem->Item_GetDef()->GetHeight();
-		if ( height < 3 )
-			height = 3;
+        int zdiff = pItem->GetTopZ() - GetTopZ();
+        int height = pItem->Item_GetDef()->GetHeight();
+        if (height < 3)
+            height = 3;
 
-		if ( (zdiff > height) || (zdiff < -3) )
-			continue;
-		if ( IsTrigUsed(TRIGGER_STEP) || IsTrigUsed(TRIGGER_ITEMSTEP) )
-		{
-			CScriptTriggerArgs Args(fStanding ? 1 : 0);
-			TRIGRET_TYPE iRet = pItem->OnTrigger(ITRIG_STEP, this, &Args);
-			if ( iRet == TRIGRET_RET_TRUE )		// block walk
-			{
-				fStepCancel = true;
-				continue;
-			}
-			if ( iRet == TRIGRET_RET_HALFBAKED )	// allow walk, skipping hardcoded checks below
-				continue;
-		}
+        if ((zdiff > height) || (zdiff < -3))
+            continue;
 
-		switch ( pItem->GetType() )
-		{
-			case IT_WEB:
-				if ( fStanding )
-					continue;
-				if ( Use_Item_Web(pItem) )	// we got stuck in a spider web
-					return TRIGRET_RET_TRUE;
-				continue;
-			case IT_FIRE:
-				{
-					int iSkillLevel = pItem->m_itSpell.m_spelllevel;	// heat level (0-1000)
-					iSkillLevel = g_Rand.GetVal2(iSkillLevel/2, iSkillLevel);
-					if ( IsStatFlag(STATF_FLY) )
-						iSkillLevel /= 2;
+        if (IsTrigUsed(TRIGGER_STEP) || IsTrigUsed(TRIGGER_ITEMSTEP))
+        {
+            if (_uiRecursingItemStep >= _kuiRecursingItemStepLimit)
+            {
+                g_Log.EventError("Calling recursively @ITEMSTEP for more than %u times. Skipping trigger call.\n", _kuiRecursingStepLimit);
+            }
+            else
+            {
+                _uiRecursingItemStep += 1;
+                CScriptTriggerArgs Args(fStanding ? 1 : 0);
+                TRIGRET_TYPE iRet = pItem->OnTrigger(ITRIG_STEP, this, &Args);
+                _uiRecursingItemStep -= 1;
+                if (iRet == TRIGRET_RET_TRUE) // block walk
+                {
+                    fStepCancel = true;
+                    continue;
+                }
+                if (iRet == TRIGRET_RET_HALFBAKED) // allow walk, skipping hardcoded checks below
+                    continue;
+            }
+        }
 
-					int iDmg = OnTakeDamage( g_Cfg.GetSpellEffect(SPELL_Fire_Field, iSkillLevel), nullptr, DAMAGE_FIRE|DAMAGE_GENERAL, 0, 100, 0, 0, 0 );
-                    if (iDmg > 0)
+        switch (pItem->GetType())
+        {
+            case IT_WEB:
+                if (fStanding)
+                    continue;
+                if (Use_Item_Web(pItem)) // we got stuck in a spider web
+                    return TRIGRET_RET_TRUE;
+                continue;
+
+            case IT_FIRE:
+            {
+                int iSkillLevel = pItem->m_itSpell.m_spelllevel; // heat level (0-1000)
+                iSkillLevel = g_Rand.GetVal2(iSkillLevel / 2, iSkillLevel);
+                if (IsStatFlag(STATF_FLY))
+                    iSkillLevel /= 2;
+
+                int iDmg = OnTakeDamage(g_Cfg.GetSpellEffect(SPELL_Fire_Field, iSkillLevel), nullptr, DAMAGE_FIRE | DAMAGE_GENERAL, 0, 100, 0, 0, 0);
+                if (iDmg > 0)
+                {
+                    Sound(0x15f); // fire noise
+                    if (m_pNPC && fStanding)
                     {
-                        Sound(0x15f);	// fire noise
-                        if ( m_pNPC && fStanding )
-                        {
-                            m_Act_p.Move((DIR_TYPE)(g_Rand.GetVal(DIR_QTY)));
-                            NPC_WalkToPoint(true);		// run away from the threat
-                        }
+                        m_Act_p.Move((DIR_TYPE)(g_Rand.GetVal(DIR_QTY)));
+                        NPC_WalkToPoint(true); // run away from the threat
                     }
-				}
-				continue;
-			case IT_SPELL:
-				// Workaround: only hit 1 spell on each loop. If we hit all spells (eg: multiple field spells)
-				// it will allow weird exploits like cast many Fire Fields on the same spot to take more damage,
-				// or Paralyze Field + Fire Field to make the target get stuck forever being damaged with no way
-				// to get out of the field, since the damage won't allow cast any spell and the Paralyze Field
-				// will immediately paralyze again with 0ms delay at each damage tick.
-				// On OSI if the player cast multiple fields on the same tile, it will remove the previous field
-				// tile that got overlapped. But Sphere doesn't use this method, so this workaround is needed.
-				if (fSpellHit)
+                }
+            }
+                continue;
+
+            case IT_SPELL:
+                // Workaround: only hit 1 spell on each loop. If we hit all spells (eg: multiple field spells)
+                // it will allow weird exploits like cast many Fire Fields on the same spot to take more damage,
+                // or Paralyze Field + Fire Field to make the target get stuck forever being damaged with no way
+                // to get out of the field, since the damage won't allow cast any spell and the Paralyze Field
+                // will immediately paralyze again with 0ms delay at each damage tick.
+                // On OSI if the player cast multiple fields on the same tile, it will remove the previous field
+                // tile that got overlapped. But Sphere doesn't use this method, so this workaround is needed.
+                if (fSpellHit)
                     continue;
 
-                fSpellHit = OnSpellEffect((SPELL_TYPE)(RES_GET_INDEX(pItem->m_itSpell.m_spell)),
-                    pItem->m_uidLink.CharFind(), pItem->m_itSpell.m_spelllevel, pItem);
+                fSpellHit =
+                    OnSpellEffect((SPELL_TYPE)(ResGetIndex(pItem->m_itSpell.m_spell)), pItem->m_uidLink.CharFind(), pItem->m_itSpell.m_spelllevel, pItem);
                 if (fSpellHit && m_pNPC && fStanding)
                 {
                     m_Act_p.Move((DIR_TYPE)(g_Rand.GetVal(DIR_QTY)));
-                    NPC_WalkToPoint(true);		// run away from the threat
+                    NPC_WalkToPoint(true); // run away from the threat
                 }
-				continue;
-			case IT_TRAP:
-			case IT_TRAP_ACTIVE:
+                continue;
+
+            case IT_TRAP:
+            case IT_TRAP_ACTIVE:
             {
-                int iDmg = OnTakeDamage( pItem->Use_Trap(), nullptr, DAMAGE_HIT_BLUNT|DAMAGE_GENERAL );
-                if ( (iDmg > 0) && m_pNPC && fStanding )
+                int iDmg = OnTakeDamage(pItem->Use_Trap(), nullptr, DAMAGE_HIT_BLUNT | DAMAGE_GENERAL);
+                if ((iDmg > 0) && m_pNPC && fStanding)
                 {
                     m_Act_p.Move((DIR_TYPE)(g_Rand.GetVal(DIR_QTY)));
-                    NPC_WalkToPoint(true);		// run away from the threat
+                    NPC_WalkToPoint(true); // run away from the threat
                 }
                 continue;
             }
-			case IT_SWITCH:
-				if ( pItem->m_itSwitch.m_wStep )
-					Use_Item(pItem);
-				continue;
-			case IT_MOONGATE:
-			case IT_TELEPAD:
-				if ( fStanding )
-					continue;
-				Use_MoonGate(pItem);
-				return TRIGRET_RET_DEFAULT;
-			case IT_SHIP_PLANK:
-			case IT_ROPE:
-				if ( !fStanding && !IsStatFlag(STATF_HOVERING) && !pItem->IsAttr(ATTR_STATIC) )
-				{
-					// Check if we can go out of the ship (in the same direction of plank)
-                    //bool fFromShip = (nullptr != GetTopSector()->GetRegion(GetTopPoint(), REGION_TYPE_SHIP)); // always true
-					if ( MoveToValidSpot(m_dirFace, g_Cfg.m_iMaxShipPlankTeleport, 1, true) )
-					{
-						//pItem->SetTimeoutS(5);	// autoclose the plank behind us
-						return TRIGRET_RET_TRUE;
-					}
-				}
-				continue;
-			default:
-				continue;
-		}
-	}
 
-	if (fStepCancel)
-		return TRIGRET_RET_FALSE;
+            case IT_SWITCH:
+                if (pItem->m_itSwitch.m_wStep)
+                    Use_Item(pItem);
+                continue;
+
+            case IT_MOONGATE:
+            case IT_TELEPAD:
+                if (fStanding)
+                    continue;
+                Use_MoonGate(pItem);
+                return TRIGRET_RET_DEFAULT;
+
+            case IT_SHIP_PLANK:
+            case IT_ROPE:
+                if (!fStanding && !IsStatFlag(STATF_HOVERING) && !pItem->IsAttr(ATTR_STATIC))
+                {
+                    // Check if we can go out of the ship (in the same direction of plank)
+                    //bool fFromShip = (nullptr != GetTopSector()->GetRegion(GetTopPoint(), REGION_TYPE_SHIP)); // always true
+                    if (MoveToValidSpot(m_dirFace, g_Cfg.m_iMaxShipPlankTeleport, 1, true))
+                    {
+                        //pItem->SetTimeoutS(5);	// autoclose the plank behind us
+                        return TRIGRET_RET_TRUE;
+                    }
+                }
+                continue;
+
+            default:
+                continue;
+        }
+    }
+
+    if (fStepCancel)
+        return TRIGRET_RET_FALSE;
+
     if (fStanding)
         return TRIGRET_RET_TRUE;
 
@@ -3824,18 +5043,19 @@ TRIGRET_TYPE CChar::CheckLocation( bool fStanding )
 		if ( m_pNPC->m_Brain == NPCBRAIN_GUARD )
 		{
 			// Guards won't gate into unguarded areas.
-			const CRegionWorld *pArea = dynamic_cast<CRegionWorld*>(pTeleport->_ptDst.GetRegion(REGION_TYPE_MULTI|REGION_TYPE_AREA));
+			auto pArea = dynamic_cast<const CRegionWorld*>(pTeleport->_ptDst.GetRegion(REGION_TYPE_MULTI|REGION_TYPE_AREA));
 			if ( !pArea || (!pArea->IsGuarded() && !IsSetOF(OF_GuardOutsideGuardedArea)) )
 				return TRIGRET_RET_FALSE;
 		}
 		if ( Noto_IsCriminal() )
 		{
 			// wont teleport to guarded areas.
-			const CRegionWorld *pArea = dynamic_cast<CRegionWorld*>(pTeleport->_ptDst.GetRegion(REGION_TYPE_MULTI|REGION_TYPE_AREA));
+			auto pArea = dynamic_cast<const CRegionWorld*>(pTeleport->_ptDst.GetRegion(REGION_TYPE_MULTI|REGION_TYPE_AREA));
 			if ( !pArea || pArea->IsGuarded() )
 				return TRIGRET_RET_FALSE;
 		}
 	}
+
 	Spell_Teleport(pTeleport->_ptDst, true, false, false);
 	return TRIGRET_RET_DEFAULT;
 }
@@ -4022,8 +5242,12 @@ bool CChar::MoveToRegionReTest( dword dwType )
 // This could be us just taking a step or being teleported.
 // Low level: DOES NOT UPDATE DISPLAYS or container flags. (may be offline)
 // This does not check for gravity.
-bool CChar::MoveToChar(const CPointMap& pt, bool fStanding, bool fCheckLocation, bool fForceFix, bool fAllowReject)
+bool CChar::MoveToChar(const CPointMap& pt, bool fStanding, bool fCheckLocationEffects, bool fForceFix, bool fAllowReject)
 {
+    // WARNING: If you are using fCheckLocationEffects = true, be sure to NOT create situations where this call to CheckLocationEffects
+    //  makes it recursively call itself (moving to something that moves again the char and so on).
+    // Using CheckLocationEffects here is often not necessary, since it's called at each char PeriodicTick.
+
 	ADDTOCALLSTACK("CChar::MoveToChar");
 
 	if ( !pt.IsValidPoint() )
@@ -4073,7 +5297,7 @@ bool CChar::MoveToChar(const CPointMap& pt, bool fStanding, bool fCheckLocation,
 		}
 	}
 
-    if (fCheckLocation && (CheckLocation(fStanding) == TRIGRET_RET_FALSE) && ptOld.IsValidPoint())
+    if (fCheckLocationEffects && (CheckLocationEffects(fStanding) == TRIGRET_RET_FALSE) && ptOld.IsValidPoint())
     {
         SetTopPoint(ptOld);
         return false;
@@ -4083,8 +5307,10 @@ bool CChar::MoveToChar(const CPointMap& pt, bool fStanding, bool fCheckLocation,
 
 bool CChar::MoveTo(const CPointMap& pt, bool fForceFix)
 {
+    ADDTOCALLSTACK_DEBUG("CChar::MoveTo");
+
 	m_fClimbUpdated = false; // update climb height
-    return MoveToChar(pt, true, true, fForceFix);
+    return MoveToChar(pt, true, false, fForceFix);
 }
 
 void CChar::SetTopZ( char z )
@@ -4437,7 +5663,7 @@ TRIGRET_TYPE CChar::OnTrigger( CTRIG_TYPE trigger, CTextConsole * pSrc, CScriptT
 // process m_fStatusUpdate flags
 void CChar::OnTickStatusUpdate()
 {
-	//ADDTOCALLSTACK_INTENSIVE("CChar::OnTickStatusUpdate");
+	//ADDTOCALLSTACK_DEBUG("CChar::OnTickStatusUpdate");
     EXC_TRYSUB("CChar::OnTickStatusUpdate");
 
 	if ( IsClientActive() )
@@ -4542,7 +5768,7 @@ void CChar::OnTickSkill()
 
 bool CChar::_CanTick(bool fParentGoingToSleep) const
 {
-	ADDTOCALLSTACK_INTENSIVE("CChar::_CanTick");
+	ADDTOCALLSTACK_DEBUG("CChar::_CanTick");
 	EXC_TRY("Can tick?");
 
 	if (IsDisconnected() && (Skill_GetActive() != NPCACT_RIDDEN))
@@ -4600,7 +5826,7 @@ bool CChar::_OnTick()
 	if (!_CanTick())
 	{
 		ASSERT(!_IsSleeping());
-		if (GetTopSector()->IsSleeping() && !g_Rand.GetVal(15))
+		if (GetTopSector()->IsSleeping() && !g_Rand.Get16ValFast(15))
 		{
 			_SetTimeout(1);      //Make it tick after sector's awakening.
 			_GoSleep();
@@ -4731,7 +5957,7 @@ bool CChar::OnTickPeriodic()
     {
         // Check location periodically for standing in fire fields, traps, etc.
         EXC_SET_BLOCK("check location");
-        CheckLocation(true);
+        CheckLocationEffects(true);
     }
 
     EXC_SET_BLOCK("update stats");
