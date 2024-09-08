@@ -3352,7 +3352,8 @@ PacketCharacterList::PacketCharacterList(CClient* target) : PacketSend(XCMD_Char
 	uint countPos = getPosition();
 	skip(1);
 
-	uint count = target->Setup_FillCharList(this, account->m_uidLastChar.CharFind());
+	uchar count =  n32_narrow8(
+        target->Setup_FillCharList(this, account->m_uidLastChar.CharFind()));
 	seek(countPos);
 
 	writeByte((byte)count);
@@ -3405,7 +3406,7 @@ PacketCharacterList::PacketCharacterList(CClient* target) : PacketSend(XCMD_Char
 
         if (ns->isClientEnhanced() )
         {
-            word iLastCharSlot = 0;
+            word wLastCharSlot = 0;
             for ( ushort i = 0; i < count; ++i )
             {
                 if ( !account->m_Chars.IsValidIndex(i) )
@@ -3413,10 +3414,10 @@ PacketCharacterList::PacketCharacterList(CClient* target) : PacketSend(XCMD_Char
                 if ( account->m_Chars.GetChar(i) != account->m_uidLastChar )
                     continue;
 
-                iLastCharSlot = (word)i;
+                wLastCharSlot = (word)i;
                 break;
             }
-            writeInt16(iLastCharSlot);
+            writeInt16(wLastCharSlot);
         }
     }
 
