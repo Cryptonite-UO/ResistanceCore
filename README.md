@@ -12,6 +12,9 @@ We decide to fork this branch because some little modification are made for adap
 
 
 #### Here the list of difference between the reel sphere X:
+[Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/c296070bf72f3e0958275e6286196f103d2bb335) 2024-09-08
+1.  It's now impossible to gain skillpoint with weapon skill during battle (Now script side).
+
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/39129ca395991d777c51c31391d83eaf82f692a4) 2023-03-23
 1.  It's now possible to hide and detect hidden during battle. This action will result to reset all actual action.
 
