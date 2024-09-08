@@ -618,6 +618,7 @@ int CChar::CalcArmorDefense() const
 // RETURN: damage done
 //  -1		= already dead / invalid target.
 //  0		= no damage.
+//  3       = Dodge the hit
 //  INT32_MAX	= killed.
 int CChar::OnTakeDamage( int iDmg, CChar * pSrc, DAMAGE_TYPE uType, int iDmgPhysical, int iDmgFire, int iDmgCold, int iDmgPoison, int iDmgEnergy, SPELL_TYPE spell)
 {
@@ -750,8 +751,15 @@ effect_bounce:
     CItem* pItemHit = nullptr;
 	if ( IsTrigUsed(TRIGGER_GETHIT) )
 	{
-		if ( OnTrigger( CTRIG_GetHit, pSrc, &Args ) == TRIGRET_RET_TRUE )
-			return 0;
+
+        switch (OnTrigger(CTRIG_GetHit, pSrc, &Args))
+        {
+        case TRIGRET_RET_TRUE:
+            return false;
+        case 3: //dodge
+            return 3;
+        }
+
 		iDmg = (int)(Args.m_iN1);
 		uType = (DAMAGE_TYPE)(Args.m_iN2);
 
@@ -1352,7 +1360,7 @@ bool CChar::Fight_Attack( CChar *pCharTarg, bool fToldByMaster )
 {
 	ADDTOCALLSTACK("CChar::Fight_Attack");
 
-	if ( !pCharTarg || pCharTarg == this || pCharTarg->IsStatFlag(STATF_DEAD|STATF_INVUL|STATF_STONE) || IsStatFlag(STATF_DEAD) )
+	if ( !pCharTarg || pCharTarg == this || pCharTarg->IsStatFlag(STATF_DEAD|STATF_INVUL|STATF_STONE) )
 	{
 		// Not a valid target.
 		Fight_Clear(pCharTarg, true);
@@ -1703,6 +1711,7 @@ WAR_SWING_TYPE CChar::Fight_CanHit(CChar * pCharSrc, bool fSwingNoRange)
 WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 {
 	ADDTOCALLSTACK("CChar::Fight_Hit");
+    bool fMakeSound = true;
 
 	if ( !pCharTarg || (pCharTarg == this) )
 		return WAR_SWING_INVALID;
@@ -1745,7 +1754,7 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 				const CCPropsChar* pCCPChar = GetComponentProps<CCPropsChar>();
 				const CCPropsChar* pBaseCCPChar = Base_GetDef()->GetComponentProps<CCPropsChar>();
 
-                pCharTarg->OnTakeDamage(
+                if (pCharTarg->OnTakeDamage(
                     Fight_CalcDamage(m_uidWeapon.ItemFind()),
                     this,
                     iDmgType,
@@ -1754,8 +1763,10 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
                     (int)GetPropNum(pCCPChar, PROPCH_DAMCOLD,     pBaseCCPChar),
                     (int)GetPropNum(pCCPChar, PROPCH_DAMPOISON,   pBaseCCPChar),
                     (int)GetPropNum(pCCPChar, PROPCH_DAMENERGY,   pBaseCCPChar)
-                );
-
+                ) == 3) //If == 3 that mean target dodge the hit
+                {
+                    fMakeSound=false;
+                }
                 return WAR_SWING_EQUIPPING;
             }
         }
@@ -2017,7 +2028,7 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 				iSound = sm_Snd_Miss[(size_t)g_Rand.Get16ValFast(ARRAY_COUNT(sm_Snd_Miss))];
 			}
 		}
-		Sound(iSound);
+		Sound(iSound); //Sound when missing
 
 		return WAR_SWING_EQUIPPING_NOWAIT;
 	}
@@ -2164,9 +2175,6 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 			pAmmo->ConsumeAmount(1);
 	}
 
-	// Hit noise (based on weapon type)
-	SoundChar(CRESND_HIT);
-
 	if ( pWeapon )
 	{
 		// Check if the weapon is poisoned
@@ -2202,7 +2210,7 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
 	// Took my swing. Do Damage !
 	const CCPropsChar* pCCPChar = GetComponentProps<CCPropsChar>();
 	const CCPropsChar* pBaseCCPChar = Base_GetDef()->GetComponentProps<CCPropsChar>();
-	pCharTarg->OnTakeDamage(
+    if (pCharTarg->OnTakeDamage(
         iDmg,
         this,
         iDmgType,
@@ -2211,7 +2219,16 @@ WAR_SWING_TYPE CChar::Fight_Hit( CChar * pCharTarg )
         (int)GetPropNum(pCCPChar, PROPCH_DAMCOLD,     pBaseCCPChar),
         (int)GetPropNum(pCCPChar, PROPCH_DAMPOISON,   pBaseCCPChar),
         (int)GetPropNum(pCCPChar, PROPCH_DAMENERGY,   pBaseCCPChar)
-    );
+    ) == 3) //If == 3 that mean target dodge the hit
+    {
+        fMakeSound = false;
+    }
+
+    // Hit noise (based on weapon type)
+    if (fMakeSound)
+    {
+        SoundChar(CRESND_HIT); //Sound when we hit
+    }
 
 	if ( iDmg > 0 )
 	{

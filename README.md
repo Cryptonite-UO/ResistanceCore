@@ -13,7 +13,9 @@ We decide to fork this branch because some little modification are made for adap
 
 #### Here the list of difference between the reel sphere X:
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/c296070bf72f3e0958275e6286196f103d2bb335) 2024-09-08
+[Commit2](https://github.com/Cryptonite-UO/ResistanceCore/commit/dae2ad1b5e84f9886a74ba77ae2055493ae7dfab)
 1.  It's now impossible to gain skillpoint with weapon skill during battle (Now script side).
+2.  On @GETHIT, return 3 is a dodge and no more noise will be hear from the weapon.
 
 [Commit](https://github.com/Cryptonite-UO/ResistanceCore/commit/39129ca395991d777c51c31391d83eaf82f692a4) 2023-03-23
 1.  It's now possible to hide and detect hidden during battle. This action will result to reset all actual action.
