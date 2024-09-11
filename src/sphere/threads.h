@@ -305,7 +305,7 @@ public:
 		m_freezeCallStack = freeze;
 	}
 
-	void pushStackCall(const char *name) NOEXCEPT_NODEBUG;
+	void pushStackCall(const char *name) noexcept;
 	void popStackCall() NOEXCEPT_NODEBUG;
 
     void exceptionNotifyStackUnwinding() noexcept;
@@ -350,7 +350,7 @@ class ThreadHolder
     std::vector<spherethreadpair_t> m_spherethreadpairs_systemid_ptr;
 
 	int m_threadCount;
-    volatile std::atomic_bool m_closing;
+    volatile std::atomic_bool m_closingThreads;
 	mutable std::shared_mutex m_mutex;
 
 	ThreadHolder() noexcept;
@@ -358,7 +358,7 @@ class ThreadHolder
 
 	friend void atexit_handler(void);
     friend void Sphere_ExitServer(void);
-	void markThreadsClosing();
+	void markThreadsClosing() CANTHROW;
 
     //SphereThreadData* findThreadData(IThread* thread) noexcept;
 
@@ -369,13 +369,13 @@ public:
 
     bool closing() noexcept;
 	// returns current working thread or DummySphereThread * if no IThread threads are running
-	IThread *current();
+	IThread *current() noexcept;
 	// records a thread to the list. Sould NOT be called, internal usage
-	void push(IThread *thread);
+	void push(IThread *thread) noexcept;
 	// removes a thread from the list. Sould NOT be called, internal usage
-	void remove(IThread *thread);
+	void remove(IThread *thread) CANTHROW;
 	// returns thread at i pos
-	IThread * getThreadAt(size_t at);
+	IThread * getThreadAt(size_t at) noexcept;
 
 	// returns number of running threads. Sould NOT be called, unit tests usage
 	inline size_t getActiveThreads() noexcept { return m_threadCount; }

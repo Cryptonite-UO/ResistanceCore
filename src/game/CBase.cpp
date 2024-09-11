@@ -24,7 +24,7 @@ lpctstr const CBaseBaseDef::sm_szLoadKeys[OBC_QTY+1] =
 };
 
 
-CBaseBaseDef::CBaseBaseDef( CResourceID id ) :
+CBaseBaseDef::CBaseBaseDef( CResourceID const& id ) :
 	CResourceLink( id ),
 	m_sName(false)
 {
@@ -44,9 +44,6 @@ CBaseBaseDef::CBaseBaseDef( CResourceID id ) :
 	m_BaseResources.setNoMergeOnLoad();
 }
 
-CBaseBaseDef::~CBaseBaseDef()
-{
-}
 
 void CBaseBaseDef::DelInstance()
 {
@@ -56,10 +53,6 @@ void CBaseBaseDef::DelInstance()
 	--_dwInstances;
 }
 
-CCFaction CBaseBaseDef::GetFaction()
-{
-	return _pFaction;
-}
 
 lpctstr CBaseBaseDef::GetTypeName() const
 {
@@ -144,11 +137,6 @@ bool CBaseBaseDef::r_WriteVal( lpctstr ptcKey, CSString & sVal, CTextConsole * p
 		case OBC_DEFNAME:
 			sVal = GetResourceName();
 			break;
-
-        case OBC_FACTION:
-        case OBC_SLAYER:
-            sVal.FormatULLHex(_pFaction.GetFactionID());
-            break;
 
 		case OBC_ARMOR:
 			{
@@ -326,11 +314,8 @@ bool CBaseBaseDef::r_LoadVal( CScript & s )
 				bool fQuoted = false;
 				SetDefStr(s.GetKey(), s.GetArgStr( &fQuoted ), fQuoted);
 			}
-			break;
-        case OBC_FACTION:
-        case OBC_SLAYER:
-            _pFaction.SetFactionID( static_cast<NPC_FACTION>(s.GetArgULLVal()) );
-            return true;
+			return true;
+
 		//Set as number only
 		case OBC_EXPANSION:
 		case OBC_VELOCITY:
@@ -349,6 +334,7 @@ bool CBaseBaseDef::r_LoadVal( CScript & s )
 					SetDefStr(sm_szLoadKeys[OBC_DESCRIPTION], GetDefStr(sm_szLoadKeys[OBC_SUBSECTION]), false, true, false);
 			}
 			return true;
+
 		case OBC_ARMOR:
 			{
 				int64 piVal[2];
@@ -360,6 +346,7 @@ bool CBaseBaseDef::r_LoadVal( CScript & s )
 					m_defenseRange = 0;
 			}
 			return true;
+
 		case OBC_DAM:
 			{
 				int64 piVal[2];
@@ -371,6 +358,7 @@ bool CBaseBaseDef::r_LoadVal( CScript & s )
 					m_attackRange = 0;
 			}
 			return true;
+
 		case OBC_BASEID:
 			return false;
         case OBC_CAN:
@@ -431,7 +419,6 @@ void CBaseBaseDef::CopyBasic( const CBaseBaseDef * pBase )
 	m_defenseBase = pBase->m_defenseBase;
 	m_defenseRange = pBase->m_defenseRange;
 	m_Can = pBase->m_Can;
-    _pFaction.SetFactionID(pBase->_pFaction.GetFactionID());
     CEntityProps::Copy(pBase);
 }
 

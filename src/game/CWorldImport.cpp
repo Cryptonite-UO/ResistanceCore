@@ -68,7 +68,7 @@ public:
 	void CheckLast();
 	void ImportFix();
 	bool ImportSCP( CScript & s, word wModeFlags );
-	bool ImportWSC( CScript & s, word wModeFlags );
+	bool ImportWSC( CScript & s, word wModeFlags, short dx, short dy );
 };
 
 void CImportFile::CheckLast()
@@ -251,7 +251,7 @@ bool CImportFile::ImportSCP( CScript & s, word wModeFlags )
 			ImportFix();
 			if ( wModeFlags & IMPFLAGS_CHARS )
 			{
-				m_pCurObj = CChar::CreateBasic(static_cast<CREID_TYPE>(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr())));
+				m_pCurObj = CChar::CreateBasic((CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr())));
 			}
 		}
 		else if ( s.IsSectionType( "WORLDITEM" ) || s.IsSectionType("WI"))
@@ -302,7 +302,7 @@ bool CImportFile::ImportSCP( CScript & s, word wModeFlags )
 	return true;
 }
 
-bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
+bool CImportFile::ImportWSC( CScript & s, word wModeFlags, short dx, short dy )
 {
 	ADDTOCALLSTACK("CImportFile::ImportWSC");
 	// This file is a WSC or UOX world script file.
@@ -416,7 +416,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
 				m_pCurSer->m_layer = static_cast<LAYER_TYPE>(atoi(pArg));
 				continue;
 			}
-			else if (pItem == nullptr)
+			if (pItem == nullptr)
 			{
 				DEBUG_ERR(( "Import:Found '%s' before ID.\n", s.GetKey()));
 				continue;
@@ -429,7 +429,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                     continue;
 
 				CPointMap pt(pItem->GetUnkPoint());
-				pt.m_x = *iconv;
+				pt.m_x = *iconv + dx;
 				pItem->SetUnkPoint(pt);
 				continue;
 			}
@@ -440,7 +440,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                     continue;
 
 				CPointMap pt(pItem->GetUnkPoint());
-				pt.m_y = (*iconv);
+				pt.m_y = *iconv + dy;
 				pItem->SetUnkPoint(pt);
 				continue;
 			}
@@ -599,7 +599,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                 if (!iconv.has_value())
                     return false;
 
-				pChar->SetID(num_alias_cast<CREID_TYPE>(*iconv));
+				pChar->SetID(enum_alias_cast<CREID_TYPE>(*iconv));
 				continue;
 			}
 			else if ( s.IsKey("SKIN" ))
@@ -608,7 +608,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                 if (!iconv.has_value())
                     return false;
 
-				pChar->SetHue(num_alias_cast<HUE_TYPE>(*iconv));
+				pChar->SetHue(n_alias_cast<HUE_TYPE>(*iconv));
 				continue;
 			}
 			else if ( s.IsKey("DIR" ))
@@ -617,7 +617,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                 if (!iconv.has_value())
                     return false;
 
-				pChar->m_dirFace = num_alias_cast<DIR_TYPE>(*iconv);
+				pChar->m_dirFace = enum_alias_cast<DIR_TYPE>(*iconv);
 				if ( (pChar->m_dirFace < 0) || (pChar->m_dirFace >= DIR_QTY) )
 					pChar->m_dirFace = DIR_SE;
 				continue;
@@ -628,7 +628,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                 if (!iconv.has_value())
                     return false;
 
-				pChar->_iPrev_id = num_alias_cast<CREID_TYPE>(*iconv);
+				pChar->_iPrev_id = enum_alias_cast<CREID_TYPE>(*iconv);
 				continue;
 			}
 			else if ( s.IsKey("XSKIN" ))
@@ -637,7 +637,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                 if (!iconv.has_value())
                     return false;
 
-				pChar->_wPrev_Hue = num_alias_cast<HUE_TYPE>(*iconv);
+				pChar->_wPrev_Hue = n_alias_cast<HUE_TYPE>(*iconv);
 				continue;
 			}
 			else if ( s.IsKey("FONT" ))
@@ -646,7 +646,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                 if (!iconv.has_value())
                     return false;
 
-				pChar->m_fonttype = num_alias_cast<FONT_TYPE>(*iconv);
+				pChar->m_fonttype = enum_alias_cast<FONT_TYPE>(*iconv);
 				continue;
 			}
 			else if ( s.IsKey("KARMA" ))
@@ -727,7 +727,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
                 if (!iconv_int.has_value())
                     return false;
 
-				const auto skill = num_alias_cast<SKILL_TYPE>(*iconv_int);
+				const auto skill = enum_alias_cast<SKILL_TYPE>(*iconv_int);
 
                 std::optional<ushort> iconv = Str_ToU16(pArg);
                 if (!iconv.has_value())
@@ -773,7 +773,7 @@ bool CImportFile::ImportWSC( CScript & s, word wModeFlags )
 	return true;
 }
 
-bool CWorld::Import( lpctstr pszFilename, const CChar * pSrc, word wModeFlags, int iDist, tchar * pszArg1, tchar * pszArg2 )
+bool CWorld::Import( lpctstr pszFilename, const CChar * pSrc, word wModeFlags, int iDist, short dx, short dy, tchar * pszArg1, tchar * pszArg2 )
 {
 	ADDTOCALLSTACK("CWorld::Import");
 	// wModeFlags = IMPFLAGS_TYPE
@@ -800,8 +800,8 @@ bool CWorld::Import( lpctstr pszFilename, const CChar * pSrc, word wModeFlags, i
 
 		if ( wModeFlags & IMPFLAGS_RELATIVE )
 		{
-			// dx += ptCenter.m_x;
-			// dy += ptCenter.m_y;
+			dx += ptCenter.m_x;
+			dy += ptCenter.m_y;
 		}
 	}
 
@@ -812,7 +812,7 @@ bool CWorld::Import( lpctstr pszFilename, const CChar * pSrc, word wModeFlags, i
 
 	if ( ! strcmpi( pszFilename + (iLen - 4), ".WSC" ))
 	{
-		if ( ! fImport.ImportWSC(s, wModeFlags ))
+		if ( ! fImport.ImportWSC(s, wModeFlags, dx, dy ))
 			return false;
 	}
 	else
@@ -861,7 +861,7 @@ bool CWorld::DumpAreas( CTextConsole * pSrc, lpctstr pszFilename )
 
 
 
-bool CWorld::Export( lpctstr pszFilename, const CChar * pSrc, word wModeFlags, int iDist, int dx, int dy )
+bool CWorld::Export( lpctstr pszFilename, const CChar * pSrc, word wModeFlags, int iDist, short dx, short dy )
 {
 	ADDTOCALLSTACK("CWorld::Export");
 	// wModeFlags = IMPFLAGS_TYPE
@@ -897,12 +897,13 @@ bool CWorld::Export( lpctstr pszFilename, const CChar * pSrc, word wModeFlags, i
 			CItem * pItem = AreaItems->GetItem();
 			if ( pItem == nullptr )
 				break;
-			pItem->WriteUOX( s, index++ );
+			pItem->WriteUOX( s, index++, dx, dy );
 		}
 		return true;
 	}
 
 	// (???NPC) Chars and the stuff they are carrying.
+	// This format doesn't (yet?) have relative coords support.
 	if ( wModeFlags & IMPFLAGS_CHARS )
 	{
 		auto AreaChars = CWorldSearchHolder::GetInstance( pSrc->GetTopPoint(), iDist );

@@ -169,7 +169,7 @@ int CServer::GetExitFlag() const noexcept
     return m_iExitFlag.load(std::memory_order_acquire);
 }
 
-void CServer::SetExitFlag(int iFlag)
+void CServer::SetExitFlag(int iFlag) noexcept
 {
     ADDTOCALLSTACK("CServer::SetExitFlag");
     if ( GetExitFlag() )
@@ -394,7 +394,9 @@ void CServer::ListClients( CTextConsole *pConsole ) const
 			if ( pCharCmd && !pCharCmd->CanDisturb(pChar) )
 				continue;
 
-			snprintf(ptcMsg, Str_TempLength(), "%" PRIx32 ":Acc%c'%s', Char='%s' (IP: %s)\n", pClient->GetSocketID(), chRank, !pAcc ? "null" : pAcc->GetName(), pChar->GetName(), pClient->GetPeerStr());
+			snprintf(ptcMsg, Str_TempLength(),
+                     "%" PRIx32 ":Acc%c'%s', Char='%s' (IP: %s)\n",
+                     pClient->GetSocketID(), chRank, (!pAcc ? "null" : pAcc->GetName()), pChar->GetName(), pClient->GetPeerStr());
 		}
 		else
 		{
@@ -415,7 +417,9 @@ void CServer::ListClients( CTextConsole *pConsole ) const
 					break;
 			}
 
-			snprintf(ptcMsg, Str_TempLength(), "%" PRIx32 ":Acc%c'%s' (IP: %s) %s\n", pClient->GetSocketID(), chRank, pAcc ? pAcc->GetName() : "<NA>", pClient->GetPeerStr(), pszState);
+			snprintf(ptcMsg, Str_TempLength(),
+                     "%" PRIx32 ":Acc%c'%s' (IP: %s) %s\n",
+                     pClient->GetSocketID(), chRank, (pAcc ? pAcc->GetName() : "<NA>"), pClient->GetPeerStr(), pszState);
 		}
 
         pConsole->SysMessage(ptcMsg);
@@ -497,7 +501,8 @@ bool CServer::OnConsoleCmd( CSString & sText, CTextConsole * pSrc )
 				switch ( tolower(*ptcKey) )
 				{
 					case 'a': // areas
-						ptcKey++;	GETNONWHITESPACE( ptcKey );
+						ptcKey++;
+                        GETNONWHITESPACE( ptcKey );
 						if ( !g_World.DumpAreas( pSrc, ptcKey ) )
 						{
                             if (pSrc != this)
@@ -1566,11 +1571,11 @@ bool CServer::r_Verb( CScript &s, CTextConsole * pSrc )
                 {
                     if (pSrc != this)
                     {
-                        pSrc->SysMessagef("IP%s blocked\n", history.m_blocked ? " already" : "");
+                        pSrc->SysMessagef("IP%s blocked\n", (history.m_fBlocked ? " already" : ""));
                     }
                     else
                     {
-                        g_Log.Event(LOGL_EVENT, "IP%s blocked\n", history.m_blocked ? " already" : "");
+                        g_Log.Event(LOGL_EVENT, "IP%s blocked\n", (history.m_fBlocked ? " already" : ""));
                     }
                 }
 
@@ -1639,7 +1644,7 @@ bool CServer::r_Verb( CScript &s, CTextConsole * pSrc )
 				// IMPFLAGS_ITEMS
 				if ( ! g_World.Export( Arg_ppCmd[0], pSrc->GetChar(),
 					(Arg_Qty >= 2) ? (word)atoi(Arg_ppCmd[1]) : (word)IMPFLAGS_ITEMS,
-					(Arg_Qty >= 3)? atoi(Arg_ppCmd[2]) : INT16_MAX ))
+					(Arg_Qty >= 3) ? atoi(Arg_ppCmd[2]) : INT16_MAX ))
 				{
                     if (pSrc != this)
                     {
@@ -1818,8 +1823,10 @@ log_cont:
 					break;
 				}
 				if ( ! g_World.Import( Arg_ppCmd[0], pSrc->GetChar(),
-					IMPFLAGS_BOTH|IMPFLAGS_ACCOUNT, INT16_MAX,
-					Arg_ppCmd[1], Arg_ppCmd[2] ))
+                    IMPFLAGS_BOTH|IMPFLAGS_ACCOUNT, INT16_MAX,
+                    0, 0,
+                    Arg_ppCmd[1], Arg_ppCmd[2] )
+                )
 				{
                     if (pSrc != this)
                     {
@@ -1902,11 +1909,11 @@ log_cont:
 				HistoryIP& history = g_NetworkManager.getIPHistoryManager().getHistoryForIP(s.GetArgRaw());
                 if (pSrc != this)
                 {
-                    pSrc->SysMessagef("IP%s unblocked\n", history.m_blocked ? "" : " already");
+                    pSrc->SysMessagef("IP%s unblocked\n", (history.m_fBlocked ? "" : " already"));
                 }
                 else
                 {
-                    g_Log.Event(LOGL_EVENT, "IP%s unblocked\n", history.m_blocked ? "" : " already");
+                    g_Log.Event(LOGL_EVENT, "IP%s unblocked\n", (history.m_fBlocked ? "" : " already"));
                 }
 				history.setBlocked(false);
 			}

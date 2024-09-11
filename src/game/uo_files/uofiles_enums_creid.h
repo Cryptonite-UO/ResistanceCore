@@ -289,6 +289,7 @@ enum CREID_TYPE	: uint32_t // enum the creature animations. (dont allow any othe
 	CREID_STEED_ARMORED		= 0x11C,
 	CREID_REAPER_REDUX		= 0x11D,
 	CREID_HORRIFIC_BEAST	= 0x2EA,	// moloch duplicate?
+    //CREID_REVENANT          = 0x2EE, Retiré pour ajouté Vampire (ORC)
 	CREID_REAPER_FORM		= 0xE6,
 	CREID_SPECTRAL_ARMOR	= 0x27D,
 

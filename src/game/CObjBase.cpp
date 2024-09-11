@@ -274,18 +274,18 @@ CBaseBaseDef* CObjBase::Base_GetDef() const noexcept
 	return (static_cast <CBaseBaseDef*>(m_BaseRef.GetRef()));
 }
 
-bool CObjBase::IsContainer() const
+bool CObjBase::IsContainer() const noexcept
 {
 	// Simple test if object is a container.
 	return (dynamic_cast <const CContainer*>(this) != nullptr);
 }
 
-int64 CObjBase::GetTimeStampS() const
+int64 CObjBase::GetTimeStampS() const noexcept
 {
 	return m_iTimeStampS;
 }
 
-void CObjBase::SetTimeStampS(int64 t_time)
+void CObjBase::SetTimeStampS(int64 t_time) noexcept
 {
 	m_iTimeStampS = t_time;
 }
@@ -1012,10 +1012,6 @@ bool CObjBase::r_WriteVal( lpctstr ptcKey, CSString &sVal, CTextConsole * pSrc, 
 		case OC_ABILITYPRIMARY:
 		case OC_ABILITYSECONDARY:
 		case OC_ONAME:
-		case OC_SLAYER:
-		case OC_SLAYERLESSER:
-		case OC_SLAYERMISC:
-		case OC_SLAYERSUPER:
 		{
 			const CVarDefCont * pVar = GetDefKey(ptcKey, true);
 			sVal = pVar ? pVar->GetValStr() : "";
@@ -1805,10 +1801,6 @@ bool CObjBase::r_LoadVal( CScript & s )
 		case OC_ABILITYPRIMARY:
 		case OC_ABILITYSECONDARY:
 		case OC_ONAME:
-		case OC_SLAYER:
-		case OC_SLAYERLESSER:
-		case OC_SLAYERMISC:
-		case OC_SLAYERSUPER:
 		{
 			bool fQuoted = false;
 			SetDefStr(s.GetKey(), s.GetArgStr( &fQuoted ), fQuoted);
@@ -1982,7 +1974,7 @@ bool CObjBase::r_LoadVal( CScript & s )
                 * So the new timer will be the current time in msecs (SetTimeout)
                 * For older builds, the timer is stored in seconds (SetTimeoutD)
                 */
-                if (iPrevBuild && (iPrevBuild >= 2866)) // commit #e08723c54b0a4a3b1601eba6f34a6118891f1313
+                if (iPrevBuild >= 2866) // commit #e08723c54b0a4a3b1601eba6f34a6118891f1313
                 {
 					// If TIMER = 0 was saved it means that at the moment of the worldsave the timer was elapsed but its object could not tick,
 					//	since it was waiting a GoAwake() call. Now set the timer to tick asap.
@@ -3317,11 +3309,6 @@ void CObjBase::SetSpawn(CCSpawn * spawn)
         _uidSpawn.InitUID();
 }
 
-CCFaction * CObjBase::GetFaction()
-{
-    return static_cast<CCFaction*>(GetComponent(COMP_FACTION));
-}
-
 CSString CObjBase::GetPropStr( const CComponentProps* pCompProps, CComponentProps::PropertyIndex_t iPropIndex, bool fZero, const CComponentProps* pBaseCompProps ) const
 {
     CSString sProp;
@@ -3659,7 +3646,7 @@ bool CObjBase::CallPersonalTrigger(tchar * pArgs, CTextConsole * pSrc, TRIGRET_T
 				if ( pTriggerArgObj )
 					csTriggerArgs.m_pO1 = pTriggerArgObj;
 			}
-			else if ( iTriggerArgType == 4 ) // FULL TRIGGER
+			else if ( iTriggerArgType == 4 ) // FULLTRIGGER
 			{
 				tchar * Arg_ppCmd[5];
 				iResultArgs = Str_ParseCmds(ppCmdTrigger[2], Arg_ppCmd, ARRAY_COUNT(Arg_ppCmd), ",");
@@ -3693,4 +3680,3 @@ bool CObjBase::CallPersonalTrigger(tchar * pArgs, CTextConsole * pSrc, TRIGRET_T
 
 	return false;
 }
-

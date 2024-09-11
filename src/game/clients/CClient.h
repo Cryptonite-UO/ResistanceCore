@@ -211,7 +211,7 @@ public:
 		struct
 		{
 			SPELL_TYPE m_iSpell;			// targetting what spell ?
-			CREID_TYPE m_iSummonID;
+			CREID_TYPE m_uiSummonID;
 		} m_tmSkillMagery;
 
 		// CLIMODE_TARG_USE_ITEM
@@ -384,7 +384,7 @@ public:
 
 public:
 	explicit CClient(CNetState* state);
-	~CClient();
+	~CClient() noexcept;
 
 	CClient(const CClient& copy) = delete;
 	CClient& operator=(const CClient& other) = delete;

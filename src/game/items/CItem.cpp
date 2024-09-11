@@ -175,10 +175,6 @@ CItem::CItem( ITEMID_TYPE id, CItemBase * pItemDef ) :
         {
             SubscribeComponent(new CCItemDamageable(this));
         }
-        if (CCFaction::CanSubscribe(this))
-        {
-            SubscribeComponent(new CCFaction(pItemDef->GetFaction()));  // Adding it only to equippable items
-        }
 
         TrySubscribeComponentProps<CCPropsItem>();
         TrySubscribeComponentProps<CCPropsItemChar>();
@@ -614,7 +610,7 @@ CItem * CItem::ReadTemplate( CResourceLock & s, CObjBase * pCont ) // static
 						continue;
 					if ( pItem->IsItemInContainer())
 					{
-						pItem->SetContainedLayer(n16_narrow8(pItem->GetAmount()));	// set the Restock amount.
+						pItem->SetContainedLayer(n16_narrow_n8(pItem->GetAmount()));	// set the Restock amount.
 					}
 				}
 				continue;
@@ -1234,7 +1230,8 @@ int CItem::FixWeirdness()
         // unreasonably long for a top level item ?
         if (_GetTimerSAdjusted() > 90ll * 24 * 60 * 60)
         {
-			g_Log.EventWarn("FixWeirdness on Item (UID=0%x [%s]): timer unreasonably long (> 90 days) on a top level object.\n", GetUID().GetObjUID(), GetName());
+			g_Log.EventWarn("FixWeirdness on Item (UID=0%x [%s]): timer unreasonably long (> 90 days) on a top level object. Setting to 1 hour.\n",
+                GetUID().GetObjUID(), GetName());
             _SetTimeoutS(60 * 60);
         }
     }
@@ -2118,13 +2115,13 @@ void CItem::OnHear( lpctstr pszCmd, CChar * pSrc )
 	ASSERT(false);
 }
 
-bool CItem::CanHear() const
+bool CItem::CanHear() const noexcept
 {
     //ADDTOCALLSTACK("CItem::CanHear");
     return IsType(IT_SHIP) || IsType(IT_COMM_CRYSTAL);
 }
 
-CItemBase * CItem::Item_GetDef() const
+CItemBase * CItem::Item_GetDef() const noexcept
 {
 	return static_cast <CItemBase*>( Base_GetDef() );
 }
@@ -2264,7 +2261,7 @@ bool CItem::CanSendAmount() const noexcept
     return true;
 }
 
-void CItem::WriteUOX( CScript & s, int index )
+void CItem::WriteUOX( CScript & s, int index, int dx, int dy )
 {
 	ADDTOCALLSTACK("CItem::WriteUOX");
 	s.Printf( "SECTION WORLDITEM %d\n", index );
@@ -2272,8 +2269,8 @@ void CItem::WriteUOX( CScript & s, int index )
 	s.Printf( "SERIAL %u\n", (dword) GetUID());
 	s.Printf( "NAME %s\n", GetName());
 	s.Printf( "ID %d\n", GetDispID());
-	s.Printf( "X %d\n", GetTopPoint().m_x );
-	s.Printf( "Y %d\n", GetTopPoint().m_y );
+	s.Printf( "X %d\n", GetTopPoint().m_x + dx );
+	s.Printf( "Y %d\n", GetTopPoint().m_y + dy );
 	s.Printf( "Z %d\n", GetTopZ());
 	s.Printf( "CONT %d\n", -1 );
 	s.Printf( "TYPE %d\n", m_type );
@@ -3910,18 +3907,6 @@ bool CItem::SetType(IT_TYPE type, bool fPreCheck)
         /* CCItemDamageable is also added from CObjBase::r_LoadVal(OC_CANMASK) for manual override of can flags
         * but it's required to add it also on item's creation depending on it's CItemBase can flags. */
         SubscribeComponent(new CCItemDamageable(this));
-    }
-
-    pComp = GetComponent(COMP_FACTION);
-    if (!CCFaction::CanSubscribe(this))
-    {
-        if (pComp)
-            UnsubscribeComponent(pComp);
-    }
-    else if (!pComp)
-    {
-        CItemBase* pItemDef = Item_GetDef();
-        SubscribeComponent(new CCFaction(pItemDef->_pFaction));
     }
 
 	return true;
@@ -6023,11 +6008,6 @@ bool CItem::IsResourceMatch( const CResourceID& rid, dword dwArg ) const
 	return false;
 }
 
-CCFaction * CItem::GetSlayer() const
-{
-    return static_cast<CCFaction*>(GetComponent(COMP_FACTION));
-}
-
 
 void CItem::_GoAwake()
 {
@@ -6362,3 +6342,14 @@ bool CItem::_OnTick()
 	return true;
 }
 
+const CFactionDef* CItem::GetSlayer() const noexcept
+{
+    auto pComp = static_cast<CCPropsItemEquippable const*>(GetComponentProps(COMP_PROPS_ITEMEQUIPPABLE));
+	return (!pComp ? nullptr : pComp->GetFaction());
+}
+
+CFactionDef* CItem::GetSlayer() noexcept
+{
+    auto pComp = static_cast<CCPropsItemEquippable*>(GetComponentProps(COMP_PROPS_ITEMEQUIPPABLE));
+	return (!pComp ? nullptr : pComp->GetFaction());
+}

@@ -643,7 +643,7 @@ void CItemMultiCustom::AddStairs(CClient * pClientSrc, ITEMID_TYPE id, int16 x, 
         if (!pMultiItem->m_visible)
             continue;
 
-        AddItem(nullptr, pMultiItem->GetDispID(), x + pMultiItem->m_dx, y + pMultiItem->m_dy, z + n16_narrow8(pMultiItem->m_dz), iStairID);
+        AddItem(nullptr, pMultiItem->GetDispID(), x + pMultiItem->m_dx, y + pMultiItem->m_dy, z + n16_narrow_n8(pMultiItem->m_dz), iStairID);
     }
 
     SendStructureTo(pClientSrc);
@@ -855,7 +855,7 @@ bool CItemMultiCustom::RemoveStairs(CMultiComponent * pStairComponent)
 
             int16 x = pComp->m_item.m_dx;
             int16 y = pComp->m_item.m_dy;
-            int8 z = n16_narrow8(pComp->m_item.m_dz);
+            int8 z = n16_narrow_n8(pComp->m_item.m_dz);
 
             it = m_designWorking.m_vectorComponents.erase(it);
             ++ m_designWorking.m_iRevision;
@@ -1158,7 +1158,7 @@ size_t CItemMultiCustom::GetComponentsAt(int16 x, int16 y, int8 z, CMultiCompone
         if (pComponent->m_item.m_dx != x || pComponent->m_item.m_dy != y)
             continue;
 
-        if (z != INT8_MIN && GetPlane(n16_narrow8(pComponent->m_item.m_dz)) != uiPlane)
+        if (z != INT8_MIN && GetPlane(n16_narrow_n8(pComponent->m_item.m_dz)) != uiPlane)
             continue;
 
         pComponents[count++] = pComponent;
@@ -1887,12 +1887,12 @@ uint8 CItemMultiCustom::GetPlane(int8 z)
 
 uint8 CItemMultiCustom::GetPlane(const CMultiComponent * pComponent)
 {
-    return GetPlane(n16_narrow8(pComponent->m_item.m_dz));
+    return GetPlane(n16_narrow_n8(pComponent->m_item.m_dz));
 }
 
 int8 CItemMultiCustom::GetPlaneZ(uint8 plane)
 {
-    return n32_narrow8_checked(7 + ((plane - 1) * 20));
+    return n32_narrow_n8_checked(7 + ((plane - 1) * 20));
 }
 
 bool CItemMultiCustom::IsValidItem(ITEMID_TYPE id, CClient * pClientSrc, bool fMulti)
@@ -1932,7 +1932,7 @@ bool CItemMultiCustom::LoadValidItems()
     if (!sm_mapValidItems.empty())	// already loaded?
         return true;
 
-    static const char * sm_szItemFiles[][32] =
+    static constexpr const char * sm_szItemFiles[][32] =
     {
         // list of files containing valid items
         { "doors.txt", "Piece1", "Piece2", "Piece3", "Piece4", "Piece5", "Piece6", "Piece7", "Piece8", nullptr },
@@ -1975,7 +1975,14 @@ bool CItemMultiCustom::LoadValidItems()
                 const std::string& strCurRow = csvDataRow[sm_szItemFiles[i][ii]];
                 if (strCurRow.empty() || !IsDigit(strCurRow[0]))
                     continue;
-                ITEMID_TYPE itemid = (ITEMID_TYPE)std::stoul(strCurRow, nullptr, 10);
+
+                auto iconv = Str_ToU(strCurRow.c_str(), 10);
+                if (iconv.has_value())
+                {
+                    g_Log.EventWarn("Invalid number in file '%s', row=%d. Skipping.\n", sm_szItemFiles[i][0], curCSV.GetCurrentRow());
+                    continue;
+                }
+                ITEMID_TYPE itemid = (ITEMID_TYPE)*iconv;
                 if (itemid <= 0 || itemid >= ITEMID_MULTI)
                     continue;
 
@@ -1993,7 +2000,13 @@ bool CItemMultiCustom::LoadValidItems()
                     DEBUG_WARN(("No FeatureMask in file '%s', row=%d.\n", sm_szItemFiles[i][0], curCSV.GetCurrentRow()));
                     continue;
                 }
-                sm_mapValidItems[itemid] = (uint)std::stoul(strFeatureMask, nullptr, 10);
+                iconv = Str_ToU(strCurRow.c_str(), 10);
+                if (iconv.has_value())
+                {
+                    g_Log.EventWarn("Invalid FeatureMask number in file '%s', row=%d. Skipping.\n", sm_szItemFiles[i][0], curCSV.GetCurrentRow());
+                    continue;
+                }
+                sm_mapValidItems[itemid] = *iconv;
             }
         }
 

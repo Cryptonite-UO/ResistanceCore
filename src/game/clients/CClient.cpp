@@ -31,8 +31,8 @@ CClient::CClient(CNetState* state)
 
 	// update ip history
 	HistoryIP& history = g_NetworkManager.getIPHistoryManager().getHistoryForIP(GetPeer());
-	++ history.m_connecting;
-	++ history.m_connected;
+	++ history.m_iPendingConnectionRequests;
+	++ history.m_iAliveSuccessfulConnections;
 
 	m_Crypt.SetClientVerFromOther( g_Serv.m_ClientVersion );
 	m_pAccount = nullptr;
@@ -62,7 +62,7 @@ CClient::CClient(CNetState* state)
 	m_Env.SetInvalid();
 
 	g_Log.Event(LOGM_CLIENTS_LOG, "%x:Client connected [Total:%" PRIuSIZE_T "]. IP='%s'. (Connecting/Connected: %d/%d).\n",
-		GetSocketID(), g_Serv.StatGet(SERV_STAT_CLIENTS), GetPeerStr(), history.m_connecting, history.m_connected);
+		GetSocketID(), g_Serv.StatGet(SERV_STAT_CLIENTS), GetPeerStr(), history.m_iPendingConnectionRequests, history.m_iAliveSuccessfulConnections);
 
 	m_zLastMessage[0] = 0;
 	m_zLastObjMessage[0] = 0;
@@ -83,17 +83,23 @@ CClient::CClient(CNetState* state)
 }
 
 
-CClient::~CClient()
+CClient::~CClient() noexcept
 {
-	EXC_TRY("Cleanup in destructor");
-
 	ADDTOCALLSTACK("CClient::~CClient");
+	EXC_TRY("Cleanup in destructor");
 
 	// update ip history
 	HistoryIP& history = g_NetworkManager.getIPHistoryManager().getHistoryForIP(GetPeer());
 	if ( GetConnectType() != CONNECT_GAME )
-		--history.m_connecting;
-	--history.m_connected;
+    {
+        EXC_TRYSUB("m_iPendingConnectionRequests")
+
+        ASSERT(history.m_iPendingConnectionRequests > 0);
+		-- history.m_iPendingConnectionRequests;
+
+        EXC_CATCHSUB("m_iPendingConnectionRequests");
+    }
+    -- history.m_iAliveSuccessfulConnections;
 
 	const bool fWasChar = ( m_pChar != nullptr );
 
@@ -104,7 +110,7 @@ CClient::~CClient()
 		m_pGMPage->ClearHandler();
 
 	// Clear session-bound containers (CTAG and TOOLTIP)
-	m_TagDefs.Clear();
+	//m_TagDefs.Clear();
 
 	CAccount * pAccount = GetAccount();
 	if ( pAccount )
@@ -1541,7 +1547,7 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 			if ( pSpellDef->IsSpellType(SPELLFLAG_TARG_OBJ|SPELLFLAG_TARG_XYZ) )
 			{
 				m_tmSkillMagery.m_iSpell = SPELL_Summon;
-				m_tmSkillMagery.m_iSummonID = (CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
+				m_tmSkillMagery.m_uiSummonID = (CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
 
 				lpctstr pPrompt = g_Cfg.GetDefaultMsg(DEFMSG_SELECT_MAGIC_TARGET);
 				if ( !pSpellDef->m_sTargetPrompt.IsEmpty() )
@@ -1557,7 +1563,7 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 			else
 			{
 				m_pChar->m_atMagery.m_iSpell = SPELL_Summon;
-				m_pChar->m_atMagery.m_iSummonID = (CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
+				m_pChar->m_atMagery.m_uiSummonID = (CREID_TYPE)(g_Cfg.ResourceGetIndexType(RES_CHARDEF, s.GetArgStr()));
 
 				if ( IsSetMagicFlags(MAGICF_PRECAST) && !pSpellDef->IsSpellType(SPELLFLAG_NOPRECAST) )
 				{
@@ -1566,7 +1572,7 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 				}
 				else
 				{
-					int skill;
+					int skill = SKILL_NONE;
 					if ( !pSpellDef->GetPrimarySkill(&skill, nullptr) )
 						return false;
 

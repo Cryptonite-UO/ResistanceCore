@@ -27,6 +27,13 @@ void SetExceptionTranslator();
 
 void NotifyDebugger();
 
+void SetAbortImmediate(bool on) noexcept;
+bool AbortImmediate() noexcept;
+
+void RaiseRecoverableAbort();
+void RaiseImmediateAbort();
+
+
 // -------------------------------------------------------------------
 // -------------------------------------------------------------------
 
@@ -119,7 +126,7 @@ public:
 #define EXC_TRY(a) \
 	lpctstr inLocalBlock = ""; \
 	lpctstr inLocalArgs = a; \
-	uint inLocalBlockCnt = 0; \
+	uint inLocalBlockCnt = 0;  /* NOLINT(misc-const-correctness) */ \
 	bool fCATCHExcept = false; \
 	UnreferencedParameter(fCATCHExcept); \
 	try \

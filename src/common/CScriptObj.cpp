@@ -969,6 +969,7 @@ badcmd:
                 */
 
 				// I think fork will cause problems.. we'll see.. if yes new thread + execlp is required.
+				// TODO: use posix_spawn
 				int child_pid = vfork();
 				if ( child_pid < 0 )
 				{
@@ -2650,11 +2651,13 @@ TRIGRET_TYPE CScriptObj::OnTriggerLoopGeneric(CScript& s, int iType, CTextConsol
 			dword dwUID = 0;
 			dword dwFound = 0;
 
-			while (dwCount--)
+			while (dwCount)
 			{
 				// Check the current UID to test is within our range
 				if (++dwUID >= dwTotal)
 					break;
+
+                dwCount -= 1;
 
 				// Acquire the object with this UID and check it exists
 				CObjBase* pObj = g_World.FindUID(dwUID);
@@ -2752,7 +2755,8 @@ TRIGRET_TYPE CScriptObj::OnTriggerLoopForCharSpecial(CScript& s, SK_TYPE iCmd, C
 		}
 		else
 		{
-			g_Log.EventError("FORCHAR[layer/memorytype] called on char 0%" PRIx32 " (%s) without arguments.\n", (dword)(pCharThis->GetUID()), pCharThis->GetName());
+			g_Log.EventError("FORCHAR[layer/memorytype] called on char 0%" PRIx32 " (%s) without arguments.\n",
+                             (dword)(pCharThis->GetUID()), pCharThis->GetName());
 			iRet = OnTriggerRun(s, TRIGRUN_SECTION_FALSE, pSrc, pArgs, pResult);
 		}
 	}

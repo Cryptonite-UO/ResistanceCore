@@ -11,7 +11,6 @@
 #include "../common/CVarDefMap.h"
 #include "../common/sphere_library/CSString.h"
 #include "uo_files/uofiles_types.h"
-#include "components/CCFaction.h"
 #include "CEntityProps.h"
 
 
@@ -139,12 +138,7 @@ public:
 
 	uint64   m_Can;          // Base attribute flags. CAN_C_GHOST, etc
 
-    CCFaction _pFaction;
-
-
 public:
-    CCFaction GetFaction();
-
     /**
      * @brief   Gets definition string.
      * @param   ptcKey  The key.
@@ -199,8 +193,8 @@ public:
 	}
 
 public:
-	CBaseBaseDef( CResourceID id );
-	virtual ~CBaseBaseDef();
+	CBaseBaseDef( CResourceID const& id );
+	virtual ~CBaseBaseDef() = default;
 
 	CBaseBaseDef(const CBaseBaseDef& copy) = delete;
 	CBaseBaseDef& operator=(const CBaseBaseDef& other) = delete;
