@@ -7,13 +7,10 @@
 #define _INC_THREADS_H
 
 #include "../common/common.h"
-#include "../common/sphere_library/smutex.h"
 #include "../common/sphere_library/sresetevents.h"
 #include "../common/sphere_library/sstringobjs.h"
-#include "../common/sphere_library/CSTime.h"
 #include "../sphere/ProfileData.h"
 #include <atomic>
-#include <exception>
 #include <vector>
 
 #ifndef _WIN32
@@ -153,6 +150,9 @@ public:
 		Disabled = 0xFF	// tick never
 	};
 
+    IThread() noexcept;
+    virtual ~IThread() noexcept;
+
 	virtual threadid_t getId() const = 0;
 	virtual const char *getName() const = 0;
 
@@ -198,10 +198,6 @@ public:
 
 protected:
 	virtual bool shouldExit() noexcept = 0;
-
-public:
-    IThread() noexcept : m_threadSystemId(0), m_threadHolderId(-1) { };
-	virtual ~IThread() = default;
 };
 
 

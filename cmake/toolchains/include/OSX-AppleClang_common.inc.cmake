@@ -1,7 +1,7 @@
 set(TOOLCHAIN_LOADED 1)
 
 function(toolchain_after_project_common)
-    include("${CMAKE_SOURCE_DIR}/cmake/CMakeDetectArch.cmake")
+    include("${CMAKE_SOURCE_DIR}/cmake/DetectArch.cmake")
 endfunction()
 
 function(toolchain_exe_stuff_common)
@@ -127,13 +127,13 @@ function(toolchain_exe_stuff_common)
     endif()
     if(TARGET spheresvr_nightly)
         if(ENABLED_SANITIZER)
-            target_compile_options(spheresvr_nightly PUBLIC -ggdb3 -O1 ${COMPILE_OPTIONS_EXTRA})
+            target_compile_options(spheresvr_nightly PUBLIC -ggdb3 -Og ${COMPILE_OPTIONS_EXTRA})
         else()
             target_compile_options(spheresvr_nightly PUBLIC -O3 ${COMPILE_OPTIONS_EXTRA})
         endif()
     endif()
     if(TARGET spheresvr_debug)
-        target_compile_options(spheresvr_debug PUBLIC -ggdb3 -Og ${COMPILE_OPTIONS_EXTRA})
+        target_compile_options(spheresvr_debug PUBLIC -ggdb3 -O0 ${COMPILE_OPTIONS_EXTRA})
     endif()
 
     #-- Store common linker flags.

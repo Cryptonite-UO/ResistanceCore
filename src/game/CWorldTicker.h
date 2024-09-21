@@ -7,13 +7,14 @@
 
 #include "CTimedFunctionHandler.h"
 #include "CTimedObject.h"
-#include <map>
 
+/* Include phmap.h */
 #ifdef ADDRESS_SANITIZER
     #define MYASAN_
 #endif
 
 #ifdef _WIN32
+//    #define MYSRWLOCK_
     #undef SRWLOCK_INIT
 #endif
 #ifdef __GNUC__
@@ -24,15 +25,31 @@
 // TODO: undef is TEMPORARY !! There's a bug that needs to be solved
 #undef ADDRESS_SANITIZER
 #include <parallel_hashmap/phmap.h>
+
 #ifdef MYASAN_
     #define ADDRESS_SANITIZER
 #endif
+//#ifdef MYSRWLOCK_
+//#   define SRWLOCK_INIT
+//#endif
 
 #ifdef __GNUC__
     #pragma GCC diagnostic pop
 #endif
+/* End of phmap.h inclusion */
+
+/* Include btree.h */
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
+#endif
+
 #include <parallel_hashmap/btree.h>
 
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#endif
+/* End of btree.h inclusion */
 
 
 class CObjBase;

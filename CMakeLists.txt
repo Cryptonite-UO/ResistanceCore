@@ -1,9 +1,10 @@
 #    Main config    #
 
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.24)
 set(CMAKE_SUPPRESS_REGENERATION TRUE) # Supress the ZERO_CHECK generation
 
-# GUI checkboxes
+
+# --------------------  GUI checkboxes --------------------
 option(
     CMAKE_NO_GIT_REVISION
     "Do not try to retrieve the current git revision. Useful for building source not git-cloned from Github."
@@ -15,6 +16,7 @@ option(
     "Statically link inside the executable the runtime libraries? (MSVC, libc/libcc, libstdc++)."
     FALSE
 )
+option(CMAKE_EXPORT_COMPILE_COMMANDS "Export compiler commands to compile_commands.json" TRUE)
 
 set(predef_LIB_LIBEV_BUILD FALSE)
 if(NOT WIN32)
@@ -33,7 +35,7 @@ option(USE_MSAN "Enable MemorySanitizer." FALSE)
 option(USE_LSAN "Enable LeakSanitizer." FALSE)
 option(USE_UBSAN "Enable Undefined Behavior Sanitizer." FALSE)
 
-# Utility functions
+# -------------------- Utility functions --------------------
 function(booleanize_str_find VAR)
     if(${VAR} EQUAL -1)
         unset(${VAR} PARENT_SCOPE)
@@ -42,7 +44,8 @@ function(booleanize_str_find VAR)
     endif()
 endfunction()
 
-# -- Start: initializations
+
+# -------------------- Start: initializations --------------------
 
 # Should i load the toolchain passed as argument?
 if((NOT TOOLCHAIN_LOADED) AND (NOT ${CMAKE_TOOLCHAIN_FILE} STREQUAL ""))
@@ -96,10 +99,13 @@ endif()
 
 # If we have not specified a toolchain, let's detect which one we should use, using the detected arch.
 if(NOT TOOLCHAIN_LOADED)
-    include("cmake/CMakeDefaultToolchain.cmake")
+    include("cmake/DetectDefaultToolchain.cmake")
 endif()
 
-#-- Stuff that needs to be executed after PROJECT but before ADD_EXECUTABLE
+
+# -------------------- Stuff that needs to be executed after PROJECT but before ADD_EXECUTABLE
+
+message(STATUS)
 toolchain_after_project()
 
 string(FIND "${CMAKE_GENERATOR}" "Makefiles" GEN_IS_MAKEFILE)
@@ -115,10 +121,12 @@ endif()
 if(SINGLE_TARGET)
     # If you want to manually specify the build type, call cmake with parameter: -DCMAKE_BUILD_TYPE=something
 
+    # TODO: add NightlyWithDebInfo ?
     message(STATUS "Single-target build system (${CMAKE_GENERATOR}) detected: generating multiple projects!")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Nightly" "Release")
     if(NOT ${CMAKE_BUILD_TYPE} STREQUAL "")
         if(
-            (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
+            (    NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
             AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
             AND (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Nightly")
         )
@@ -149,8 +157,10 @@ else(SINGLE_TARGET)
     set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Nightly" CACHE STRING "" FORCE)
 endif(SINGLE_TARGET)
 
+
 # Include the list of all Sphere source files
 include("src/CMakeSources.cmake")
+
 
 # Configure output binaries
 set(TARGETS "" CACHE INTERNAL "List of Sphere targets to build.")
@@ -161,9 +171,12 @@ if(SINGLE_TARGET)
             spheresvr_release
             ${is_win32_app_linker}
             ${SPHERE_SOURCES}
-            #    ${docs_TEXT}
+            #${docs_TEXT}
         )
         set_target_properties(spheresvr_release PROPERTIES OUTPUT_NAME SphereSvrX${ARCH_BITS}_release)
+        #set_target_properties(spheresvr_release PROPERTIES CXX_EXTENSIONS OFF)
+        #target_compile_features(spheresvr_release PUBLIC cxx_std_20)
+        target_precompile_headers(spheresvr_release ${pch_options})
     endif()
     if(("${CMAKE_BUILD_TYPE}" STREQUAL "") OR (${CMAKE_BUILD_TYPE} MATCHES "(N|n?)ightly"))
         set(TARGETS ${TARGETS} spheresvr_nightly)
@@ -171,9 +184,12 @@ if(SINGLE_TARGET)
             spheresvr_nightly
             ${is_win32_app_linker}
             ${SPHERE_SOURCES}
-            #    ${docs_TEXT}
+            #${docs_TEXT}
         )
         set_target_properties(spheresvr_nightly PROPERTIES OUTPUT_NAME SphereSvrX${ARCH_BITS}_nightly)
+        #set_target_properties(spheresvr_nightly PROPERTIES CXX_EXTENSIONS OFF)
+        #target_compile_features(spheresvr_nightly PUBLIC cxx_std_20)
+        target_precompile_headers(spheresvr_nightly ${pch_options})
     endif()
     if(("${CMAKE_BUILD_TYPE}" STREQUAL "") OR (${CMAKE_BUILD_TYPE} MATCHES "(D|d?)ebug"))
         set(TARGETS ${TARGETS} spheresvr_debug)
@@ -181,9 +197,12 @@ if(SINGLE_TARGET)
             spheresvr_debug
             ${is_win32_app_linker}
             ${SPHERE_SOURCES}
-            #    ${docs_TEXT}
+            #${docs_TEXT}
         )
         set_target_properties(spheresvr_debug PROPERTIES OUTPUT_NAME SphereSvrX${ARCH_BITS}_debug)
+        #set_target_properties(spheresvr_debug PROPERTIES CXX_EXTENSIONS OFF)
+        #target_compile_features(spheresvr_debug PUBLIC cxx_std_20)
+        target_precompile_headers(spheresvr_debug ${pch_options})
     endif()
 else(SINGLE_TARGET)
     set(TARGETS ${TARGETS} spheresvr)
@@ -191,12 +210,31 @@ else(SINGLE_TARGET)
     set_target_properties(spheresvr PROPERTIES OUTPUT_NAME_RELEASE SphereSvrX${ARCH_BITS}_release)
     set_target_properties(spheresvr PROPERTIES OUTPUT_NAME_NIGHTLY SphereSvrX${ARCH_BITS}_nightly)
     set_target_properties(spheresvr PROPERTIES OUTPUT_NAME_DEBUG SphereSvrX${ARCH_BITS}_debug)
+    #set_target_properties(spheresvr PROPERTIES CXX_EXTENSIONS OFF)
+    #target_compile_features(spheresvr PUBLIC cxx_std_20)
+    target_precompile_headers(spheresvr ${pch_options})
 endif(SINGLE_TARGET)
 
+
+# --------------------
+
+#message(STATUS)
+#include("${CMAKE_SOURCE_DIR}/cmake/CompilerFlagsChecker.cmake")
+
+# --------------------
+
 # Now include external libraries
+
+message(STATUS)
+message(STATUS "Configuring external libraries...")
 add_subdirectory(lib)
 
+
+message(STATUS)
 toolchain_exe_stuff() # stuff to be executed after ADD_EXECUTABLE
 
 # Get the Git revision number
-include("cmake/CMakeGitStatus.cmake")
+message(STATUS)
+message(STATUS "Retrieving git data...")
+include("cmake/GitStatus.cmake")
+message(STATUS)

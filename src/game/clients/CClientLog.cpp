@@ -5,14 +5,16 @@
 #include "../../common/sphere_library/CSFileList.h"
 #include "../../common/CLog.h"
 #include "../../common/CException.h"
+#include "../../common/CExpression.h"
 #include "../../network/CIPHistoryManager.h"
 #include "../../network/CNetworkManager.h"
 #include "../../network/send.h"
 #include "../CServer.h"
 #include "CClient.h"
 
+namespace zlib {
 #include <zlib/zlib.h>
-
+}
 
 /////////////////////////////////////////////////////////////////
 // -CClient stuff.
@@ -244,8 +246,8 @@ bool CClient::addRelay( const CServerDef * pServ )
 		CSString sCustomerID(pServ->GetName());
 		sCustomerID.Add(GetAccount()->GetName());
 
-		dwCustomerId = ::crc32(0L, Z_NULL, 0);
-		dwCustomerId = ::crc32(dwCustomerId, reinterpret_cast<const Bytef *>(sCustomerID.GetBuffer()), (uInt)sCustomerID.GetLength());
+		dwCustomerId = zlib::crc32(0L, nullptr, 0);
+		dwCustomerId = zlib::crc32(dwCustomerId, reinterpret_cast<const zlib::Bytef *>(sCustomerID.GetBuffer()), (zlib::uInt)sCustomerID.GetLength());
 
 		GetAccount()->m_TagDefs.SetNum("customerid", dwCustomerId);
 	}

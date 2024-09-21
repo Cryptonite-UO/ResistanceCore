@@ -1,9 +1,6 @@
 // this thing is somehow required to be able to initialise OLE
 #define _WIN32_DCOM
 
-#include <algorithm>
-#include <atomic>
-#include <system_error>
 #include "../common/basic_threading.h"
 #include "../common/CException.h"
 #include "../common/CLog.h"
@@ -17,6 +14,10 @@
 #elif !defined(_BSD) && !defined(__APPLE__)
 	#include <sys/prctl.h>
 #endif
+
+#include <algorithm>
+#include <atomic>
+#include <system_error>
 
 
 // number of exceptions after which we restart thread and think that the thread have gone in exceptioning loops
@@ -53,6 +54,12 @@ public:
 	}
 };
 
+IThread::IThread() noexcept :
+    m_threadSystemId(0), m_threadHolderId(-1)
+    { };
+
+// This is needed to prevent weak-vtables warning (puts the vtable in this translation unit instead of every translation unit)
+IThread::~IThread() noexcept = default;
 
 #ifdef _WIN32
 #pragma pack(push, 8)
@@ -107,8 +114,9 @@ void IThread::setThreadName(const char* name)
     auto athr = static_cast<AbstractSphereThread*>(ThreadHolder::get().current());
     ASSERT(athr);
 
-    g_Log.Event(LOGM_DEBUG|LOGL_EVENT, "Setting thread (ThreadHolder ID %d, internal name '%s') system name: '%s'.\n",
-            athr->m_threadHolderId, athr->getName(), name_trimmed);
+    g_Log.Event(LOGF_CONSOLE_ONLY|LOGM_DEBUG|LOGL_EVENT,
+                "Setting thread (ThreadHolder ID %d, internal name '%s') system name: '%s'.\n",
+                athr->m_threadHolderId, athr->getName(), name_trimmed);
 
     athr->overwriteInternalThreadName(name_trimmed);
 }
@@ -278,8 +286,9 @@ void ThreadHolder::push(IThread *thread) noexcept
     }
     else
     {
-        g_Log.Event(LOGM_DEBUG|LOGL_EVENT, "Registered thread '%s' with ThreadHolder ID %d.\n",
-            thread->getName(), thread->m_threadHolderId);
+        g_Log.Event(LOGM_DEBUG|LOGL_EVENT|LOGF_CONSOLE_ONLY,
+                    "Registered thread '%s' with ThreadHolder ID %d.\n",
+                    thread->getName(), thread->m_threadHolderId);
     }
 }
 
@@ -492,7 +501,8 @@ void AbstractThread::terminate(bool ended)
 #ifdef _WIN32
 			_endthreadex(EXIT_SUCCESS);
 #else
-			pthread_exit(EXIT_SUCCESS);
+            //exit(EXIT_SUCCESS)
+			pthread_exit(nullptr);
 #endif
 		}
 	}
@@ -604,7 +614,11 @@ SPHERE_THREADENTRY_RETNTYPE AbstractThread::runner(void *callerThread)
 		caller->terminate(true);
 	}
 
-	return 0;
+#ifdef _WIN32
+    return 0;
+#else
+	return nullptr;
+#endif
 }
 
 bool AbstractThread::isActive() const
@@ -698,7 +712,8 @@ void AbstractThread::onStart()
     	if (isActive())		// This thread has actually been spawned and the code is executing on a different thread
 		setThreadName(getName());
 
-    g_Log.Event(LOGM_DEBUG|LOGL_EVENT, "Started thread '%s' with ThreadHolder ID %d and system ID %" PRIu64 ".\n",
+    g_Log.Event(LOGM_DEBUG|LOGL_EVENT|LOGF_CONSOLE_ONLY,
+                    "Started thread '%s' with ThreadHolder ID %d and system ID %" PRIu64 ".\n",
                      getName(), m_threadHolderId, (uint64)m_threadSystemId);
 }
 
@@ -904,7 +919,7 @@ void AbstractSphereThread::printStackTrace() noexcept
     //EXC_NOTIFY_DEBUGGER;
 
 	g_Log.EventDebug("Printing STACK TRACE for debugging purposes.\n");
-	g_Log.EventDebug(" _______ thread (id) name _______ |  # | _____________ function _____________ |\n");
+    g_Log.EventDebug(" _ thread (id) name _ |  # | _____________ function _____________ |\n");
 	for ( ssize_t i = 0; i < (ssize_t)ARRAY_COUNT(m_stackInfo); ++i )
 	{
 		if( m_stackInfo[i].functionName == nullptr )

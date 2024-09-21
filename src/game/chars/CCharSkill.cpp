@@ -3,8 +3,12 @@
 #include "../../common/resource/sections/CSkillClassDef.h"
 #include "../../common/resource/sections/CRegionResourceDef.h"
 #include "../../common/resource/CResourceLock.h"
+#include "../../common/sphere_library/CSRand.h"
+#include "../../common/CExpression.h"
 #include "../../common/CLog.h"
 #include "../clients/CClient.h"
+#include "../items/CItemCorpse.h"
+#include "../items/CItemMemory.h"
 #include "../items/CItemVendable.h"
 #include "../triggers.h"
 #include "../CServer.h"
@@ -12,7 +16,6 @@
 #include "../CWorldSearch.h"
 #include "CChar.h"
 #include "CCharNPC.h"
-
 #include <cmath>
 
 //----------------------------------------------------------------------
@@ -420,7 +423,7 @@ void CChar::Skill_Experience( SKILL_TYPE skill, int iDifficulty )
 		if ( Skill_OnTrigger( skill, SKTRIG_GAIN, &pArgs ) == TRIGRET_RET_TRUE )
 			return;
 	}
-	pArgs.GetArgNs( 0, &iChance, &iSkillMax );
+	pArgs.GetArgNs( nullptr, &iChance, &iSkillMax );
 
 	if ( iChance <= 0 )
 		return;
@@ -554,7 +557,7 @@ bool CChar::Skill_UseQuick( SKILL_TYPE skill, int64 difficulty, bool bAllowGain,
 	if ( IsTrigUsed(TRIGGER_SKILLUSEQUICK) )
 	{
 		ret = Skill_OnCharTrigger( skill, CTRIG_SkillUseQuick, &pArgs );
-		pArgs.GetArgNs( 0, &difficulty, &result);
+		pArgs.GetArgNs( nullptr, &difficulty, &result);
 
 		if ( ret == TRIGRET_RET_TRUE )
 			return true;
@@ -564,7 +567,7 @@ bool CChar::Skill_UseQuick( SKILL_TYPE skill, int64 difficulty, bool bAllowGain,
 	if ( IsTrigUsed(TRIGGER_USEQUICK) )
 	{
 		ret = Skill_OnTrigger( skill, SKTRIG_USEQUICK, &pArgs );
-		pArgs.GetArgNs( 0, &difficulty, &result );
+		pArgs.GetArgNs( nullptr, &difficulty, &result );
 
 		if ( ret == TRIGRET_RET_TRUE )
 			return true;
@@ -2277,8 +2280,8 @@ int CChar::Skill_Taming( SKTRIG_TYPE stage )
 
 		if (IsSetOF(OF_PetSlots))
 		{
-			short iFollowerSlots = (short)pChar->GetDefNum("FOLLOWERSLOTS", true, 1);
-			if (!FollowersUpdate(pChar, maximum(0, iFollowerSlots), true))
+            short iFollowerSlots = pChar->GetFollowerSlots();
+            if (!FollowersUpdate(pChar, iFollowerSlots, true))
 			{
 				SysMessageDefault(DEFMSG_PETSLOTS_TRY_TAMING);
 				return -SKTRIG_QTY;
@@ -2293,7 +2296,7 @@ int CChar::Skill_Taming( SKTRIG_TYPE stage )
 		if ( pChar->Memory_FindObjTypes( this, MEMORY_FIGHT|MEMORY_HARMEDBY|MEMORY_IRRITATEDBY|MEMORY_AGGREIVED ))	// I've attacked it before ?
 			iDifficulty += 50;	// is it too much?
 
-		m_atTaming.m_dwStrokeCount = (word)(g_Rand.GetVal(4) + 2);
+        m_atTaming.m_dwStrokeCount = (dword)(g_Rand.GetVal(4) + 2);
 		return iDifficulty;		// How difficult? 1-1000
 	}
 

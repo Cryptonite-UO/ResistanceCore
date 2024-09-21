@@ -1,20 +1,22 @@
 #include "../../common/resource/CResourceLock.h"
 #include "../../common/CException.h"
+#include "../../common/CExpression.h"
 #include "../../network/CClientIterator.h"
 #include "../../network/receive.h"
 #include "../../network/send.h"
 #include "../chars/CChar.h"
 #include "../chars/CCharNPC.h"
+#include "../items/CItemContainer.h"
 #include "../items/CItemMessage.h"
 #include "../items/CItemMulti.h"
 #include "../items/CItemVendable.h"
+#include "../uo_files/uofiles_enums_creid.h"
 #include "../CSector.h"
 #include "../CServer.h"
 #include "../CWorld.h"
 #include "../CWorldGameTime.h"
 #include "../CWorldMap.h"
 #include "../CWorldSearch.h"
-#include "../spheresvr.h"
 #include "../triggers.h"
 #include "CClient.h"
 
@@ -1192,8 +1194,8 @@ void CClient::Event_VendorBuy(CChar* pVendor, const VendorItem* items, uint uiIt
                     CCharBase* pPetDef = CCharBase::FindCharBase(CREID_TYPE(pItemPet->m_ttFigurine.m_idChar.GetResIndex()));
                     if (pPetDef)
                     {
-                        short iFollowerSlots = (short)pPetDef->GetDefNum("FOLLOWERSLOTS");
-                        if (!m_pChar->FollowersUpdate(pVendor, (maximum(0, iFollowerSlots) * items[i].m_vcAmount), true))
+                        const short uiFollowerSlots = n64_narrow_n16(pItem->GetDefNum("FOLLOWERSLOTS", true));
+                        if (!m_pChar->FollowersUpdate(pVendor, (uiFollowerSlots * items[i].m_vcAmount), true))
                         {
                             m_pChar->SysMessageDefault(DEFMSG_PETSLOTS_TRY_CONTROL);
                             return;

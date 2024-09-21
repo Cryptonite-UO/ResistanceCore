@@ -1,6 +1,4 @@
 
-#include "../CServer.h"
-#include "CClient.h"
 #include "CGlobalChatChanMember.h"
 
 CGlobalChatChanMember::CGlobalChatChanMember() noexcept :
@@ -8,6 +6,7 @@ CGlobalChatChanMember::CGlobalChatChanMember() noexcept :
 {
 }
 
+CGlobalChatChanMember::~CGlobalChatChanMember() noexcept = default;
 
 void CGlobalChatChanMember::SetJID(lpctstr pszJID)
 {

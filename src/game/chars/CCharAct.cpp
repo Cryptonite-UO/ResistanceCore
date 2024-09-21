@@ -1,15 +1,17 @@
-#include <flat_containers/flat_set.hpp>
 #include "../../common/resource/CResourceLock.h"
+#include "../../common/sphere_library/CSRand.h"
 #include "../../common/CException.h"
+#include "../../common/CExpression.h"
+#include "../../common/CUOInstall.h"
 #include "../../network/CClientIterator.h"
 #include "../../network/send.h"
 #include "../../sphere/ProfileTask.h"
 #include "../clients/CClient.h"
-#include "../items/CItem.h"
+#include "../items/CItemCorpse.h"
+#include "../items/CItemMemory.h"
 #include "../items/CItemMultiCustom.h"
 #include "../components/CCSpawn.h"
 #include "../components/CCPropsChar.h"
-#include "../components/CCPropsItemChar.h"
 #include "../components/CCPropsItemEquippable.h"
 #include "../components/CCPropsItemWeapon.h"
 #include "../CContainer.h"
@@ -19,11 +21,11 @@
 #include "../CWorldMap.h"
 #include "../CWorldSearch.h"
 #include "../CWorldTickingList.h"
-#include "../spheresvr.h"
 #include "../triggers.h"
 #include "CChar.h"
 #include "CCharNPC.h"
-#include "../../common/CUOInstall.h"
+#include <flat_containers/flat_set.hpp>
+
 
 // "GONAME", "GOTYPE", "GOCHAR"
 // 0 = object name
@@ -3600,7 +3602,8 @@ CItem * CChar::Make_Figurine( const CUID &uidOwner, ITEMID_TYPE id )
 	if ( IsDisconnected() || m_pPlayer )
 		return nullptr;
 
-	CCharBase* pCharDef = Char_GetDef();
+    const CCharBase* pCharDef = Char_GetDef();
+    const CVarDefCont* pDynamicVarFollowerSlots = GetDefKey("FOLLOWERSLOTS", false);
 
 	// turn creature into a figurine.
 	CItem * pItem = CItem::CreateScript( (id == ITEMID_NOTHING) ? pCharDef->m_trackID : id, this );
@@ -3613,6 +3616,8 @@ CItem * CChar::Make_Figurine( const CUID &uidOwner, ITEMID_TYPE id )
 	pItem->m_itFigurine.m_ID = GetID();	// Base type of creature. (More1 of i_memory)
 	pItem->m_itFigurine.m_UID = GetUID();
 	pItem->m_uidLink = uidOwner;
+    if (pDynamicVarFollowerSlots)
+        pItem->m_TagDefs.SetNum("FOLLOWERSLOTS", pDynamicVarFollowerSlots->GetValNum(), false, false);
 
 	if ( IsStatFlag(STATF_INSUBSTANTIAL) )
 		pItem->SetAttr(ATTR_INVIS);

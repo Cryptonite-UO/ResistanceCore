@@ -1,5 +1,5 @@
 #include "sstring.h"
-#include "../../common/CLog.h"
+//#include "../../common/CLog.h"
 #include "../../sphere/ProfileTask.h"
 #include "../CExpression.h"
 
@@ -8,16 +8,23 @@
     #include <codeanalysis/warnings.h>
     #pragma warning( push )
     #pragma warning ( disable : ALL_CODE_ANALYSIS_WARNINGS )
-#elif defined(__GNUC__) && !defined(__clang__)
+#else
     #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+    #pragma GCC diagnostic ignored "-Wpragmas"
+    #pragma GCC diagnostic ignored "-Winvalid-utf8"
+    #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
+    #if defined(__GNUC__) && !defined(__clang__)
+    #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+    #elif defined(__clang__)
+    #   pragma GCC diagnostic ignored "-Wweak-vtables"
+    #endif
 #endif
 
 #include <regex/deelx.h>
 
 #ifdef _MSC_VER
     #pragma warning( pop )
-#elif defined(__GNUC__) && !defined(__clang__)
+#else
     #pragma GCC diagnostic pop
 #endif
 
@@ -1830,9 +1837,9 @@ fReadUntilDelimiter(char **buf, size_t *bufsiz, int delimiter, FILE *fp) noexcep
     char *ptr, *eptr;
 
 
-    if (*buf == NULL || *bufsiz == 0) {
+    if (*buf == nullptr || *bufsiz == 0) {
         *bufsiz = BUFSIZ;
-        if ((*buf = (char*)malloc(*bufsiz)) == NULL)
+        if ((*buf = (char*)malloc(*bufsiz)) == nullptr)
             return -1;
     }
 
@@ -1857,7 +1864,7 @@ fReadUntilDelimiter(char **buf, size_t *bufsiz, int delimiter, FILE *fp) noexcep
             char *nbuf;
             size_t nbufsiz = *bufsiz * 2;
             ssize_t d = ptr - *buf;
-            if ((nbuf = (char*)realloc(*buf, nbufsiz)) == NULL)
+            if ((nbuf = (char*)realloc(*buf, nbufsiz)) == nullptr)
                 return -1;
             *buf = nbuf;
             *bufsiz = nbufsiz;

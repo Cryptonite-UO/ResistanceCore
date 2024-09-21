@@ -8,22 +8,27 @@
 
 #include "../../common/sphereproto.h"
 #include "../clients/CParty.h"
-#include "../items/CItemContainer.h"
-#include "../items/CItemCorpse.h"
-#include "../items/CItemMemory.h"
-#include "../items/CItemStone.h"
-#include "../game_macros.h"
+#include "../CContainer.h"
 #include "../CObjBase.h"
 #include "../CTimedObject.h"
+#include "../game_macros.h"
 #include "CCharBase.h"
 #include "CCharPlayer.h"
 
 
-class CWorldTicker;
 class CCharNPC;
-class CMapBlockingState;
 class CFactionDef;
-
+class CItem;
+class CItemContainer;
+class CItemCorpse;
+class CItemMemory;
+class CItemVendable;
+class CItemStone;
+class CMapBlockingState;
+class CStoneMember;
+class CWorldTicker;
+enum MEMORY_TYPE : int;
+enum IT_TYPE : int32_t;
 
 enum NPCBRAIN_TYPE	// General AI type.
 {
@@ -205,8 +210,12 @@ public:
 
     ushort _uiRange;
 
-
-    std::vector<CUID> m_followers;
+    struct FollowerCharData
+    {
+        CUID uid;
+        short followerslots;
+    };
+    std::vector<FollowerCharData> m_followers;
 
 	// Args related to specific actions type (m_Act_SkillCurrent)
 	union
@@ -391,15 +400,15 @@ public:		void  StatFlag_Mod(uint64 uiStatFlag, bool fMod) noexcept;
 
 	// Information about us.
 	CREID_TYPE GetID() const;
-	virtual word GetBaseID() const override;
+    virtual dword GetBaseID() const override final;
 	CREID_TYPE GetDispID() const;
 	bool SetDispID(CREID_TYPE id);
 	void SetID( CREID_TYPE id );
 
-	virtual lpctstr GetName() const override;
+    virtual lpctstr GetName() const override final;
 	lpctstr GetNameWithoutIncognito() const;
 	lpctstr GetName( bool fAllowAlt ) const;
-	virtual bool SetName( lpctstr pName ) override;
+    virtual bool SetName( lpctstr pName ) override final;
 
 	height_t GetHeightMount( bool fEyeSubstract = false ) const;
 	height_t GetHeight() const;
@@ -1156,7 +1165,9 @@ public:
 	CChar * Use_Figurine( CItem * pItem, bool fCheckFollowerSlots = true );
 	CItem * Make_Figurine( const CUID &uidOwner, ITEMID_TYPE id = ITEMID_NOTHING );
 	CItem * NPC_Shrink();
-	bool FollowersUpdate( CChar * pChar, short iFollowerSlots = 0, bool fCheckOnly = false );
+    bool FollowersUpdate(CChar * pCharPet, short iPetFollowerSlots = 0, bool fCheckOnly = false );
+    short GetFollowerSlots() const;
+    short GetCurFollowers() const;
 
 	int  ItemPickup( CItem * pItem, word amount );
 	bool ItemEquip( CItem * pItem, CChar * pCharMsg = nullptr, bool fFromDClick = false );

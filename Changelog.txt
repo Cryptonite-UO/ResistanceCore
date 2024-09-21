@@ -3876,7 +3876,7 @@ Added: 'H' shortcut for variables to get the value as hexadecimal.
 - Added: log message when a new thread is created or a thread is being renamed.
 
 10-09-2024, Nolok
-Updated: f_onserver_connectreq_ex now is called whenever an ini connection limit is exceeded (pings, max connections...).
+- Updated: f_onserver_connectreq_ex now is called whenever an ini connection limit is exceeded (pings, max connections...).
     Now it stores these parameters:
     - ARGS  = IP address
     - LOCAL.TIME_CUR_CONNECTED_MS (RO)  = Monotonic system time when this connection request was handled (milliseconds)
@@ -3890,3 +3890,15 @@ Updated: f_onserver_connectreq_ex now is called whenever an ini connection limit
     RETURN -1: Don't do anything, let the connection pass.
     RETURN 1:  Only reject the connection.
     RETURN 2:  Reject and ban the IP for <LOCAL.BAN_TIMEOUT> seconds.
+
+17-09-2024, Nolok
+- Fixed: When acquiring a new pet follower, CurFollower incremented by 1 regardless of pet's FollowerSlots value (Issue #1251).
+- Fixed: dynamic FOLLOWERSLOTS property wasn't correctly saved and loaded from a worldsave.
+- Added: dynamic FOLLOWERSLOTS property is now copied to the figurine as TAG.FOLLOWERSLOTS when an NPC is shrinked, and it's applied back when unshrinked.
+- Fixed: "mounting"/guiding through the ship pilot exit/dismount bug.
+
+21-09-2024, Nolok
+- Changed: CURFOLLOWER.n now works as a reference for that pet, meaning it can be accessed as an object (like with FINDID).
+- Changed: added desired FollowerSlots as a second argument to CURFOLLOWER.ADD. Default value: its FollowerSlots.
+- Changed: @FollowerUpdate ARGN1 and ARGN2 are now read-only. Having them RW and actually get them working would have meant many other changes, breaking script compatibility.
+- Fixed: CURFOLLOWER.DEL/DELETE/CLEAR not working properly.

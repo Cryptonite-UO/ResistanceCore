@@ -1,6 +1,7 @@
-
+#include "../common/sphere_library/CSRand.h"
 #include "../common/resource/CResourceLock.h"
 #include "../common/CException.h"
+#include "../common/CExpression.h"
 #include "../common/sphereversion.h"
 #include "../common/CLog.h"
 #include "../network/CClientIterator.h"
@@ -8,8 +9,8 @@
 #include "../sphere/ProfileTask.h"
 #include "chars/CChar.h"
 #include "clients/CClient.h"
+#include "clients/CClientTooltip.h"
 #include "components/CCChampion.h"
-#include "components/CCPropsItemChar.h"
 #include "components/CCPropsItemWeapon.h"
 #include "components/CCSpawn.h"
 #include "components/CCItemDamageable.h"
@@ -21,7 +22,6 @@
 #include "CWorldTickingList.h"
 #include "CWorldTimedFunctions.h"
 #include "CTimedFunction.h"
-#include "spheresvr.h"
 #include "triggers.h"
 #include "CObjBase.h"
 
@@ -1187,7 +1187,7 @@ bool CObjBase::r_WriteVal( lpctstr ptcKey, CSString &sVal, CTextConsole * pSrc, 
 					}
 					//++count;
 				}
-				sVal.Format(ptcArg[0], ptcArg[1], ptcArg[2] ? ptcArg[2] : 0, ptcArg[3] ? ptcArg[3] : 0);
+				sVal.Format(ptcArg[0], ptcArg[1], (ptcArg[2] ? ptcArg[2] : nullptr), (ptcArg[3] ? ptcArg[3] : nullptr));
 				return true;
 			} break;
 		case OC_DIALOGLIST:

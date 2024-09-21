@@ -1,9 +1,15 @@
 
 #include "../sphere/ProfileTask.h"
+#include "../sphere/threads.h"
 #include "../game/CServer.h"
+#include "sphere_library/sstringobjs.h"
 #include "CException.h"
 #include "CScript.h"
 #include "CLog.h"
+
+
+CEventLog::CEventLog() = default;
+CEventLog::~CEventLog() = default;
 
 
 int CEventLog::VEvent(dword dwMask, lpctstr pszFormat, ConsoleTextColor iColor, va_list args) noexcept
@@ -91,6 +97,8 @@ CLog::CLog()
 	m_dwMsgMask = LOGL_ERROR | LOGM_INIT | LOGM_CLIENTS_LOG | LOGM_GM_PAGE;
 	SetFilePath( SPHERE_FILE "log.log" );	// default name to go to.
 }
+
+CLog::~CLog() = default;
 
 const CScript * CLog::_SetScriptContext( const CScript * pScriptContext )
 {

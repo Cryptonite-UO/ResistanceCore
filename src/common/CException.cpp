@@ -4,7 +4,7 @@
 #ifndef _WIN32
 #include <sys/wait.h>
 //#include <pthread.h>    // for pthread_exit
-#include <csignal>
+#include <signal.h>
 #include <cstring>
 
 #include "../game/CServer.h"
@@ -52,7 +52,7 @@ void NotifyDebugger()
         std::abort();
     #endif
 #else
-        std::raise(SIGINT);
+        raise(SIGINT);
 #endif
 
     }
@@ -397,7 +397,7 @@ void _cdecl Signal_Illegal_Instruction(int sig = 0)
 void _cdecl Signal_Children(int sig = 0)
 {
     UnreferencedParameter(sig);
-    while (waitpid((pid_t)(-1), 0, WNOHANG) > 0) {}
+    while (waitpid((pid_t)(-1), nullptr, WNOHANG) > 0) {}
 }
 #endif
 

@@ -2,10 +2,16 @@
 
 #include "../../network/send.h"
 #include "../../common/resource/sections/CItemTypeDef.h"
+#include "../../common/sphere_library/CSRand.h"
+#include "../../common/CExpression.h"
 #include "../../common/CLog.h"
 #include "../chars/CChar.h"
+#include "../items/CItemCorpse.h"
 #include "../items/CItemMulti.h"
+#include "../items/CItemStone.h"
 #include "../items/CItemVendable.h"
+#include "../uo_files/CUOStaticItemRec.h"
+#include "../uo_files/uofiles_enums_creid.h"
 #include "../CWorldGameTime.h"
 #include "../CWorldMap.h"
 #include "../CWorldSearch.h"
@@ -1610,7 +1616,7 @@ bool CClient::OnTarg_Pet_Stable( CChar * pCharPet )
 
 	if ( IsSetOF(OF_PetSlots) )
 	{
-		short iFollowerSlots =  (short)pCharPet->GetDefNum("FOLLOWERSLOTS", true, 1);
+        short iFollowerSlots = pCharPet->GetFollowerSlots();
 		m_pChar->FollowersUpdate(pCharPet,(-maximum(0, iFollowerSlots)));
 	}
 

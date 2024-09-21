@@ -1,29 +1,30 @@
 
-#ifndef _WIN32
-	#include <sys/time.h>
-#endif
-#include <algorithm>
-
 #include "../common/resource/CResourceLock.h"
+#include "../common/CExpression.h"
 #include "../common/CLog.h"
 #include "../common/CUOInstall.h"
 #include "../game/chars/CChar.h"
+#include "../game/components/CCItemDamageable.h"
+#include "../game/components/CCPropsChar.h"
 #include "../game/clients/CClient.h"
 #include "../game/clients/CClientTooltip.h"
 #include "../game/clients/CParty.h"
-#include "../game/items/CItem.h"
+#include "../game/items/CItemCorpse.h"
 #include "../game/items/CItemMap.h"
 #include "../game/items/CItemMessage.h"
 #include "../game/items/CItemMultiCustom.h"
+#include "../game/items/CItemStone.h"
 #include "../game/items/CItemVendable.h"
-#include "../game/components/CCItemDamageable.h"
-#include "../game/components/CCPropsChar.h"
+#include "../game/uo_files/uofiles_enums_creid.h"
 #include "../game/CServer.h"
 #include "../game/CWorldGameTime.h"
 #include "CNetworkManager.h"
 #include "send.h"
 
+namespace zlib {
 #include <zlib/zlib.h>
+}
+#include <algorithm>
 
 
 /***************************************************************************
@@ -289,10 +290,7 @@ void PacketObjectStatus::WriteVersionSpecific(const CClient* target, CChar* othe
 	{
 		if (other->m_pPlayer != nullptr)
 		{
-			if (!IsSetEF(EF_FollowerList))
-				writeByte((byte)(other->GetDefNum("CURFOLLOWER", true)));
-			else
-				writeByte((byte)(other->m_followers.size()));
+            writeByte((byte)(other->GetCurFollowers()));
 			writeByte((byte)(other->GetDefNum("MAXFOLLOWER", true)));
 		}
 		else
@@ -1841,6 +1839,9 @@ PacketActionBasic::PacketActionBasic(const CChar* character, ANIM_TYPE_NEW actio
 	writeByte(variation);
 }
 
+PacketAction::~PacketAction() = default;
+PacketActionBasic::~PacketActionBasic() = default;
+
 /***************************************************************************
  *
  *
@@ -1855,6 +1856,8 @@ PacketTradeAction::PacketTradeAction(SECURE_TRADE_TYPE action) : PacketSend(XCMD
 	initLength();
 	writeByte((byte)action);
 }
+
+PacketTradeAction::~PacketTradeAction() = default;
 
 void PacketTradeAction::prepareContainerOpen(const CChar *character, const CItem *container1, const CItem *container2)
 {
@@ -3621,10 +3624,10 @@ void PacketGumpDialog::writeCompressedControls(std::vector<CSString> const* cont
 
 		ASSERT(controlLengthCurrent == controlLength);
 
-		uLong compressLength = ::compressBound(controlLengthCurrent);
+		zlib::uLong compressLength = zlib::compressBound(controlLengthCurrent);
 		byte* compressBuffer = new byte[compressLength];
 
-		int error = ::compress2(compressBuffer, &compressLength, (byte*)toCompress, controlLengthCurrent, Z_DEFAULT_COMPRESSION);
+		int error = zlib::compress2(compressBuffer, &compressLength, (byte*)toCompress, controlLengthCurrent, Z_DEFAULT_COMPRESSION);
 		delete[] toCompress;
 
 		if (error != Z_OK || compressLength <= 0)
@@ -3659,10 +3662,10 @@ void PacketGumpDialog::writeCompressedControls(std::vector<CSString> const* cont
 
 		uint textsLength = getPosition() - textsPosition;
 
-		uLong compressLength = ::compressBound((uLong)textsLength);
+		zlib::uLong compressLength = zlib::compressBound((zlib::uLong)textsLength);
 		byte* compressBuffer = new byte[compressLength];
 
-		int error = ::compress2(compressBuffer, &compressLength, &m_buffer[textsPosition], (uLong)textsLength, Z_DEFAULT_COMPRESSION);
+		int error = zlib::compress2(compressBuffer, &compressLength, &m_buffer[textsPosition], (zlib::uLong)textsLength, Z_DEFAULT_COMPRESSION);
 		if (error != Z_OK || compressLength <= 0)
 		{
 			delete[] compressBuffer;
@@ -4796,10 +4799,10 @@ bool PacketHouseDesign::writePlaneData(int plane, int itemCount, byte* data, int
 	ADDTOCALLSTACK("PacketHouseDesign::writePlaneData");
 
 	// compress data
-	uLong compressLength = ::compressBound(dataSize);
+	zlib::uLong compressLength = zlib::compressBound(dataSize);
 	byte* compressBuffer = new byte[compressLength];
 
-	int error = ::compress2(compressBuffer, &compressLength, data, dataSize, Z_DEFAULT_COMPRESSION);
+	int error = zlib::compress2(compressBuffer, &compressLength, data, dataSize, Z_DEFAULT_COMPRESSION);
 	if ( error != Z_OK )
 	{
 		// an error occured with this floor, but we should be able to continue to the next without problems
@@ -4857,10 +4860,10 @@ void PacketHouseDesign::flushStairData(void)
 	m_stairCount = 0;
 
 	// compress data
-	uLong compressLength = ::compressBound(stairSize);
+	zlib::uLong compressLength = zlib::compressBound(stairSize);
 	byte* compressBuffer = new byte[compressLength];
 
-	int error = ::compress2(compressBuffer, &compressLength, (byte*)m_stairBuffer, stairSize, Z_DEFAULT_COMPRESSION);
+	int error = zlib::compress2(compressBuffer, &compressLength, (byte*)m_stairBuffer, stairSize, Z_DEFAULT_COMPRESSION);
 	if ( error != Z_OK )
 	{
 		// an error occured with this block, but we should be able to continue to the next without problems

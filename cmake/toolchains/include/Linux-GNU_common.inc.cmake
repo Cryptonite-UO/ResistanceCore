@@ -1,7 +1,7 @@
 set(TOOLCHAIN_LOADED 1)
 
 function(toolchain_after_project_common)
-    include("${CMAKE_SOURCE_DIR}/cmake/CMakeDetectArch.cmake")
+    include("${CMAKE_SOURCE_DIR}/cmake/DetectArch.cmake")
 endfunction()
 
 function(toolchain_exe_stuff_common)
@@ -23,7 +23,8 @@ function(toolchain_exe_stuff_common)
         set(CXX_FLAGS_EXTRA
             ${CXX_FLAGS_EXTRA}
             -fsanitize=address
-            -fno-sanitize-recover=address #-fsanitize-cfi # cfi: control flow integrity, not supported by GCC
+            -fno-sanitize-recover=address
+            #-fsanitize-cfi # cfi: control flow integrity, not supported by GCC
             -fsanitize-address-use-after-scope
             -fsanitize=pointer-compare
             -fsanitize=pointer-subtract
@@ -33,7 +34,8 @@ function(toolchain_exe_stuff_common)
             -fstack-protector-all
             -fcf-protection=full
             # GCC 14?
-            #-fharden-control-flow-redundancy -fhardcfr-check-exceptions
+            #-fharden-control-flow-redundancy
+            #-fhardcfr-check-exceptions
             # Other
             #-fsanitize-trap=all
         )
@@ -91,15 +93,38 @@ function(toolchain_exe_stuff_common)
         -Werror
         -Wall
         -Wextra
-        -Wno-nonnull-compare
-        -Wno-unknown-pragmas
+        -Wpedantic
+
+        -Wmissing-include-dirs # Warns when an include directory provided with -I does not exist.
+        -Wformat=2
+        #-Wcast-qual # Warns about casts that remove a type's const or volatile qualifier.
+        #-Wconversion # Temporarily disabled. Warns about implicit type conversions that might change a value, such as narrowing conversions.
+        -Wdisabled-optimization
+        #-Winvalid-pch
+        -Wzero-as-null-pointer-constant
+        #-Wnull-dereference # Don't: on GCC 12 causes some false positives...
+        -Wduplicated-cond
+
+        # Supported by Clang, but unsupported by GCC:
+        #-Wweak-vtables
+
+        # Unsupported by Clang, but supported by GCC:
+        -Wtrampolines # Warns when trampolines (a technique to implement nested functions) are generated (don't want this for security reasons).
+        -Wvector-operation-performance
+        -Wsized-deallocation
+        -Wduplicated-cond
+        -Wshift-overflow=2
+
+        # Disable errors:
+        -Wno-format-nonliteral # Since -Wformat=2 is stricter, you would need to disable this warning.
+        -Wno-nonnull-compare # GCC only
         -Wno-switch
         -Wno-implicit-fallthrough
         -Wno-parentheses
         -Wno-misleading-indentation
-        -Wno-conversion-null
         -Wno-unused-result
         -Wno-format-security # TODO: disable that when we'll have time to fix every printf format issue
+        -Wno-nested-anon-types
     )
     set(cxx_local_opts
         -std=c++20
@@ -123,13 +148,13 @@ function(toolchain_exe_stuff_common)
     endif()
     if(TARGET spheresvr_nightly)
         if(ENABLED_SANITIZER)
-            target_compile_options(spheresvr_nightly PUBLIC -ggdb3 -O1 ${COMPILE_OPTIONS_EXTRA})
+            target_compile_options(spheresvr_nightly PUBLIC -ggdb3 -Og ${COMPILE_OPTIONS_EXTRA})
         else()
             target_compile_options(spheresvr_nightly PUBLIC -O3 ${COMPILE_OPTIONS_EXTRA})
         endif()
     endif()
     if(TARGET spheresvr_debug)
-        target_compile_options(spheresvr_debug PUBLIC -ggdb3 -O1 ${COMPILE_OPTIONS_EXTRA})
+        target_compile_options(spheresvr_debug PUBLIC -ggdb3 -O0 ${COMPILE_OPTIONS_EXTRA})
     endif()
 
     #-- Store common linker flags.

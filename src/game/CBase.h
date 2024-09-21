@@ -6,8 +6,8 @@
 #ifndef _INC_CBASE_H
 #define _INC_CBASE_H
 
-#include "../common/resource/CResourceHolder.h"
 #include "../common/resource/CResourceRef.h"
+#include "../common/resource/CResourceQty.h"
 #include "../common/CVarDefMap.h"
 #include "../common/sphere_library/CSString.h"
 #include "uo_files/uofiles_types.h"
@@ -140,9 +140,19 @@ public:
 
 public:
     /**
+     * @brief   Gets definition pointer.
+     * @param   ptcKey  The key.
+     * @return  The definition pointer.
+     */
+    CVarDefCont * GetKey( lpctstr ptcKey ) const
+    {
+        return m_BaseDefs.GetKey(ptcKey);
+    }
+
+    /**
      * @brief   Gets definition string.
      * @param   ptcKey  The key.
-     * @param   fZero   true to zero.
+     * @param   fZero   Return "0" if empty/undefined.
      * @return  The definition string.
      */
 	lpctstr GetDefStr( lpctstr ptcKey, bool fZero = false ) const

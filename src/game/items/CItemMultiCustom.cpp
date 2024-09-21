@@ -5,6 +5,7 @@
 #include "../../common/resource/sections/CDialogDef.h"
 #include "../../common/CLog.h"
 #include "../../common/CException.h"
+#include "../../common/CExpression.h"
 #include "../../common/CUOInstall.h"
 #include "../../network/send.h"
 #include "../chars/CChar.h"
@@ -13,6 +14,7 @@
 #include "../CWorldMap.h"
 #include "../CWorldSearch.h"
 #include "../triggers.h"
+#include "CItemContainer.h"
 #include "CItemMultiCustom.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -664,7 +666,7 @@ void CItemMultiCustom::AddRoof(CClient * pClientSrc, ITEMID_TYPE id, int16 x, in
     CItemBase * pItemBase = CItemBase::FindItemBase(id);
     if (pItemBase == nullptr)
     {
-        g_Log.EventWarn("Unscripted roof tile 0%x being added to building 0%x by 0%x.\n",
+        g_Log.EventWarn("Unscripted roof tile 0%x being added to building 0%x by Char with UID 0%x.\n",
                         id, (dword)GetUID(), pCharSrc != nullptr ? (dword)pCharSrc->GetUID() : 0);
         SendStructureTo(pClientSrc);
         return;
@@ -672,7 +674,7 @@ void CItemMultiCustom::AddRoof(CClient * pClientSrc, ITEMID_TYPE id, int16 x, in
 
     if ((pItemBase->GetTFlags() & UFLAG4_ROOF) == 0)
     {
-        g_Log.EventWarn("Non-roof tile 0%x being added as a roof to building 0%x by 0%x.\n",
+        g_Log.EventWarn("Non-roof tile 0%x being added as a roof to building 0%x by Char with UID 0%x.\n",
                         id, (dword)GetUID(), pCharSrc != nullptr ? (dword)pCharSrc->GetUID() : 0);
         SendStructureTo(pClientSrc);
         return;
@@ -680,7 +682,7 @@ void CItemMultiCustom::AddRoof(CClient * pClientSrc, ITEMID_TYPE id, int16 x, in
 
     if (z < -3 || z > 12 || (z % 3 != 0))
     {
-        g_Log.EventWarn("Roof tile 0%x being added at invalid height %d to building 0%x by 0%x.\n",
+        g_Log.EventWarn("Roof tile 0%x being added at invalid height %d to building 0%x by Char with UID 0%x.\n",
                         id, z, (dword)GetUID(), pCharSrc != nullptr ? (dword)pCharSrc->GetUID() : 0);
         SendStructureTo(pClientSrc);
         return;
@@ -1977,7 +1979,7 @@ bool CItemMultiCustom::LoadValidItems()
                     continue;
 
                 auto iconv = Str_ToU(strCurRow.c_str(), 10);
-                if (iconv.has_value())
+                if (!iconv.has_value())
                 {
                     g_Log.EventWarn("Invalid number in file '%s', row=%d. Skipping.\n", sm_szItemFiles[i][0], curCSV.GetCurrentRow());
                     continue;
@@ -1997,11 +1999,12 @@ bool CItemMultiCustom::LoadValidItems()
                 if (strFeatureMask.empty())
                 {
                     sm_mapValidItems[itemid] = 0;
-                    DEBUG_WARN(("No FeatureMask in file '%s', row=%d.\n", sm_szItemFiles[i][0], curCSV.GetCurrentRow()));
+                    g_Log.EventWarn("No FeatureMask in file '%s', row=%d.\n", sm_szItemFiles[i][0], curCSV.GetCurrentRow());
                     continue;
                 }
-                iconv = Str_ToU(strCurRow.c_str(), 10);
-                if (iconv.has_value())
+                iconv = Str_ToU(strFeatureMask.c_str(), 10);
+
+                if (!iconv.has_value())
                 {
                     g_Log.EventWarn("Invalid FeatureMask number in file '%s', row=%d. Skipping.\n", sm_szItemFiles[i][0], curCSV.GetCurrentRow());
                     continue;

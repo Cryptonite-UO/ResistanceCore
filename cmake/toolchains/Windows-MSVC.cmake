@@ -18,7 +18,7 @@ function(toolchain_after_project)
     endif()
     set(CMAKE_SYSTEM_PROCESSOR "${CMAKE_VS_PLATFORM_NAME}" CACHE INTERNAL "" FORCE)
 
-    include("${CMAKE_SOURCE_DIR}/cmake/CMakeDetectArch.cmake")
+    include("${CMAKE_SOURCE_DIR}/cmake/DetectArch.cmake")
 
     message(STATUS "Generating for MSVC platform ${CMAKE_VS_PLATFORM_NAME}.")
 endfunction()
@@ -108,9 +108,9 @@ function(toolchain_exe_stuff)
     # gersemi: off
     target_compile_options(spheresvr PRIVATE
         ${cxx_compiler_flags_common}
-        $<$<CONFIG:Release>: $<IF:$<BOOL:${RUNTIME_STATIC_LINK}>,/MT,/MD>      /EHa  /Oy /GL /GA /Gw /Gy /GF $<IF:$<BOOL:${ENABLED_SANITIZER}>,/O1 /Zi,/O2>>
-        $<$<CONFIG:Nightly>: $<IF:$<BOOL:${RUNTIME_STATIC_LINK}>,/MT,/MD>      /EHa  /Oy /GL /GA /Gw /Gy /GF $<IF:$<BOOL:${ENABLED_SANITIZER}>,/O1 /Zi,/O2>>
-        $<$<CONFIG:Debug>:     $<IF:$<BOOL:${RUNTIME_STATIC_LINK}>,/MTd,/MDd> /EHsc /Oy- /ob1 /Od /Gs    $<IF:$<BOOL:${ENABLED_SANITIZER}>,/Zi,/ZI>>
+        $<$<CONFIG:Release>: $<IF:$<BOOL:${RUNTIME_STATIC_LINK}>,/MT,/MD>   /EHa  /Oy /GL /GA /Gw /Gy /GF $<IF:$<BOOL:${ENABLED_SANITIZER}>,/O1 /Zi,/O2>>
+        $<$<CONFIG:Nightly>: $<IF:$<BOOL:${RUNTIME_STATIC_LINK}>,/MT,/MD>   /EHa  /Oy /GL /GA /Gw /Gy /GF $<IF:$<BOOL:${ENABLED_SANITIZER}>,/O1 /Zi,/O2>>
+        $<$<CONFIG:Debug>:   $<IF:$<BOOL:${RUNTIME_STATIC_LINK}>,/MTd,/MDd> /EHsc /Oy- /ob1 /Od /Gs       $<IF:$<BOOL:${ENABLED_SANITIZER}>,/Zi,/ZI>>
         # ASan (and compilation for ARM arch) doesn't support edit and continue option (ZI)
     )
     # gersemi: on

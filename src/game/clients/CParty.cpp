@@ -1,6 +1,7 @@
 
-#include "../../common/CLog.h"
 #include "../../common/CException.h"
+#include "../../common/CExpression.h"
+#include "../../common/CLog.h"
 #include "../../common/CScriptObj.h"
 #include "../../network/send.h"
 #include "../chars/CChar.h"
@@ -324,7 +325,7 @@ bool CPartyDef::RemoveMember( CUID uidRemove, CUID uidCommand )
 	}
 	if ( IsTrigUsed(TRIGGER_PARTYLEAVE) )
 	{
-		if ( pCharRemove->OnTrigger(CTRIG_PartyLeave, pCharRemove, 0) == TRIGRET_RET_TRUE )
+		if ( pCharRemove->OnTrigger(CTRIG_PartyLeave, pCharRemove, nullptr) == TRIGRET_RET_TRUE )
 			return false;
 	}
 

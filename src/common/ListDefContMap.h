@@ -8,7 +8,6 @@
 
 #include <deque>
 #include <set>
-#include "common.h"
 #include "sphere_library/CSString.h"
 
 
@@ -17,18 +16,16 @@ class CScript;
 
 class CListDefContElem
 {
-private:
 	CSString m_Key;	// reference to map key
 
 public:
 	static const char *m_sClassName;
 
-    explicit CListDefContElem(lpctstr ptcKey) : m_Key(ptcKey) {};
-	virtual ~CListDefContElem() = default;
+    explicit CListDefContElem(lpctstr ptcKey);
+	virtual ~CListDefContElem();
 
-private:
-	CListDefContElem(const CListDefContElem& copy);
-	CListDefContElem& operator=(const CListDefContElem& other);
+	CListDefContElem(const CListDefContElem& copy) = delete;
+	CListDefContElem& operator=(const CListDefContElem& other) = delete;
 
 public:
     inline lpctstr GetKey() const {

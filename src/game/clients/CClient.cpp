@@ -1,12 +1,12 @@
 #include "../../common/resource/sections/CResourceNamedDef.h"
+#include "../../common/sphere_library/CSRand.h"
 #include "../../common/CLog.h"
 #include "../../common/CException.h"
+#include "../../common/CExpression.h"
 #include "../../common/CUOClientVersion.h"
 #include "../../network/CClientIterator.h"
 #include "../../network/CNetworkManager.h"
 #include "../../network/CIPHistoryManager.h"
-#include "../../network/send.h"
-#include "../../network/packet.h"
 #include "../chars/CChar.h"
 #include "../components/CCSpawn.h"
 #include "../items/CItemMultiCustom.h"
@@ -226,6 +226,11 @@ void CClient::CharDisconnect()
         m_pChar->ItemBounce(pItemDragging);
 
 	m_pChar = nullptr;
+}
+
+CClient* CClient::GetNext() const
+{
+    return static_cast <CClient*>(CSObjListRec::GetNext());
 }
 
 bool CClient::IsPriv(word flag) const
@@ -1610,7 +1615,10 @@ bool CClient::r_Verb( CScript & s, CTextConsole * pSrc ) // Execute command from
 						break;
 					}
 				}
-				SysMessagef( pszArgs[0], pszArgs[1], pszArgs[2] ? pszArgs[2] : 0, pszArgs[3] ? pszArgs[3] : 0);
+				SysMessagef(pszArgs[0],
+                            pszArgs[1],
+                            pszArgs[2] ? pszArgs[2] : nullptr,
+                            pszArgs[3] ? pszArgs[3] : nullptr);
 			}
 			break;
 		case CV_SMSGU:

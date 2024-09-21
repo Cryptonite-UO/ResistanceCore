@@ -1,9 +1,9 @@
-
 #include "../../common/resource/CResourceLock.h"
+#include "../../common/sphere_library/CSRand.h"
 #include "../../common/CException.h"
+#include "../../common/CExpression.h"
 #include "../../network/CClientIterator.h"
 #include "../../network/send.h"
-#include "../../sphere/ProfileTask.h"
 #include "../components/CCChampion.h"
 #include "../components/CCItemDamageable.h"
 #include "../components/CCSpawn.h"
@@ -25,7 +25,6 @@
 #include "../triggers.h"
 #include "CItem.h"
 #include "CItemCommCrystal.h"
-#include "CItemContainer.h"
 #include "CItemCorpse.h"
 #include "CItemMap.h"
 #include "CItemMemory.h"
@@ -2133,6 +2132,11 @@ ITEMID_TYPE CItem::GetID() const
 	return pItemDef->GetID();
 }
 
+dword CItem::GetBaseID() const
+{
+    return GetID();
+}
+
 bool CItem::SetID( ITEMID_TYPE id )
 {
 	ADDTOCALLSTACK("CItem::SetID");
@@ -4057,6 +4061,12 @@ void CItem::SetAnim( ITEMID_TYPE id, int64 iTicksTimeout)
 	_SetTimeout(iTicksTimeout);
 	//RemoveFromView();
 	Update();
+}
+
+CObjBase * CItem::GetContainer() const noexcept {
+    // What is this CItem contained in ?
+    // Container should be a CChar or CItemContainer
+    return (dynamic_cast <CObjBase*> (GetParent()));
 }
 
 const CItem* CItem::GetTopContainer() const
