@@ -3917,3 +3917,5 @@ Added: 'H' shortcut for variables to get the value as hexadecimal.
          i: The player stalked by the src.
          ARGS (R/W): The name to display
          RETURN 1 : Change the name to the new value of ARGS
+05-10-2024, Jhobean
+- Added: @PetRelease trigger work like @petdesert and return 1 to prevent the pet from being released.
